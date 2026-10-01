@@ -25,4 +25,3 @@ int gatt_svr_init(void);
 void schedule_mesh_reset(void);
 const char *bt_get_name(void);
 int bt_set_name(const char *);
-

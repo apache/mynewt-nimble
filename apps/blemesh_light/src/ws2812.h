@@ -27,9 +27,9 @@
 extern "C" {
 #endif
 
-#define WS2812_PWM          0
-#define WS2812_GPIO         30
-#define WS2812_NUM_LED      32
+#define WS2812_PWM     0
+#define WS2812_GPIO    30
+#define WS2812_NUM_LED 32
 
 int ws2812_init(void);
 

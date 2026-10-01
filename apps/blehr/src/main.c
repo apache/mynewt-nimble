@@ -72,8 +72,7 @@ blehr_advertise(void)
      *      o Discoverability in forthcoming advertisement (general)
      *      o BLE-only (BR/EDR unsupported)
      */
-    fields.flags = BLE_HS_ADV_F_DISC_GEN |
-                    BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
 
     /*
      * Indicate that the TX power level field should be included; have the
@@ -97,8 +96,8 @@ blehr_advertise(void)
     memset(&adv_params, 0, sizeof(adv_params));
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    rc = ble_gap_adv_start(blehr_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, blehr_gap_event, NULL);
+    rc = ble_gap_adv_start(blehr_addr_type, NULL, BLE_HS_FOREVER, &adv_params,
+                           blehr_gap_event, NULL);
     if (rc != 0) {
         MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
         return;
@@ -135,7 +134,7 @@ blehr_tx_hrate(struct os_event *ev)
         return;
     }
 
-    hrm[0] = 0x06; /* contact of a sensor */
+    hrm[0] = 0x06;      /* contact of a sensor */
     hrm[1] = heartrate; /* storing dummy data */
 
     /* Simulation of heart beats */
@@ -166,9 +165,8 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
             /* Connection failed; resume advertising */
             blehr_advertise();
             conn_handle = 0;
-        }
-        else {
-          conn_handle = event->connect.conn_handle;
+        } else {
+            conn_handle = event->connect.conn_handle;
         }
 
         break;
@@ -187,8 +185,9 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
         break;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        MODLOG_DFLT(INFO, "subscribe event; cur_notify=%d\n value handle; "
-                          "val_handle=%d\n",
+        MODLOG_DFLT(INFO,
+                    "subscribe event; cur_notify=%d\n value handle; "
+                    "val_handle=%d\n",
                     event->subscribe.cur_notify, hrs_hrm_handle);
         if (event->subscribe.attr_handle == hrs_hrm_handle) {
             notify_state = event->subscribe.cur_notify;
@@ -198,10 +197,8 @@ blehr_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_MTU:
         MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
-                    event->mtu.conn_handle,
-                    event->mtu.value);
+                    event->mtu.conn_handle, event->mtu.value);
         break;
-
     }
 
     return 0;
@@ -239,8 +236,7 @@ mynewt_main(int argc, char **argv)
     /* Initialize the NimBLE host configuration */
     ble_hs_cfg.sync_cb = blehr_on_sync;
 
-    os_callout_init(&blehr_tx_timer, os_eventq_dflt_get(),
-                    blehr_tx_hrate, NULL);
+    os_callout_init(&blehr_tx_timer, os_eventq_dflt_get(), blehr_tx_hrate, NULL);
 
     rc = gatt_svr_init();
     assert(rc == 0);
@@ -255,4 +251,3 @@ mynewt_main(int argc, char **argv)
     }
     return 0;
 }
-

@@ -24,7 +24,7 @@
 #include "bsp/bsp.h"
 #include "errno.h"
 
-#define STR_NULL        "null"
+#define STR_NULL "null"
 
 #if (MYNEWT_VAL(BLE_AUDIO))
 #if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
@@ -94,8 +94,7 @@ cmd_leaudio_big_sub_add(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_byte_stream("codec_spec_config",
-                               CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ,
+    rc = parse_arg_byte_stream("codec_spec_config", CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ,
                                codec_spec_cfg, &codec_spec_cfg_len);
     if (rc != 0 && rc != ENOENT) {
         return rc;
@@ -107,10 +106,8 @@ cmd_leaudio_big_sub_add(int argc, char **argv)
         return rc;
     }
 
-    return btshell_broadcast_big_sub_add(adv_instance,
-                                         codec_fmt, company_id,
-                                         vendor_spec,
-                                         metadata, metadata_len,
+    return btshell_broadcast_big_sub_add(adv_instance, codec_fmt, company_id,
+                                         vendor_spec, metadata, metadata_len,
                                          codec_spec_cfg, codec_spec_cfg_len);
 }
 
@@ -133,15 +130,13 @@ cmd_leaudio_bis_add(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_byte_stream("codec_spec_config",
-                               CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ,
+    rc = parse_arg_byte_stream("codec_spec_config", CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ,
                                codec_spec_cfg, &codec_spec_cfg_len);
     if (rc != 0) {
         return rc;
     }
 
-    return btshell_broadcast_bis_add(adv_instance, codec_spec_cfg,
-                                     codec_spec_cfg_len);
+    return btshell_broadcast_bis_add(adv_instance, codec_spec_cfg, codec_spec_cfg_len);
 }
 
 int
@@ -180,29 +175,25 @@ cmd_leaudio_broadcast_create(int argc, char **argv)
     }
 
     extended_params.sid = adv_instance;
-    extended_params.itvl_min = parse_arg_uint8_dflt("ext_interval_min",
-                                                    0, &rc);
+    extended_params.itvl_min = parse_arg_uint8_dflt("ext_interval_min", 0, &rc);
     if (rc != 0 && rc != ENOENT) {
         console_printf("invalid extended advertising interval (min)\n");
         return rc;
     }
 
-    extended_params.itvl_max = parse_arg_uint8_dflt("ext_interval_max", 0,
-                                                    &rc);
+    extended_params.itvl_max = parse_arg_uint8_dflt("ext_interval_max", 0, &rc);
     if (rc != 0 && rc != ENOENT) {
         console_printf("invalid extended advertising interval (max)\n");
         return rc;
     }
 
-    periodic_params.itvl_min = parse_arg_uint8_dflt("per_interval_min", 0,
-                                                    &rc);
+    periodic_params.itvl_min = parse_arg_uint8_dflt("per_interval_min", 0, &rc);
     if (rc != 0 && rc != ENOENT) {
         console_printf("invalid periodic advertising interval (min)\n");
         return rc;
     }
 
-    periodic_params.itvl_max = parse_arg_uint8_dflt("per_interval_max", 0,
-                                                    &rc);
+    periodic_params.itvl_max = parse_arg_uint8_dflt("per_interval_max", 0, &rc);
     if (rc != 0 && rc != ENOENT) {
         console_printf("invalid periodic advertising interval (max)\n");
         return rc;
@@ -210,24 +201,21 @@ cmd_leaudio_broadcast_create(int argc, char **argv)
 
     name = parse_arg_extract("name");
 
-    big_params.sdu_interval = parse_arg_uint32_bounds("sdu_interval",
-                                                      0x0000FF, 0x0FFFFF,
-                                                      &rc);
+    big_params.sdu_interval =
+        parse_arg_uint32_bounds("sdu_interval", 0x0000FF, 0x0FFFFF, &rc);
     if (rc != 0) {
         console_printf("invalid SDU interval\n");
         return rc;
     }
 
-    big_params.max_sdu = parse_arg_uint16_bounds("max_sdu", 0x0001, 0x0FFF,
-                                           &rc);
+    big_params.max_sdu = parse_arg_uint16_bounds("max_sdu", 0x0001, 0x0FFF, &rc);
     if (rc != 0) {
         console_printf("invalid max SDU size\n");
         return rc;
     }
 
-    big_params.max_transport_latency = parse_arg_uint16_bounds("max_latency",
-                                                               0x0005, 0x0FA0,
-                                                               &rc);
+    big_params.max_transport_latency =
+        parse_arg_uint16_bounds("max_latency", 0x0005, 0x0FA0, &rc);
     if (rc != 0) {
         console_printf("invalid max transport latency\n");
         return rc;
@@ -278,8 +266,7 @@ cmd_leaudio_broadcast_create(int argc, char **argv)
         }
     }
 
-    rc = parse_arg_byte_stream("extra_data",
-                               CMD_ADV_DATA_EXTRA_MAX_SZ,
+    rc = parse_arg_byte_stream("extra_data", CMD_ADV_DATA_EXTRA_MAX_SZ,
                                extra_data, &extra_data_len);
     if (rc == ENOENT) {
         extra_data_len = 0;
@@ -287,13 +274,8 @@ cmd_leaudio_broadcast_create(int argc, char **argv)
         return rc;
     }
 
-    return btshell_broadcast_create(adv_instance,
-                                    &extended_params,
-                                    &periodic_params,
-                                    name,
-                                    big_params,
-                                    extra_data,
-                                    extra_data_len);
+    return btshell_broadcast_create(adv_instance, &extended_params, &periodic_params,
+                                    name, big_params, extra_data, extra_data_len);
 }
 
 int
@@ -336,8 +318,7 @@ cmd_leaudio_broadcast_update(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_byte_stream("extra_data",
-                               CMD_ADV_DATA_EXTRA_MAX_SZ,
+    rc = parse_arg_byte_stream("extra_data", CMD_ADV_DATA_EXTRA_MAX_SZ,
                                extra_data, &extra_data_len);
     if (rc != 0 && rc != ENOENT) {
         return rc;
@@ -402,17 +383,19 @@ static struct ble_gap_periodic_sync_params broadcast_sink_periodic_sync_params =
 };
 
 static void
-codec_specific_config_printf(const struct ble_audio_codec_id *unused, const uint8_t *data,
-                             uint8_t len)
+codec_specific_config_printf(const struct ble_audio_codec_id *unused,
+                             const uint8_t *data, uint8_t len)
 {
     console_printf("data=%p len=%u\n", data, len);
 }
 
 static void
-base_bis_printf(const struct ble_audio_codec_id *codec_id, const struct ble_audio_base_bis *bis)
+base_bis_printf(const struct ble_audio_codec_id *codec_id,
+                const struct ble_audio_base_bis *bis)
 {
     console_printf("BISCodecConfig:\n\t");
-    codec_specific_config_printf(codec_id,bis->codec_spec_config, bis->codec_spec_config_len);
+    codec_specific_config_printf(codec_id, bis->codec_spec_config,
+                                 bis->codec_spec_config_len);
 }
 
 static void
@@ -422,15 +405,15 @@ metadata_printf(const uint8_t *data, uint8_t len)
 }
 
 static void
-base_subgroup_printf(uint8_t subgroup_index, const struct ble_audio_base_subgroup *subgroup)
+base_subgroup_printf(uint8_t subgroup_index,
+                     const struct ble_audio_base_subgroup *subgroup)
 {
     console_printf("subgroup_index=%u\n", subgroup_index);
     console_printf("Codec ID:\n\tformat=0x%02x company_id=0x%04x vendor_specific=0x%02x\n",
                    subgroup->codec_id.format, subgroup->codec_id.company_id,
                    subgroup->codec_id.vendor_specific);
     console_printf("SubgroupCodecConfig:\n\t");
-    codec_specific_config_printf(&subgroup->codec_id,
-                                 subgroup->codec_spec_config,
+    codec_specific_config_printf(&subgroup->codec_id, subgroup->codec_spec_config,
                                  subgroup->codec_spec_config_len);
     console_printf("Metadata:\n\t");
     metadata_printf(subgroup->metadata, subgroup->metadata_len);
@@ -504,9 +487,9 @@ broadcast_sink_action_fn(struct ble_audio_broadcast_sink_action *action, void *a
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_start_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {"broadcast_code", "usage: =[string], default: NULL"},
-    {NULL, NULL}
+    { "source_id",      "usage: =<UINT8>"                 },
+    { "broadcast_code", "usage: =[string], default: NULL" },
+    { NULL,             NULL                              }
 };
 
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_start_help = {
@@ -519,7 +502,7 @@ const struct shell_cmd_help cmd_leaudio_broadcast_sink_start_help = {
 int
 cmd_leaudio_broadcast_sink_start(int argc, char **argv)
 {
-    struct ble_audio_broadcast_sink_add_params params = {0};
+    struct ble_audio_broadcast_sink_add_params params = { 0 };
     char *broadcast_code;
     uint8_t source_id;
     int rc;
@@ -537,7 +520,8 @@ cmd_leaudio_broadcast_sink_start(int argc, char **argv)
 
     broadcast_code = parse_arg_extract("broadcast_code");
     if (broadcast_code != NULL) {
-        strncpy((char *)params.broadcast_code, broadcast_code, BLE_AUDIO_BROADCAST_CODE_SIZE);
+        strncpy((char *)params.broadcast_code, broadcast_code,
+                BLE_AUDIO_BROADCAST_CODE_SIZE);
         params.broadcast_code_is_valid = true;
     }
 
@@ -551,8 +535,8 @@ cmd_leaudio_broadcast_sink_start(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_stop_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {NULL, NULL}
+    { "source_id", "usage: =<UINT8>" },
+    { NULL,        NULL              }
 };
 
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_stop_help = {
@@ -589,10 +573,10 @@ cmd_leaudio_broadcast_sink_stop(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_metadata_update_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {"subgroup_index", "usage: =<UINT8>"},
-    {"metadata", "usage: =[XX:XX...]"},
-    {NULL, NULL}
+    { "source_id",      "usage: =<UINT8>"    },
+    { "subgroup_index", "usage: =<UINT8>"    },
+    { "metadata",       "usage: =[XX:XX...]" },
+    { NULL,             NULL                 }
 };
 
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_metadata_update_help = {
@@ -605,7 +589,7 @@ const struct shell_cmd_help cmd_leaudio_broadcast_sink_metadata_update_help = {
 int
 cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv)
 {
-    struct ble_audio_broadcast_sink_metadata_update_params params = {0};
+    struct ble_audio_broadcast_sink_metadata_update_params params = { 0 };
     static bssnz_t uint8_t metadata[UINT8_MAX];
     unsigned int metadata_len;
     uint8_t source_id;
@@ -647,9 +631,9 @@ cmd_leaudio_broadcast_sink_metadata_update(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_broadcast_sink_sync_params_set_params[] = {
-    {"skip",         "usage: =[0x0000-0x01F3], default: 0x0000"},
-    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x07D0"},
-    {NULL, NULL}
+    { "skip",         "usage: =[0x0000-0x01F3], default: 0x0000" },
+    { "sync_timeout", "usage: =[0x000A-0x4000], default: 0x07D0" },
+    { NULL,           NULL                                       }
 };
 
 const struct shell_cmd_help cmd_leaudio_broadcast_sink_sync_params_set_help = {
@@ -669,14 +653,15 @@ cmd_leaudio_broadcast_sink_sync_params_set(int argc, char **argv)
         return rc;
     }
 
-    broadcast_sink_periodic_sync_params.skip = parse_arg_uint16_dflt("skip", BROADCAST_SINK_PA_SYNC_SKIP_DFLT, &rc);
+    broadcast_sink_periodic_sync_params.skip =
+        parse_arg_uint16_dflt("skip", BROADCAST_SINK_PA_SYNC_SKIP_DFLT, &rc);
     if (rc != 0) {
         console_printf("invalid 'skip' parameter\n");
         return rc;
     }
 
-    broadcast_sink_periodic_sync_params.sync_timeout = parse_arg_time_dflt("sync_timeout", 10000,
-                                                                           BROADCAST_SINK_PA_SYNC_TIMEOUT_DFLT, &rc);
+    broadcast_sink_periodic_sync_params.sync_timeout = parse_arg_time_dflt(
+        "sync_timeout", 10000, BROADCAST_SINK_PA_SYNC_TIMEOUT_DFLT, &rc);
     if (rc != 0) {
         console_printf("invalid 'sync_timeout' parameter\n");
         return rc;
@@ -693,14 +678,14 @@ broadcast_sink_audio_event_handler(struct ble_audio_event *event, void *arg)
         console_printf("source_id=0x%02x PA sync: %s\n",
                        event->broadcast_sink_pa_sync_state.source_id,
                        ble_audio_broadcast_sink_sync_state_str(
-                               event->broadcast_sink_pa_sync_state.state));
+                           event->broadcast_sink_pa_sync_state.state));
         break;
     case BLE_AUDIO_EVENT_BROADCAST_SINK_BIS_SYNC_STATE:
         console_printf("source_id=0x%02x bis_index=0x%02x BIS sync: %s\n",
                        event->broadcast_sink_bis_sync_state.source_id,
                        event->broadcast_sink_bis_sync_state.bis_index,
                        ble_audio_broadcast_sink_sync_state_str(
-                               event->broadcast_sink_bis_sync_state.state));
+                           event->broadcast_sink_bis_sync_state.state));
         if (event->broadcast_sink_bis_sync_state.state ==
             BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED) {
             console_printf("conn_handle=0x%04x\n",
@@ -731,12 +716,14 @@ scan_delegator_source_desc_printf(const struct ble_audio_scan_delegator_source_d
 static void
 scan_delegator_sync_opt_printf(const struct ble_audio_scan_delegator_sync_opt *sync_opt)
 {
-    console_printf("pa_sync=%d pa_interval=0x%04x num_subgroups=%d",
-                   sync_opt->pa_sync, sync_opt->pa_interval, sync_opt->num_subgroups);
+    console_printf("pa_sync=%d pa_interval=0x%04x num_subgroups=%d", sync_opt->pa_sync,
+                   sync_opt->pa_interval, sync_opt->num_subgroups);
     for (uint8_t i = 0; i < sync_opt->num_subgroups; i++) {
         console_printf("\n\tbis_sync=0x%04" PRIx32 " metadata_length=%d metadata=",
-                       sync_opt->subgroups[i].bis_sync, sync_opt->subgroups[i].metadata_length);
-        print_bytes(sync_opt->subgroups[i].metadata, sync_opt->subgroups[i].metadata_length);
+                       sync_opt->subgroups[i].bis_sync,
+                       sync_opt->subgroups[i].metadata_length);
+        print_bytes(sync_opt->subgroups[i].metadata,
+                    sync_opt->subgroups[i].metadata_length);
     }
     console_printf("\n");
 }
@@ -761,14 +748,17 @@ scan_delegator_action_fn(struct ble_audio_scan_delegator_action *action, void *a
         if (action->source_add.out_source_id_to_swap == NULL) {
             return 0;
         } else {
-            return scan_delegator_pick_source_id_to_swap(action->source_add.out_source_id_to_swap);
+            return scan_delegator_pick_source_id_to_swap(
+                action->source_add.out_source_id_to_swap);
         }
     case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_MODIFY:
-        console_printf("Source Modify:\nsource_id=%u\n", action->source_modify.source_id);
+        console_printf("Source Modify:\nsource_id=%u\n",
+                       action->source_modify.source_id);
         scan_delegator_sync_opt_printf(&action->source_modify.sync_opt);
         break;
     case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_REMOVE:
-        console_printf("Source Remove:\nsource_id=%u\n", action->source_remove.source_id);
+        console_printf("Source Remove:\nsource_id=%u\n",
+                       action->source_remove.source_id);
         break;
     default:
         assert(false);
@@ -780,11 +770,11 @@ scan_delegator_action_fn(struct ble_audio_scan_delegator_action *action, void *a
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_add_params[] = {
-    {"addr_type", "usage: =[public|random], default: public"},
-    {"addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"broadcast_id", "usage: =[0-0xFFFFFF]"},
-    {"adv_sid", "usage: =[UINT8], default: 0"},
-    {NULL, NULL}
+    { "addr_type",    "usage: =[public|random], default: public" },
+    { "addr",         "usage: =[XX:XX:XX:XX:XX:XX]"              },
+    { "broadcast_id", "usage: =[0-0xFFFFFF]"                     },
+    { "adv_sid",      "usage: =[UINT8], default: 0"              },
+    { NULL,           NULL                                       }
 };
 
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_add_help = {
@@ -797,7 +787,7 @@ const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_add_help = 
 int
 cmd_leaudio_scan_delegator_receive_state_add(int argc, char **argv)
 {
-    struct ble_audio_scan_delegator_receive_state_add_params params = {0};
+    struct ble_audio_scan_delegator_receive_state_add_params params = { 0 };
     uint8_t source_id;
     int rc;
 
@@ -836,8 +826,8 @@ cmd_leaudio_scan_delegator_receive_state_add(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_remove_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {NULL, NULL}
+    { "source_id", "usage: =<UINT8>" },
+    { NULL,        NULL              }
 };
 
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_remove_help = {
@@ -873,29 +863,30 @@ cmd_leaudio_scan_delegator_receive_state_remove(int argc, char **argv)
 }
 
 const struct parse_arg_kv_pair cmd_pa_sync_type[] = {
-    { "not_synced",    BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NOT_SYNCED },
+    { "not_synced", BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NOT_SYNCED },
     { "sync_info_req", BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_SYNC_INFO_REQ },
-    { "synced",        BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_SYNCED },
-    { "failed",        BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_ERROR },
-    { "no_past",       BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NO_PAST },
+    { "synced", BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_SYNCED },
+    { "failed", BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_ERROR },
+    { "no_past", BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NO_PAST },
     { NULL }
 };
 
 const struct parse_arg_kv_pair cmd_big_enc_type[] = {
     { "not_encrypted", BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_NONE },
-    { "code_req",      BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_BROADCAST_CODE_MISSING },
-    { "decrypting",    BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_DECRYPTING },
-    { "bad_code",      BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_BROADCAST_CODE_INVALID },
+    { "code_req", BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_BROADCAST_CODE_MISSING },
+    { "decrypting", BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_DECRYPTING },
+    { "bad_code", BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_BROADCAST_CODE_INVALID },
     { NULL }
 };
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_set_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {"pa_sync_state", "usage: =[not_synced|sync_info_req|synced|failed|no_past], default: not_synced"},
-    {"big_enc", "usage: =[not_encrypted|code_req|decrypting|bad_code], default: not_encrypted"},
-    {"bad_code", "usage: =[string], default: NULL"},
-    {NULL, NULL}
+    { "source_id",     "usage: =<UINT8>"                                                              },
+    { "pa_sync_state",
+     "usage: =[not_synced|sync_info_req|synced|failed|no_past], default: not_synced"                  },
+    { "big_enc",       "usage: =[not_encrypted|code_req|decrypting|bad_code], default: not_encrypted" },
+    { "bad_code",      "usage: =[string], default: NULL"                                              },
+    { NULL,            NULL                                                                           }
 };
 
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_set_help = {
@@ -908,7 +899,7 @@ const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_set_help = 
 int
 cmd_leaudio_scan_delegator_receive_state_set(int argc, char **argv)
 {
-    struct ble_audio_scan_delegator_receive_state state = {0};
+    struct ble_audio_scan_delegator_receive_state state = { 0 };
     char *bad_code;
     uint8_t source_id;
     int rc;
@@ -924,8 +915,9 @@ cmd_leaudio_scan_delegator_receive_state_set(int argc, char **argv)
         return rc;
     }
 
-    state.pa_sync_state = parse_arg_kv_dflt("pa_sync_state", cmd_pa_sync_type,
-                                            BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NOT_SYNCED, &rc);
+    state.pa_sync_state =
+        parse_arg_kv_dflt("pa_sync_state", cmd_pa_sync_type,
+                          BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_STATE_NOT_SYNCED, &rc);
     if (rc != 0) {
         console_printf("invalid 'pa_sync_state' parameter\n");
         return rc;
@@ -982,8 +974,8 @@ static void
 scan_delegator_receive_state_printf(const struct ble_audio_scan_delegator_receive_state *state)
 {
     console_printf("pa_sync_state=%s big_enc=%s num_subgroups=%d",
-                   pa_sync_type_str(state->pa_sync_state), big_enc_type_str(state->big_enc),
-                   state->num_subgroups);
+                   pa_sync_type_str(state->pa_sync_state),
+                   big_enc_type_str(state->big_enc), state->num_subgroups);
 
     if (state->big_enc == BLE_AUDIO_SCAN_DELEGATOR_BIG_ENC_BROADCAST_CODE_INVALID) {
         console_printf("bad_code=");
@@ -993,7 +985,8 @@ scan_delegator_receive_state_printf(const struct ble_audio_scan_delegator_receiv
 
     for (uint8_t i = 0; i < state->num_subgroups; i++) {
         console_printf("\n\tbis_sync=0x%04" PRIu32 " metadata_length=%d metadata=",
-                       state->subgroups[i].bis_sync, state->subgroups[i].metadata_length);
+                       state->subgroups[i].bis_sync,
+                       state->subgroups[i].metadata_length);
         print_bytes(state->subgroups[i].metadata, state->subgroups[i].metadata_length);
         console_printf("\n");
     }
@@ -1001,8 +994,8 @@ scan_delegator_receive_state_printf(const struct ble_audio_scan_delegator_receiv
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_leaudio_scan_delegator_receive_state_get_params[] = {
-    {"source_id", "usage: =<UINT8>"},
-    {NULL, NULL}
+    { "source_id", "usage: =<UINT8>" },
+    { NULL,        NULL              }
 };
 
 const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_get_help = {
@@ -1015,7 +1008,7 @@ const struct shell_cmd_help cmd_leaudio_scan_delegator_receive_state_get_help = 
 int
 cmd_leaudio_scan_delegator_receive_state_get(int argc, char **argv)
 {
-    struct ble_audio_scan_delegator_receive_state state = {0};
+    struct ble_audio_scan_delegator_receive_state state = { 0 };
     uint8_t source_id;
     int rc;
 
@@ -1042,8 +1035,8 @@ cmd_leaudio_scan_delegator_receive_state_get(int argc, char **argv)
 }
 
 static int
-scan_delegator_receive_state_foreach_fn(struct ble_audio_scan_delegator_receive_state_entry *entry,
-                                        void *arg)
+scan_delegator_receive_state_foreach_fn(
+    struct ble_audio_scan_delegator_receive_state_entry *entry, void *arg)
 {
     console_printf("source_id=%u\n", entry->source_id);
     scan_delegator_source_desc_printf(&entry->source_desc);
@@ -1065,8 +1058,8 @@ cmd_leaudio_scan_delegator_receive_state_show(int argc, char **argv)
 {
     uint8_t num_entries = 0;
 
-    ble_audio_scan_delegator_receive_state_foreach(scan_delegator_receive_state_foreach_fn,
-                                                   &num_entries);
+    ble_audio_scan_delegator_receive_state_foreach(
+        scan_delegator_receive_state_foreach_fn, &num_entries);
     if (num_entries == 0) {
         console_printf("No receive state\n");
     }
@@ -1080,10 +1073,11 @@ scan_delegator_audio_event_handler(struct ble_audio_event *event, void *arg)
     switch (event->type) {
     case BLE_AUDIO_EVENT_BROADCAST_ANNOUNCEMENT:
         console_printf("Broadcast Announcement\n");
-        console_printf("broadcast_id=0x%06" PRIx32 " adv_sid=%d addr_type=%s addr=",
-                       event->broadcast_announcement.broadcast_id,
-                       event->broadcast_announcement.ext_disc->sid,
-                       cmd_addr_type_str(event->broadcast_announcement.ext_disc->addr.type));
+        console_printf(
+            "broadcast_id=0x%06" PRIx32 " adv_sid=%d addr_type=%s addr=",
+            event->broadcast_announcement.broadcast_id,
+            event->broadcast_announcement.ext_disc->sid,
+            cmd_addr_type_str(event->broadcast_announcement.ext_disc->addr.type));
         print_addr(event->broadcast_announcement.ext_disc->addr.val);
         console_printf("\n");
         break;
@@ -1106,8 +1100,8 @@ btshell_leaudio_init(void)
     rc = ble_audio_scan_delegator_action_fn_set(scan_delegator_action_fn, NULL);
     assert(rc == 0);
 
-    rc = ble_audio_event_listener_register(&scan_delegator_listener,
-                                           scan_delegator_audio_event_handler, NULL);
+    rc = ble_audio_event_listener_register(
+        &scan_delegator_listener, scan_delegator_audio_event_handler, NULL);
     assert(rc == 0);
 #endif /* BLE_AUDIO_SCAN_DELEGATOR */
 
@@ -1117,8 +1111,8 @@ btshell_leaudio_init(void)
     rc = ble_audio_broadcast_sink_cb_set(broadcast_sink_action_fn, NULL);
     assert(rc == 0);
 
-    rc = ble_audio_event_listener_register(&broadcast_sink_listener,
-                                           broadcast_sink_audio_event_handler, NULL);
+    rc = ble_audio_event_listener_register(
+        &broadcast_sink_listener, broadcast_sink_audio_event_handler, NULL);
 #endif /* BLE_AUDIO_BROADCAST_SINK */
     assert(rc == 0);
 }

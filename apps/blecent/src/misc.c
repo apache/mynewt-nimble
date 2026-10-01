@@ -61,8 +61,8 @@ addr_str(const void *addr)
     const uint8_t *u8p;
 
     u8p = addr;
-    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-            u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", u8p[5], u8p[4], u8p[3],
+            u8p[2], u8p[1], u8p[0]);
 
     return buf;
 }
@@ -90,15 +90,13 @@ print_conn_desc(const struct ble_gap_conn_desc *desc)
                 desc->peer_ota_addr.type, addr_str(desc->peer_ota_addr.val));
     MODLOG_DFLT(DEBUG, "peer_id_addr_type=%d peer_id_addr=%s ",
                 desc->peer_id_addr.type, addr_str(desc->peer_id_addr.val));
-    MODLOG_DFLT(DEBUG, "conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+    MODLOG_DFLT(DEBUG,
+                "conn_itvl=%d conn_latency=%d supervision_timeout=%d "
                 "encrypted=%d authenticated=%d bonded=%d",
-                desc->conn_itvl, desc->conn_latency,
-                desc->supervision_timeout,
-                desc->sec_state.encrypted,
-                desc->sec_state.authenticated,
+                desc->conn_itvl, desc->conn_latency, desc->supervision_timeout,
+                desc->sec_state.encrypted, desc->sec_state.authenticated,
                 desc->sec_state.bonded);
 }
-
 
 void
 print_adv_fields(const struct ble_hs_adv_fields *fields)

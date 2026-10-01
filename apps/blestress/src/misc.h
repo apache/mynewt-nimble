@@ -51,4 +51,4 @@ void print_adv_fields(const struct ble_hs_adv_fields *fields);
 }
 #endif
 
-#endif //BLE_TGT_MISC_H
+#endif // BLE_TGT_MISC_H

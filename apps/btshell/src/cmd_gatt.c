@@ -29,7 +29,7 @@
 #include "cmd.h"
 #include "cmd_gatt.h"
 
-#define CMD_BUF_SZ      256
+#define CMD_BUF_SZ 256
 static bssnz_t uint8_t cmd_buf[CMD_BUF_SZ];
 
 /*****************************************************************************
@@ -62,7 +62,7 @@ cmd_gatt_discover_characteristic(int argc, char **argv)
                                        &uuid.u);
     } else if (rc == ENOENT) {
         rc = btshell_disc_all_chrs(conn_handle, start_handle, end_handle);
-    } else  {
+    } else {
         console_printf("invalid 'uuid' parameter\n");
         return rc;
     }
@@ -125,7 +125,7 @@ cmd_gatt_discover_service(int argc, char **argv)
         rc = btshell_disc_svc_by_uuid(conn_handle, &uuid.u);
     } else if (rc == ENOENT) {
         rc = btshell_disc_svcs(conn_handle);
-    } else  {
+    } else {
         console_printf("invalid 'uuid' parameter\n");
         return rc;
     }
@@ -224,7 +224,7 @@ cmd_gatt_notify(int argc, char **argv)
  * $gatt-read                                                                *
  *****************************************************************************/
 
-#define CMD_READ_MAX_ATTRS  8
+#define CMD_READ_MAX_ATTRS 8
 
 int
 cmd_gatt_read(int argc, char **argv)
@@ -266,8 +266,7 @@ cmd_gatt_read(int argc, char **argv)
         return rc;
     }
 
-    for (num_attr_handles = 0;
-         num_attr_handles < CMD_READ_MAX_ATTRS;
+    for (num_attr_handles = 0; num_attr_handles < CMD_READ_MAX_ATTRS;
          num_attr_handles++) {
 
         attr_handles[num_attr_handles] = parse_arg_uint16("attr", &rc);
@@ -338,7 +337,6 @@ cmd_gatt_read(int argc, char **argv)
 
     return 0;
 }
-
 
 /*****************************************************************************
  * $gatt-service-changed                                                     *
@@ -547,8 +545,8 @@ cmd_gatt_write(int argc, char **argv)
 
         attrs[num_attrs].handle = attr_handle;
         attrs[num_attrs].offset = offset;
-        attrs[num_attrs].om = ble_hs_mbuf_from_flat(cmd_buf + total_attr_len,
-                                                    attr_len);
+        attrs[num_attrs].om =
+            ble_hs_mbuf_from_flat(cmd_buf + total_attr_len, attr_len);
         if (attrs[num_attrs].om == NULL) {
             goto done;
         }
@@ -569,8 +567,8 @@ cmd_gatt_write(int argc, char **argv)
             rc = -EINVAL;
             goto done;
         }
-        rc = btshell_write_long(conn_handle, attrs[0].handle,
-                                attrs[0].offset, attrs[0].om);
+        rc = btshell_write_long(conn_handle, attrs[0].handle, attrs[0].offset,
+                                attrs[0].om);
         attrs[0].om = NULL;
     } else if (num_attrs > 1) {
         rc = btshell_write_reliable(conn_handle, attrs, num_attrs);

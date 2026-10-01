@@ -36,9 +36,7 @@ static struct iso_rx_stats {
     uint64_t error_cnt;
     uint64_t lost_cnt;
 } rx_stats_pool[MYNEWT_VAL(BLE_ISO_MAX_BISES)] = {
-    [0 ... MYNEWT_VAL(BLE_ISO_MAX_BISES) - 1] = {
-        .conn_handle = BLE_HS_CONN_HANDLE_NONE
-    }
+    [0 ... MYNEWT_VAL(BLE_ISO_MAX_BISES) - 1] = { .conn_handle = BLE_HS_CONN_HANDLE_NONE }
 };
 
 static struct iso_rx_stats *
@@ -81,7 +79,8 @@ iso_rx_stats_reset(void)
 }
 
 static void
-iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *info, void *arg)
+iso_rx_stats_update(uint16_t conn_handle,
+                    const struct ble_iso_rx_data_info *info, void *arg)
 {
     struct iso_rx_stats *stats = arg;
 
@@ -109,9 +108,8 @@ iso_rx_stats_update(uint16_t conn_handle, const struct ble_iso_rx_data_info *inf
     if ((stats->total_cnt % 100) == 0) {
         console_printf("conn_handle=0x%04x, seq_num=%d, num_rx=%" PRIu64 ", "
                        "(valid=%" PRIu64 ", error=%" PRIu64 ", lost=%" PRIu64 ") ",
-                       stats->conn_handle, stats->seq_num,
-                       stats->total_cnt, stats->valid_cnt,
-                       stats->error_cnt, stats->lost_cnt);
+                       stats->conn_handle, stats->seq_num, stats->total_cnt,
+                       stats->valid_cnt, stats->error_cnt, stats->lost_cnt);
 
         if (stats->ts_valid) {
             console_printf("ts=10%" PRIu32, stats->ts);
@@ -145,8 +143,7 @@ ble_iso_event_handler(struct ble_iso_event *event, void *arg)
 {
     switch (event->type) {
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
-        console_printf("BIG Create Completed status: %u",
-                       event->big_created.status);
+        console_printf("BIG Create Completed status: %u", event->big_created.status);
 
         if (event->big_created.status == 0) {
             print_iso_big_desc(&event->big_created.desc);
@@ -188,18 +185,18 @@ ble_iso_event_handler(struct ble_iso_event *event, void *arg)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_big_create_params[] = {
-    {"adv_handle", "PA advertising handle, usage: =<UINT8>"},
-    {"bis_cnt", "BIS count, usage: =<UINT8>"},
-    {"sdu_interval", "SDU interval, usage: =<UINT32>"},
-    {"max_sdu", "Maximum SDU size, usage: =<UINT16>"},
-    {"max_latency", "Maximum transport latency, usage: =<UINT16>"},
-    {"rtn", "Retransmission number, usage: =<UINT8>"},
-    {"phy", "PHY, usage: =<UINT8>"},
-    {"packing", "Packing, usage: =<UINT8>, default: 1"},
-    {"framing", "Framing, usage: =<UINT8>, default: 0"},
-    {"broadcast_code", "Broadcast Code, usage: =[string], default: NULL"},
+    { "adv_handle",     "PA advertising handle, usage: =<UINT8>"          },
+    { "bis_cnt",        "BIS count, usage: =<UINT8>"                      },
+    { "sdu_interval",   "SDU interval, usage: =<UINT32>"                  },
+    { "max_sdu",        "Maximum SDU size, usage: =<UINT16>"              },
+    { "max_latency",    "Maximum transport latency, usage: =<UINT16>"     },
+    { "rtn",            "Retransmission number, usage: =<UINT8>"          },
+    { "phy",            "PHY, usage: =<UINT8>"                            },
+    { "packing",        "Packing, usage: =<UINT8>, default: 1"            },
+    { "framing",        "Framing, usage: =<UINT8>, default: 0"            },
+    { "broadcast_code", "Broadcast Code, usage: =[string], default: NULL" },
 
-    { NULL, NULL}
+    { NULL,             NULL                                              }
 };
 
 const struct shell_cmd_help cmd_iso_big_create_help = {
@@ -236,24 +233,21 @@ cmd_iso_big_create(int argc, char **argv)
         return rc;
     }
 
-    big_params.sdu_interval = parse_arg_uint32_bounds("sdu_interval",
-                                                      0x0000FF, 0x0FFFFF,
-                                                      &rc);
+    big_params.sdu_interval =
+        parse_arg_uint32_bounds("sdu_interval", 0x0000FF, 0x0FFFFF, &rc);
     if (rc != 0) {
         console_printf("invalid 'sdu_interval' parameter\n");
         return rc;
     }
 
-    big_params.max_sdu = parse_arg_uint16_bounds("max_sdu", 0x0001, 0x0FFF,
-                                                 &rc);
+    big_params.max_sdu = parse_arg_uint16_bounds("max_sdu", 0x0001, 0x0FFF, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_sdu' parameter\n");
         return rc;
     }
 
-    big_params.max_transport_latency = parse_arg_uint16_bounds("max_latency",
-                                                               0x0005, 0x0FA0,
-                                                               &rc);
+    big_params.max_transport_latency =
+        parse_arg_uint16_bounds("max_latency", 0x0005, 0x0FA0, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_latency' parameter\n");
         return rc;
@@ -299,9 +293,9 @@ cmd_iso_big_create(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_big_terminate_params[] = {
-    {"big_handle", "BIG handle, usage: =<UINT8>"},
+    { "big_handle", "BIG handle, usage: =<UINT8>" },
 
-    { NULL, NULL}
+    { NULL,         NULL                          }
 };
 
 const struct shell_cmd_help cmd_iso_big_terminate_help = {
@@ -339,13 +333,13 @@ cmd_iso_big_terminate(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_big_sync_create_params[] = {
-    {"sync_handle", "PA sync handle, usage: =<UINT16>"},
-    {"broadcast_code", "Broadcast Code, usage: =[string], default: NULL"},
-    {"mse", "Maximum Subevents to receive data, usage: =<UINT8>"},
-    {"sync_timeout", "BIG sync timeout, usage: =<UINT8>"},
-    {"idxs", "BIS indexes, usage: =XX,YY,..."},
+    { "sync_handle",    "PA sync handle, usage: =<UINT16>"                   },
+    { "broadcast_code", "Broadcast Code, usage: =[string], default: NULL"    },
+    { "mse",            "Maximum Subevents to receive data, usage: =<UINT8>" },
+    { "sync_timeout",   "BIG sync timeout, usage: =<UINT8>"                  },
+    { "idxs",           "BIS indexes, usage: =XX,YY,..."                     },
 
-    { NULL, NULL}
+    { NULL,             NULL                                                 }
 };
 
 const struct shell_cmd_help cmd_iso_big_sync_create_help = {
@@ -389,9 +383,8 @@ cmd_iso_big_sync_create(int argc, char **argv)
         return rc;
     }
 
-    rc = parse_arg_byte_stream_custom("idxs", ",", ARRAY_SIZE(bis_idxs),
-                                      bis_idxs, 0,
-                                      (unsigned int *)&params.bis_cnt);
+    rc = parse_arg_byte_stream_custom("idxs", ",", ARRAY_SIZE(bis_idxs), bis_idxs,
+                                      0, (unsigned int *)&params.bis_cnt);
     if (rc != 0) {
         console_printf("invalid 'idxs' parameter\n");
         return rc;
@@ -417,9 +410,9 @@ cmd_iso_big_sync_create(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_big_sync_terminate_params[] = {
-    {"big_handle", "BIG handle, usage: =<UINT8>"},
+    { "big_handle", "BIG handle, usage: =<UINT8>" },
 
-    { NULL, NULL}
+    { NULL,         NULL                          }
 };
 
 const struct shell_cmd_help cmd_iso_big_sync_terminate_help = {
@@ -456,18 +449,18 @@ cmd_iso_big_sync_terminate(int argc, char **argv)
 }
 
 static const struct parse_arg_kv_pair cmd_iso_data_dir[] = {
-    { "tx",       BLE_ISO_DATA_DIR_TX },
-    { "rx",       BLE_ISO_DATA_DIR_RX },
+    { "tx", BLE_ISO_DATA_DIR_TX },
+    { "rx", BLE_ISO_DATA_DIR_RX },
 
     { NULL }
 };
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_data_path_setup_params[] = {
-    {"conn_handle", "Connection handle, usage: =<UINT16>"},
-    {"dir", "Data path direction, usage: =[tx|rx]"},
+    { "conn_handle", "Connection handle, usage: =<UINT16>"  },
+    { "dir",         "Data path direction, usage: =[tx|rx]" },
 
-    { NULL, NULL}
+    { NULL,          NULL                                   }
 };
 
 const struct shell_cmd_help cmd_iso_data_path_setup_help = {
@@ -515,10 +508,10 @@ cmd_iso_data_path_setup(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param cmd_iso_data_path_remove_params[] = {
-    {"conn_handle", "Connection handle, usage: =<UINT16>"},
-    {"dir", "Data path direction, usage: =[tx|rx]"},
+    { "conn_handle", "Connection handle, usage: =<UINT16>"  },
+    { "dir",         "Data path direction, usage: =[tx|rx]" },
 
-    { NULL, NULL}
+    { NULL,          NULL                                   }
 };
 
 const struct shell_cmd_help cmd_iso_data_path_remove_help = {

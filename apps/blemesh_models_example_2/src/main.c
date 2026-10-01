@@ -24,7 +24,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-
 #include "console/console.h"
 #include "hal/hal_gpio.h"
 #include "mesh/mesh.h"
@@ -41,207 +40,212 @@
 
 static bool reset;
 
-static void light_default_var_init(void)
+static void
+light_default_var_init(void)
 {
-	gen_def_trans_time_srv_user_data.tt = 0x00;
+    gen_def_trans_time_srv_user_data.tt = 0x00;
 
-	gen_power_onoff_srv_user_data.onpowerup = STATE_DEFAULT;
+    gen_power_onoff_srv_user_data.onpowerup = STATE_DEFAULT;
 
-	light_lightness_srv_user_data.light_range_min = LIGHTNESS_MIN;
-	light_lightness_srv_user_data.light_range_max = LIGHTNESS_MAX;
-	light_lightness_srv_user_data.last = LIGHTNESS_MAX;
-	light_lightness_srv_user_data.def = LIGHTNESS_MAX;
+    light_lightness_srv_user_data.light_range_min = LIGHTNESS_MIN;
+    light_lightness_srv_user_data.light_range_max = LIGHTNESS_MAX;
+    light_lightness_srv_user_data.last = LIGHTNESS_MAX;
+    light_lightness_srv_user_data.def = LIGHTNESS_MAX;
 
-	/* Following 2 values are as per specification */
-	light_ctl_srv_user_data.temp_range_min = TEMP_MIN;
-	light_ctl_srv_user_data.temp_range_max = TEMP_MAX;
+    /* Following 2 values are as per specification */
+    light_ctl_srv_user_data.temp_range_min = TEMP_MIN;
+    light_ctl_srv_user_data.temp_range_max = TEMP_MAX;
 
-	light_ctl_srv_user_data.temp_def = TEMP_MIN;
+    light_ctl_srv_user_data.temp_def = TEMP_MIN;
 
-	light_ctl_srv_user_data.lightness_temp_last =
-		(uint32_t) ((LIGHTNESS_MAX << 16) | TEMP_MIN);
+    light_ctl_srv_user_data.lightness_temp_last =
+        (uint32_t)((LIGHTNESS_MAX << 16) | TEMP_MIN);
 }
 
-static void light_default_status_init(void)
+static void
+light_default_status_init(void)
 {
-	uint16_t lightness;
+    uint16_t lightness;
 
-	lightness = (uint16_t) (light_ctl_srv_user_data.lightness_temp_last >> 16);
+    lightness = (uint16_t)(light_ctl_srv_user_data.lightness_temp_last >> 16);
 
-	if (lightness) {
-		gen_onoff_srv_root_user_data.onoff = STATE_ON;
-	} else {
-		gen_onoff_srv_root_user_data.onoff = STATE_OFF;
-	}
+    if (lightness) {
+        gen_onoff_srv_root_user_data.onoff = STATE_ON;
+    } else {
+        gen_onoff_srv_root_user_data.onoff = STATE_OFF;
+    }
 
-	/* Retrieve Default Lightness & Temperature Values */
+    /* Retrieve Default Lightness & Temperature Values */
 
-	if (light_ctl_srv_user_data.lightness_temp_def) {
-		light_ctl_srv_user_data.lightness_def = (uint16_t)
-			(light_ctl_srv_user_data.lightness_temp_def >> 16);
+    if (light_ctl_srv_user_data.lightness_temp_def) {
+        light_ctl_srv_user_data.lightness_def =
+            (uint16_t)(light_ctl_srv_user_data.lightness_temp_def >> 16);
 
-		light_ctl_srv_user_data.temp_def = (uint16_t)
-			(light_ctl_srv_user_data.lightness_temp_def);
-	}
+        light_ctl_srv_user_data.temp_def =
+            (uint16_t)(light_ctl_srv_user_data.lightness_temp_def);
+    }
 
-	light_lightness_srv_user_data.def =
-		light_ctl_srv_user_data.lightness_def;
+    light_lightness_srv_user_data.def = light_ctl_srv_user_data.lightness_def;
 
-	light_ctl_srv_user_data.temp = light_ctl_srv_user_data.temp_def;
+    light_ctl_srv_user_data.temp = light_ctl_srv_user_data.temp_def;
 
-	/* Retrieve Range of Lightness & Temperature */
+    /* Retrieve Range of Lightness & Temperature */
 
-	if (light_lightness_srv_user_data.lightness_range) {
-		light_lightness_srv_user_data.light_range_max = (uint16_t)
-			(light_lightness_srv_user_data.lightness_range >> 16);
+    if (light_lightness_srv_user_data.lightness_range) {
+        light_lightness_srv_user_data.light_range_max =
+            (uint16_t)(light_lightness_srv_user_data.lightness_range >> 16);
 
-		light_lightness_srv_user_data.light_range_min = (uint16_t)
-			(light_lightness_srv_user_data.lightness_range);
-	}
+        light_lightness_srv_user_data.light_range_min =
+            (uint16_t)(light_lightness_srv_user_data.lightness_range);
+    }
 
-	if (light_ctl_srv_user_data.temperature_range) {
-		light_ctl_srv_user_data.temp_range_max = (uint16_t)
-			(light_ctl_srv_user_data.temperature_range >> 16);
+    if (light_ctl_srv_user_data.temperature_range) {
+        light_ctl_srv_user_data.temp_range_max =
+            (uint16_t)(light_ctl_srv_user_data.temperature_range >> 16);
 
-		light_ctl_srv_user_data.temp_range_min = (uint16_t)
-			(light_ctl_srv_user_data.temperature_range);
-	}
+        light_ctl_srv_user_data.temp_range_min =
+            (uint16_t)(light_ctl_srv_user_data.temperature_range);
+    }
 
-	switch (gen_power_onoff_srv_user_data.onpowerup) {
-		case STATE_OFF:
-			gen_onoff_srv_root_user_data.onoff = STATE_OFF;
-			state_binding(ONOFF, ONOFF_TEMP);
-			break;
-		case STATE_DEFAULT:
-			gen_onoff_srv_root_user_data.onoff = STATE_ON;
-			state_binding(ONOFF, ONOFF_TEMP);
-			break;
-		case STATE_RESTORE:
-			light_lightness_srv_user_data.last = (uint16_t)
-				(light_ctl_srv_user_data.lightness_temp_last >> 16);
+    switch (gen_power_onoff_srv_user_data.onpowerup) {
+    case STATE_OFF:
+        gen_onoff_srv_root_user_data.onoff = STATE_OFF;
+        state_binding(ONOFF, ONOFF_TEMP);
+        break;
+    case STATE_DEFAULT:
+        gen_onoff_srv_root_user_data.onoff = STATE_ON;
+        state_binding(ONOFF, ONOFF_TEMP);
+        break;
+    case STATE_RESTORE:
+        light_lightness_srv_user_data.last =
+            (uint16_t)(light_ctl_srv_user_data.lightness_temp_last >> 16);
 
-			light_ctl_srv_user_data.temp =
-				(uint16_t) (light_ctl_srv_user_data.lightness_temp_last);
+        light_ctl_srv_user_data.temp =
+            (uint16_t)(light_ctl_srv_user_data.lightness_temp_last);
 
-			state_binding(ONPOWERUP, ONOFF_TEMP);
-			break;
-	}
+        state_binding(ONPOWERUP, ONOFF_TEMP);
+        break;
+    }
 
-	default_tt = gen_def_trans_time_srv_user_data.tt;
+    default_tt = gen_def_trans_time_srv_user_data.tt;
 }
 
-void update_light_state(void)
+void
+update_light_state(void)
 {
-	uint8_t power, color;
+    uint8_t power, color;
 
-	power = 100 * ((float) lightness / 65535);
-	color = 100 * ((float) (temperature + 32768) / 65535);
+    power = 100 * ((float)lightness / 65535);
+    color = 100 * ((float)(temperature + 32768) / 65535);
 
-	printk("power-> %d, color-> %d\n", power, color);
+    printk("power-> %d, color-> %d\n", power, color);
 
-	if (lightness) {
-		/* LED1 On */
-		hal_gpio_write(led_device[0], 0);
-	} else {
-		/* LED1 Off */
-		hal_gpio_write(led_device[0], 1);
-	}
+    if (lightness) {
+        /* LED1 On */
+        hal_gpio_write(led_device[0], 0);
+    } else {
+        /* LED1 Off */
+        hal_gpio_write(led_device[0], 1);
+    }
 
-	if (power < 50) {
-		/* LED3 On */
-		hal_gpio_write(led_device[2], 0);
-	} else {
-		/* LED3 Off */
-		hal_gpio_write(led_device[2], 1);
-	}
+    if (power < 50) {
+        /* LED3 On */
+        hal_gpio_write(led_device[2], 0);
+    } else {
+        /* LED3 Off */
+        hal_gpio_write(led_device[2], 1);
+    }
 
-	if (color < 50) {
-		/* LED4 On */
-		hal_gpio_write(led_device[3], 0);
-	} else {
-		/* LED4 Off */
-		hal_gpio_write(led_device[3], 1);
-	}
+    if (color < 50) {
+        /* LED4 On */
+        hal_gpio_write(led_device[3], 0);
+    } else {
+        /* LED4 Off */
+        hal_gpio_write(led_device[3], 1);
+    }
 
-	if (*ptr_counter == 0 || reset == false) {
-		reset = true;
-		os_callout_reset(&no_transition_work, 0);
-	}
+    if (*ptr_counter == 0 || reset == false) {
+        reset = true;
+        os_callout_reset(&no_transition_work, 0);
+    }
 }
 
-static void short_time_multireset_bt_mesh_unprovisioning(void)
+static void
+short_time_multireset_bt_mesh_unprovisioning(void)
 {
-	if (reset_counter >= 4) {
-		reset_counter = 0;
-		printk("BT Mesh reset\n");
-		bt_mesh_reset();
-	} else {
-		printk("Reset Counter -> %d\n", reset_counter);
-		reset_counter++;
-	}
+    if (reset_counter >= 4) {
+        reset_counter = 0;
+        printk("BT Mesh reset\n");
+        bt_mesh_reset();
+    } else {
+        printk("Reset Counter -> %d\n", reset_counter);
+        reset_counter++;
+    }
 
-	save_on_flash(RESET_COUNTER);
+    save_on_flash(RESET_COUNTER);
 }
 
-static void reset_counter_timer_handler(struct os_event *dummy)
+static void
+reset_counter_timer_handler(struct os_event *dummy)
 {
-	reset_counter = 0;
-	save_on_flash(RESET_COUNTER);
-	printk("Reset Counter set to Zero\n");
+    reset_counter = 0;
+    save_on_flash(RESET_COUNTER);
+    printk("Reset Counter set to Zero\n");
 }
 
 struct os_callout reset_counter_timer;
 
-static void init_timers(void)
+static void
+init_timers(void)
 {
 
-	os_callout_init(&reset_counter_timer, os_eventq_dflt_get(),
-			reset_counter_timer_handler, NULL);
-	os_callout_reset(&reset_counter_timer,
-			 os_time_ms_to_ticks32(K_MSEC(7000)));
+    os_callout_init(&reset_counter_timer, os_eventq_dflt_get(),
+                    reset_counter_timer_handler, NULL);
+    os_callout_reset(&reset_counter_timer, os_time_ms_to_ticks32(K_MSEC(7000)));
 
-	no_transition_work_init();
+    no_transition_work_init();
 }
 
-void bt_initialized(void)
+void
+bt_initialized(void)
 {
-	light_default_status_init();
+    light_default_status_init();
 
-	update_light_state();
+    update_light_state();
 
-	randomize_publishers_TID();
+    randomize_publishers_TID();
 
-	short_time_multireset_bt_mesh_unprovisioning();
+    short_time_multireset_bt_mesh_unprovisioning();
 }
 
 int
 mynewt_main(int argc, char **argv)
 {
-	/* Initialize OS */
-	sysinit();
+    /* Initialize OS */
+    sysinit();
 
-	light_default_var_init();
+    light_default_var_init();
 
-	app_gpio_init();
+    app_gpio_init();
 
-	init_timers();
+    init_timers();
 
-	transition_timers_init();
+    transition_timers_init();
 
-	init_pub();
+    init_pub();
 
-	ps_settings_init();
+    ps_settings_init();
 
-	printk("Initializing...\n");
+    printk("Initializing...\n");
 
-	/* Initialize the NimBLE host configuration. */
-	ble_hs_cfg.reset_cb = blemesh_on_reset;
-	ble_hs_cfg.sync_cb = blemesh_on_sync;
-	ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
+    /* Initialize the NimBLE host configuration. */
+    ble_hs_cfg.reset_cb = blemesh_on_reset;
+    ble_hs_cfg.sync_cb = blemesh_on_sync;
+    ble_hs_cfg.store_status_cb = ble_store_util_status_rr;
 
-	while (1) {
-		os_eventq_run(os_eventq_dflt_get());
-	}
+    while (1) {
+        os_eventq_run(os_eventq_dflt_get());
+    }
 
-	return 0;
+    return 0;
 }

@@ -59,8 +59,8 @@ print_addr(const void *addr)
     const uint8_t *u8p;
 
     u8p = addr;
-    console_printf("%02x:%02x:%02x:%02x:%02x:%02x",
-                   u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+    console_printf("%02x:%02x:%02x:%02x:%02x:%02x", u8p[5], u8p[4], u8p[3],
+                   u8p[2], u8p[1], u8p[0]);
 }
 
 void
@@ -101,26 +101,20 @@ chr_is_empty(const struct btshell_svc *svc, const struct btshell_chr *chr)
 void
 print_conn_desc(const struct ble_gap_conn_desc *desc)
 {
-    console_printf("handle=%d our_ota_addr_type=%d our_ota_addr=",
-                   desc->conn_handle, desc->our_ota_addr.type);
+    console_printf("handle=%d our_ota_addr_type=%d our_ota_addr=", desc->conn_handle,
+                   desc->our_ota_addr.type);
     print_addr(desc->our_ota_addr.val);
-    console_printf(" our_id_addr_type=%d our_id_addr=",
-                   desc->our_id_addr.type);
+    console_printf(" our_id_addr_type=%d our_id_addr=", desc->our_id_addr.type);
     print_addr(desc->our_id_addr.val);
-    console_printf(" peer_ota_addr_type=%d peer_ota_addr=",
-                   desc->peer_ota_addr.type);
+    console_printf(" peer_ota_addr_type=%d peer_ota_addr=", desc->peer_ota_addr.type);
     print_addr(desc->peer_ota_addr.val);
-    console_printf(" peer_id_addr_type=%d peer_id_addr=",
-                   desc->peer_id_addr.type);
+    console_printf(" peer_id_addr_type=%d peer_id_addr=", desc->peer_id_addr.type);
     print_addr(desc->peer_id_addr.val);
     console_printf(" conn_itvl=%d conn_latency=%d supervision_timeout=%d"
                    " key_size=%d encrypted=%d authenticated=%d bonded=%d\n",
-                   desc->conn_itvl, desc->conn_latency,
-                   desc->supervision_timeout,
-                   desc->sec_state.key_size,
-                   desc->sec_state.encrypted,
-                   desc->sec_state.authenticated,
-                   desc->sec_state.bonded);
+                   desc->conn_itvl, desc->conn_latency, desc->supervision_timeout,
+                   desc->sec_state.key_size, desc->sec_state.encrypted,
+                   desc->sec_state.authenticated, desc->sec_state.bonded);
 }
 
 static void
@@ -137,8 +131,8 @@ print_chr(struct btshell_chr *chr)
     struct btshell_dsc *dsc;
 
     console_printf("        def_handle=%d val_handle=%d properties=0x%02x "
-                   "uuid=", chr->chr.def_handle, chr->chr.val_handle,
-                   chr->chr.properties);
+                   "uuid=",
+                   chr->chr.def_handle, chr->chr.val_handle, chr->chr.properties);
     print_uuid(&chr->chr.uuid.u);
     console_printf("\n");
 

@@ -36,11 +36,11 @@ extern "C" {
 extern uint16_t hrs_hrm_handle;
 
 /* Heart-rate configuration */
-#define STRESS_GATT_UUID                     0xC0DE
-#define STRESS_GATT_READ_UUID                0xC1DE
-#define STRESS_GATT_WRITE_UUID               0xC2DE
-#define STRESS_GATT_INDICATE_UUID            0xC3DE
-#define STRESS_GATT_NOTIFY_UUID              0xC4DE
+#define STRESS_GATT_UUID          0xC0DE
+#define STRESS_GATT_READ_UUID     0xC1DE
+#define STRESS_GATT_WRITE_UUID    0xC2DE
+#define STRESS_GATT_INDICATE_UUID 0xC3DE
+#define STRESS_GATT_NOTIFY_UUID   0xC4DE
 
 int gatt_svr_init(void);
 
@@ -50,5 +50,4 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 }
 #endif
 
-
-#endif //BLE_TGT_STRESS_GATT_H
+#endif // BLE_TGT_STRESS_GATT_H

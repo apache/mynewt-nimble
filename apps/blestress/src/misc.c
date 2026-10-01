@@ -20,11 +20,12 @@
 #include "misc.h"
 
 void
-rand_bytes(uint8_t *data, int len) {
+rand_bytes(uint8_t *data, int len)
+{
     int i;
 
     for (i = 0; i < len; ++i) {
-        data[i] = (uint8_t) rand() % UINT8_MAX;
+        data[i] = (uint8_t)rand() % UINT8_MAX;
     }
 }
 
@@ -47,8 +48,8 @@ print_addr(const void *addr)
     const uint8_t *u8p;
 
     u8p = addr;
-    MODLOG_DFLT(DEBUG, "%02x:%02x:%02x:%02x:%02x:%02x",
-                u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+    MODLOG_DFLT(DEBUG, "%02x:%02x:%02x:%02x:%02x:%02x", u8p[5], u8p[4], u8p[3],
+                u8p[2], u8p[1], u8p[0]);
 }
 
 void
@@ -58,7 +59,7 @@ print_mbuf(const struct os_mbuf *om)
         print_bytes(om->om_data, om->om_len);
         om = SLIST_NEXT(om, om_next);
 
-        if(om == NULL) {
+        if (om == NULL) {
             return;
         }
 
@@ -77,8 +78,8 @@ addr_str(const void *addr)
     const uint8_t *u8p;
 
     u8p = addr;
-    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-            u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", u8p[5], u8p[4], u8p[3],
+            u8p[2], u8p[1], u8p[0]);
 
     return buf;
 }
@@ -106,12 +107,11 @@ print_conn_desc(const struct ble_gap_conn_desc *desc)
                 desc->peer_ota_addr.type, addr_str(desc->peer_ota_addr.val));
     MODLOG_DFLT(DEBUG, "peer_id_addr_type=%d peer_id_addr=%s ",
                 desc->peer_id_addr.type, addr_str(desc->peer_id_addr.val));
-    MODLOG_DFLT(DEBUG, "conn_itvl=%d conn_latency=%d supervision_timeout=%d "
-                       "encrypted=%d authenticated=%d bonded=%d",
-                desc->conn_itvl, desc->conn_latency,
-                desc->supervision_timeout,
-                desc->sec_state.encrypted,
-                desc->sec_state.authenticated,
+    MODLOG_DFLT(DEBUG,
+                "conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+                "encrypted=%d authenticated=%d bonded=%d",
+                desc->conn_itvl, desc->conn_latency, desc->supervision_timeout,
+                desc->sec_state.encrypted, desc->sec_state.authenticated,
                 desc->sec_state.bonded);
 }
 

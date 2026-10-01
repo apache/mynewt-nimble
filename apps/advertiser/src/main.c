@@ -93,8 +93,8 @@ advertise(void)
 
     /* As own address type we use hard-coded value, because we generate
        NRPA and by definition it's random */
-    rc = ble_gap_adv_start(BLE_OWN_ADDR_RANDOM, NULL, 10000,
-                           &adv_params, adv_event, NULL);
+    rc = ble_gap_adv_start(BLE_OWN_ADDR_RANDOM, NULL, 10000, &adv_params,
+                           adv_event, NULL);
     assert(rc == 0);
 }
 

@@ -41,7 +41,7 @@ adv_event(struct ble_gap_event *event, void *arg)
 {
     switch (event->type) {
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        MODLOG_DFLT(INFO,"Advertising completed, termination code: %d\n",
+        MODLOG_DFLT(INFO, "Advertising completed, termination code: %d\n",
                     event->adv_complete.reason);
         advertise();
         break;
@@ -61,8 +61,7 @@ adv_event(struct ble_gap_event *event, void *arg)
         MODLOG_DFLT(INFO, "connection parameters updated!\n");
         break;
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "disconnect; reason=%d\n",
-        event->disconnect.reason);
+        MODLOG_DFLT(INFO, "disconnect; reason=%d\n", event->disconnect.reason);
 
         /* reset conn_handle */
         conn_handle = BLE_HS_CONN_HANDLE_NONE;
@@ -71,8 +70,10 @@ adv_event(struct ble_gap_event *event, void *arg)
         advertise();
         break;
     default:
-        MODLOG_DFLT(ERROR, "Advertising event not handled,"
-                    "event code: %u\n", event->type);
+        MODLOG_DFLT(ERROR,
+                    "Advertising event not handled,"
+                    "event code: %u\n",
+                    event->type);
         break;
     }
     return 0;
@@ -99,11 +100,10 @@ advertise(void)
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
-    fields.flags = BLE_HS_ADV_F_DISC_GEN |
-                   BLE_HS_ADV_F_BREDR_UNSUP;
-    fields.uuids128 = BLE_UUID128(BLE_UUID128_DECLARE(
-        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff));
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.uuids128 = BLE_UUID128(
+        BLE_UUID128_DECLARE(0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                            0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff));
     fields.num_uuids128 = 1;
     fields.uuids128_is_complete = 0;
     fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
@@ -117,10 +117,9 @@ advertise(void)
 
     rc = ble_gap_adv_rsp_set_fields(&rsp_fields);
 
-    MODLOG_DFLT(INFO,"Starting advertising...\n");
+    MODLOG_DFLT(INFO, "Starting advertising...\n");
 
-    rc = ble_gap_adv_start(g_own_addr_type, NULL, 100,
-                           &adv_params, adv_event, NULL);
+    rc = ble_gap_adv_start(g_own_addr_type, NULL, 100, &adv_params, adv_event, NULL);
     assert(rc == 0);
 }
 

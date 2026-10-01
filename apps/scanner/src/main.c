@@ -68,8 +68,8 @@ addr_str(const void *addr)
     const uint8_t *u8p;
 
     u8p = addr;
-    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-            u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
+    sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", u8p[5], u8p[4], u8p[3],
+            u8p[2], u8p[1], u8p[0]);
 
     return buf;
 }
@@ -191,8 +191,7 @@ scan_event(struct ble_gap_event *event, void *arg)
     /* advertising report has been received during discovery procedure */
     case BLE_GAP_EVENT_DISC:
         MODLOG_DFLT(ERROR, "Advertising report received!\n");
-        rc = ble_hs_adv_parse_fields(&fields, event->disc.data,
-                                     event->disc.length_data);
+        rc = ble_hs_adv_parse_fields(&fields, event->disc.data, event->disc.length_data);
         if (rc != 0) {
             return 0;
         }

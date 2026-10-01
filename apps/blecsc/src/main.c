@@ -31,15 +31,15 @@
 #include "blecsc_sens.h"
 
 /* Wheel size for simulation calculations */
-#define CSC_SIM_WHEEL_CIRCUMFERENCE_MM            2000
+#define CSC_SIM_WHEEL_CIRCUMFERENCE_MM 2000
 /* Simulated cadence lower limit */
-#define CSC_SIM_CRANK_RPM_MIN                     20
+#define CSC_SIM_CRANK_RPM_MIN          20
 /* Simulated cadence upper limit */
-#define CSC_SIM_CRANK_RPM_MAX                     100
+#define CSC_SIM_CRANK_RPM_MAX          100
 /* Simulated speed lower limit */
-#define CSC_SIM_SPEED_KPH_MIN                     0
+#define CSC_SIM_SPEED_KPH_MIN          0
 /* Simulated speed upper limit */
-#define CSC_SIM_SPEED_KPH_MAX                     35
+#define CSC_SIM_SPEED_KPH_MAX          35
 
 /* Noticication status */
 static bool notify_state = false;
@@ -66,7 +66,6 @@ static uint8_t csc_sim_crank_rpm = CSC_SIM_CRANK_RPM_MIN;
 
 static int blecsc_gap_event(struct ble_gap_event *event, void *arg);
 
-
 /*
  * Enables advertising with parameters:
  *     o General discoverable mode
@@ -92,8 +91,7 @@ blecsc_advertise(void)
      *      o Discoverability in forthcoming advertisement (general)
      *      o BLE-only (BR/EDR unsupported)
      */
-    fields.flags = BLE_HS_ADV_F_DISC_GEN |
-                   BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
 
     /*
      * Indicate that the TX power level field should be included; have the
@@ -123,14 +121,13 @@ blecsc_advertise(void)
     memset(&adv_params, 0, sizeof(adv_params));
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    rc = ble_gap_adv_start(blecsc_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, blecsc_gap_event, NULL);
+    rc = ble_gap_adv_start(blecsc_addr_type, NULL, BLE_HS_FOREVER, &adv_params,
+                           blecsc_gap_event, NULL);
     if (rc != 0) {
         MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
         return;
     }
 }
-
 
 /* Update simulated CSC measurements.
  * Each call increments wheel and crank revolution counters by one and
@@ -155,24 +152,24 @@ blecsc_simulate_speed_and_cadence(void)
     /* Update simulated crank and wheel rotation speed */
     csc_sim_speed_kph++;
     if (csc_sim_speed_kph >= CSC_SIM_SPEED_KPH_MAX) {
-         csc_sim_speed_kph = CSC_SIM_SPEED_KPH_MIN;
+        csc_sim_speed_kph = CSC_SIM_SPEED_KPH_MIN;
     }
 
     csc_sim_crank_rpm++;
     if (csc_sim_crank_rpm >= CSC_SIM_CRANK_RPM_MAX) {
-         csc_sim_crank_rpm = CSC_SIM_CRANK_RPM_MIN;
+        csc_sim_crank_rpm = CSC_SIM_CRANK_RPM_MIN;
     }
 
     /* Calculate simulated measurement values */
-    if (csc_sim_speed_kph > 0){
-        wheel_rev_period = (36*64*CSC_SIM_WHEEL_CIRCUMFERENCE_MM) /
-                           (625*csc_sim_speed_kph);
+    if (csc_sim_speed_kph > 0) {
+        wheel_rev_period = (36 * 64 * CSC_SIM_WHEEL_CIRCUMFERENCE_MM) /
+                           (625 * csc_sim_speed_kph);
         csc_measurement_state.cumulative_wheel_rev++;
         csc_measurement_state.last_wheel_evt_time += wheel_rev_period;
     }
 
-    if (csc_sim_crank_rpm > 0){
-        crank_rev_period = (60*1024) / csc_sim_crank_rpm;
+    if (csc_sim_crank_rpm > 0) {
+        crank_rev_period = (60 * 1024) / csc_sim_crank_rpm;
         csc_measurement_state.cumulative_crank_rev++;
         csc_measurement_state.last_crank_evt_time += crank_rev_period;
     }
@@ -212,9 +209,8 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
             /* Connection failed; resume advertising */
             blecsc_advertise();
             conn_handle = 0;
-        }
-        else {
-          conn_handle = event->connect.conn_handle;
+        } else {
+            conn_handle = event->connect.conn_handle;
         }
         break;
 
@@ -235,10 +231,8 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
 
         if (event->subscribe.attr_handle == csc_measurement_handle) {
             notify_state = event->subscribe.cur_notify;
-            MODLOG_DFLT(INFO, "csc measurement notify state = %d\n",
-                        notify_state);
-        }
-        else if (event->subscribe.attr_handle == csc_control_point_handle) {
+            MODLOG_DFLT(INFO, "csc measurement notify state = %d\n", notify_state);
+        } else if (event->subscribe.attr_handle == csc_control_point_handle) {
             gatt_svr_set_cp_indicate(event->subscribe.cur_indicate);
             MODLOG_DFLT(INFO, "csc control point indicate state = %d\n",
                         event->subscribe.cur_indicate);
@@ -247,10 +241,8 @@ blecsc_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_MTU:
         MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d mtu=%d\n",
-                    event->mtu.conn_handle,
-                    event->mtu.value);
+                    event->mtu.conn_handle, event->mtu.value);
         break;
-
     }
 
     return 0;
@@ -307,4 +299,3 @@ mynewt_main(int argc, char **argv)
     }
     return 0;
 }
-

@@ -28,19 +28,19 @@
 #define _STATE_BINDING_H
 
 enum state_binding {
-	ONPOWERUP = 0x01,
-	ONOFF,
-	LEVEL,
-	DELTA_LEVEL,
-	ACTUAL,
-	LINEAR,
-	CTL,
-	IGNORE,
+    ONPOWERUP = 0x01,
+    ONOFF,
+    LEVEL,
+    DELTA_LEVEL,
+    ACTUAL,
+    LINEAR,
+    CTL,
+    IGNORE,
 
-	ONOFF_TEMP,
-	LEVEL_TEMP,
-	CTL_TEMP,
-	IGNORE_TEMP
+    ONOFF_TEMP,
+    LEVEL_TEMP,
+    CTL_TEMP,
+    IGNORE_TEMP
 };
 
 extern uint16_t lightness, target_lightness;

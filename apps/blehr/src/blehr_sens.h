@@ -28,12 +28,12 @@ extern "C" {
 #endif
 
 /* Heart-rate configuration */
-#define GATT_HRS_UUID                           0x180D
-#define GATT_HRS_MEASUREMENT_UUID               0x2A37
-#define GATT_HRS_BODY_SENSOR_LOC_UUID           0x2A38
-#define GATT_DEVICE_INFO_UUID                   0x180A
-#define GATT_MANUFACTURER_NAME_UUID             0x2A29
-#define GATT_MODEL_NUMBER_UUID                  0x2A24
+#define GATT_HRS_UUID                 0x180D
+#define GATT_HRS_MEASUREMENT_UUID     0x2A37
+#define GATT_HRS_BODY_SENSOR_LOC_UUID 0x2A38
+#define GATT_DEVICE_INFO_UUID         0x180A
+#define GATT_MANUFACTURER_NAME_UUID   0x2A29
+#define GATT_MODEL_NUMBER_UUID        0x2A24
 
 extern uint16_t hrs_hrm_handle;
 

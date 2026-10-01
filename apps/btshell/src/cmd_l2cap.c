@@ -28,7 +28,6 @@
 #include "cmd.h"
 #include "cmd_l2cap.h"
 
-
 /*****************************************************************************
  * $l2cap-update                                                             *
  *****************************************************************************/
@@ -51,17 +50,15 @@ cmd_l2cap_update(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_min = parse_arg_uint16_dflt("interval_min",
-                                            BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                            &rc);
+    params.itvl_min =
+        parse_arg_uint16_dflt("interval_min", BLE_GAP_INITIAL_CONN_ITVL_MIN, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    params.itvl_max = parse_arg_uint16_dflt("interval_max",
-                                            BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                            &rc);
+    params.itvl_max =
+        parse_arg_uint16_dflt("interval_max", BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -241,20 +238,20 @@ cmd_l2cap_send(int argc, char **argv)
 
     conn = parse_arg_uint16("conn", &rc);
     if (rc != 0) {
-       console_printf("invalid 'conn' parameter\n");
-       return rc;
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
     }
 
     idx = parse_arg_uint16("idx", &rc);
     if (rc != 0) {
-       console_printf("invalid 'idx' parameter\n");
-       return rc;
+        console_printf("invalid 'idx' parameter\n");
+        return rc;
     }
 
     bytes = parse_arg_uint16("bytes", &rc);
     if (rc != 0) {
-       console_printf("invalid 'bytes' parameter\n");
-       return rc;
+        console_printf("invalid 'bytes' parameter\n");
+        return rc;
     }
 
     return btshell_l2cap_send(conn, idx, bytes);
@@ -301,20 +298,20 @@ cmd_l2cap_reconfig(int argc, char **argv)
 
     conn = parse_arg_uint16("conn", &rc);
     if (rc != 0) {
-       console_printf("invalid 'conn' parameter\n");
-       return rc;
+        console_printf("invalid 'conn' parameter\n");
+        return rc;
     }
 
-    mtu = parse_arg_uint16_dflt("mtu", 0,&rc);
+    mtu = parse_arg_uint16_dflt("mtu", 0, &rc);
     if (rc != 0) {
-       console_printf("invalid 'mtu' parameter\n");
-       return rc;
+        console_printf("invalid 'mtu' parameter\n");
+        return rc;
     }
 
     rc = parse_arg_byte_stream_custom("idxs", ",", 5, idxs, 0, &num);
     if (rc != 0) {
-       console_printf("invalid 'idxs' parameter\n");
-       return rc;
+        console_printf("invalid 'idxs' parameter\n");
+        return rc;
     }
 
     return btshell_l2cap_reconfig(conn, mtu, num, idxs);

@@ -46,7 +46,7 @@ struct chan {
 #include "host/ble_gap.h"
 #include "os/os_cputime.h"
 
-#define AUDIO_BUF_SIZE      1024
+#define AUDIO_BUF_SIZE 1024
 
 static uint8_t g_usb_enabled;
 
@@ -77,7 +77,6 @@ static struct ble_gap_event_listener feedback_listener;
 #endif
 static uint32_t pkt_counter = 0;
 
-
 #if MYNEWT_VAL(ISO_HCI_FEEDBACK)
 static int
 ble_hs_gap_event_handler(struct ble_gap_event *event, void *arg)
@@ -91,7 +90,7 @@ ble_hs_gap_event_handler(struct ble_gap_event *event, void *arg)
         const struct ble_hci_ev_vs *ev = event->unhandled_hci.ev;
 
         if (ev->id == BLE_HCI_VS_SUBEV_ISO_HCI_FEEDBACK) {
-            feedback_pkt = (struct ble_hci_vs_subev_iso_hci_feedback *) ev->data;
+            feedback_pkt = (struct ble_hci_vs_subev_iso_hci_feedback *)ev->data;
             assert(feedback_pkt->count == MYNEWT_VAL(BLE_ISO_MAX_BIGS));
             /* There is only one BIG in this sample */
             if (feedback_pkt->feedback[0].diff > 0) {
@@ -134,9 +133,7 @@ resample(void)
 
     assert(resampled_len <= resample_avail);
 
-    src_float_to_short_array(resampled_float,
-                             &out_buf[out_idx],
-                             resampled_len);
+    src_float_to_short_array(resampled_float, &out_buf[out_idx], resampled_len);
 
     out_idx += resampled_len;
 
@@ -198,20 +195,19 @@ usb_data_func(struct os_event *ev)
             if (!skip) {
                 memset(encoded_frame, 0, sizeof(encoded_frame));
                 lc3_encode(chans[0].encoder, LC3_PCM_FORMAT_S16, out_buf + 0,
-                           AUDIO_CHANNELS, (int) frame_bytes_lc3,
-                           encoded_frame);
+                           AUDIO_CHANNELS, (int)frame_bytes_lc3, encoded_frame);
                 if (AUDIO_CHANNELS == 2) {
                     if (MYNEWT_VAL(BIG_NUM_BIS) == 1) {
                         lc3_encode(chans[0].encoder, LC3_PCM_FORMAT_S16,
-                                   out_buf + 1, AUDIO_CHANNELS,
-                                   (int) frame_bytes_lc3, encoded_frame + big_sdu / 2);
+                                   out_buf + 1, AUDIO_CHANNELS, (int)frame_bytes_lc3,
+                                   encoded_frame + big_sdu / 2);
                         ble_iso_tx(chans[0].handle, encoded_frame, big_sdu);
                     } else {
                         ble_iso_tx(chans[0].handle, encoded_frame, big_sdu);
                         memset(encoded_frame, 0, sizeof(encoded_frame));
-                        lc3_encode(chans[1].encoder, LC3_PCM_FORMAT_S16, out_buf + 1,
-                                   AUDIO_CHANNELS, (int) frame_bytes_lc3,
-                                   encoded_frame);
+                        lc3_encode(chans[1].encoder, LC3_PCM_FORMAT_S16,
+                                   out_buf + 1, AUDIO_CHANNELS,
+                                   (int)frame_bytes_lc3, encoded_frame);
                         ble_iso_tx(chans[1].handle, encoded_frame, big_sdu);
                     }
                 } else {
@@ -232,8 +228,7 @@ usb_data_func(struct os_event *ev)
 
 bool
 tud_audio_rx_done_post_read_cb(uint8_t rhport, uint16_t n_bytes_received,
-                               uint8_t func_id, uint8_t ep_out,
-                               uint8_t cur_alt_setting)
+                               uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting)
 {
     (void)rhport;
     (void)n_bytes_received;
@@ -258,11 +253,9 @@ audio_usb_init(void)
 
     usb_desc_sample_rate_set(AUDIO_PCM_SAMPLE_RATE);
 
-    assert(LC3_FPDT == lc3_frame_samples(LC3_FRAME_DURATION,
-                                         AUDIO_PCM_SAMPLE_RATE));
+    assert(LC3_FPDT == lc3_frame_samples(LC3_FRAME_DURATION, AUDIO_PCM_SAMPLE_RATE));
 
-    unsigned esize = lc3_encoder_size(LC3_FRAME_DURATION,
-                                      AUDIO_PCM_SAMPLE_RATE);
+    unsigned esize = lc3_encoder_size(LC3_FRAME_DURATION, AUDIO_PCM_SAMPLE_RATE);
     for (int i = 0; i < AUDIO_CHANNELS; i++) {
         chans[i].encoder = calloc(1, esize);
         lc3_setup_encoder(LC3_FRAME_DURATION, LC3_SAMPLING_FREQ,
@@ -272,8 +265,7 @@ audio_usb_init(void)
     g_usb_enabled = 1;
 
     frame_bytes_lc3 = lc3_frame_bytes(LC3_FRAME_DURATION, LC3_BITRATE);
-    big_sdu = frame_bytes_lc3 *
-              (1 + ((AUDIO_CHANNELS == 2) && (BIG_NUM_BIS == 1)));
+    big_sdu = frame_bytes_lc3 * (1 + ((AUDIO_CHANNELS == 2) && (BIG_NUM_BIS == 1)));
 
 #if MYNEWT_VAL(ISO_HCI_FEEDBACK)
     int rc;
@@ -309,11 +301,11 @@ audio_broadcast_event_cb(struct os_event *ev)
     }
 
     if (chans[0].handle != BLE_HS_CONN_HANDLE_NONE) {
-        ble_iso_tx(chans[0].handle, (void *) (audio_data + audio_data_offset),
+        ble_iso_tx(chans[0].handle, (void *)(audio_data + audio_data_offset),
                    BROADCAST_MAX_SDU);
     }
     if (chans[1].handle != BLE_HS_CONN_HANDLE_NONE) {
-        ble_iso_tx(chans[1].handle, (void *) (audio_data + audio_data_offset),
+        ble_iso_tx(chans[1].handle, (void *)(audio_data + audio_data_offset),
                    BROADCAST_MAX_SDU);
     }
 #else
@@ -327,8 +319,7 @@ audio_broadcast_event_cb(struct os_event *ev)
            BROADCAST_MAX_SDU);
 
     if (chans[0].handle != BLE_HS_CONN_HANDLE_NONE) {
-        ble_iso_tx(chans[0].handle, (void *) (lr_payload),
-                   BROADCAST_MAX_SDU * 2);
+        ble_iso_tx(chans[0].handle, (void *)(lr_payload), BROADCAST_MAX_SDU * 2);
     }
 #endif
     audio_data_offset += BROADCAST_MAX_SDU;

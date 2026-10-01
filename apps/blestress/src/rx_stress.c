@@ -36,11 +36,11 @@ static struct com_stress_test_ctx rx_stress_ctxD = {
 
 static struct com_stress_test_ctx *rx_stress_ctx = &rx_stress_ctxD;
 
-#define EXTENDED_ADVERT 0
-#define LEGACY_ADVERT 1
+#define EXTENDED_ADVERT          0
+#define LEGACY_ADVERT            1
 /* Advertising instances ids */
-#define SWITCHER_INSTANCE 0
-#define TEST_INSTANCE 1
+#define SWITCHER_INSTANCE        0
+#define TEST_INSTANCE            1
 /* Main test task priority. Set a high value so that the task does not
  * interfere with event handling */
 #define RX_STRESS_MAIN_TASK_PRIO 0xf0
@@ -75,9 +75,8 @@ rx_stress_adv_start(uint8_t instance)
 
     /* Resume advertising earlier configured instance */
     rc = ble_gap_ext_adv_start(instance, 0, 0);
-    assert (rc == 0 || rc == 2);
-    MODLOG_DFLT(DEBUG, "Ext Adv - Test Instance %d started; rc: %d\n",
-                instance, rc);
+    assert(rc == 0 || rc == 2);
+    MODLOG_DFLT(DEBUG, "Ext Adv - Test Instance %d started; rc: %d\n", instance, rc);
     return rc;
 }
 
@@ -90,11 +89,11 @@ rx_stress_adv_start_with_rand_addr(uint8_t instance)
     ble_gap_ext_adv_stop(instance);
 
     rc = ble_hs_id_gen_rnd(1, &addr);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* Set random address for advertising instance */
     rc = ble_gap_ext_adv_set_addr(instance, &addr);
-    assert (rc == 0);
+    assert(rc == 0);
 
     return rx_stress_adv_start(instance);
 }
@@ -124,7 +123,7 @@ rx_stress_simple_adv(struct rx_stress_adv_set *adv_set)
     fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
     /* Set device name as instance name */
     name = ble_svc_gap_device_name();
-    fields.name = (uint8_t *) name;
+    fields.name = (uint8_t *)name;
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
     /* Set UUID 128 data service */
@@ -154,20 +153,19 @@ rx_stress_simple_adv(struct rx_stress_adv_set *adv_set)
     assert(rc == 0 || rc == BLE_HS_EALREADY);
 
     /* Configure instance with the params set */
-    rc = ble_gap_ext_adv_configure(adv_set->instance, &params,
-                                   NULL, adv_set->cb, NULL);
-    assert (rc == 0);
+    rc = ble_gap_ext_adv_configure(adv_set->instance, &params, NULL, adv_set->cb, NULL);
+    assert(rc == 0);
 
     if (own_addr_type == 0) {
         rc = ble_hs_id_copy_addr(BLE_ADDR_PUBLIC, addr.val, NULL);
-        assert (rc == 0);
+        assert(rc == 0);
     } else {
         rc = ble_hs_id_gen_rnd(1, &addr);
-        assert (rc == 0);
+        assert(rc == 0);
 
         /* Set random address for advertising instance */
         rc = ble_gap_ext_adv_set_addr(adv_set->instance, &addr);
-        assert (rc == 0);
+        assert(rc == 0);
     }
 
     /* Get mbuf for adv data */
@@ -195,11 +193,11 @@ rx_stress_simple_adv(struct rx_stress_adv_set *adv_set)
 
     /* Include mbuf data in advertisement */
     rc = ble_gap_ext_adv_set_data(adv_set->instance, adv_data);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* Start advertising */
     rc = ble_gap_ext_adv_start(adv_set->instance, 0, 0);
-    assert (rc == 0);
+    assert(rc == 0);
 
     MODLOG_DFLT(INFO, "instance %u started\n", adv_set->instance);
 }
@@ -212,22 +210,18 @@ rx_stress_0_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[1].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[1].num);
 
             /* Stop test advert */
             ble_gap_ext_adv_stop(TEST_INSTANCE);
-            ble_gap_terminate(event->connect.conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(INFO, "Connection failed; status=%d ", event->connect.status);
         }
         return 0;
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
         MODLOG_DFLT(INFO, "Received signal to switch test\n");
         /* Add token to semaphore. Main task will start next test. */
         os_sem_release(&rx_stress_main_sem);
@@ -247,15 +241,16 @@ rx_stress_2_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[2].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; "
-                              "status=%d; num=%d; conn handle=%d;\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[2].num,
+            MODLOG_DFLT(INFO,
+                        "\nConnection established; "
+                        "status=%d; num=%d; conn handle=%d;\n",
+                        event->connect.status, ++rx_stress_ctx->con_stat[2].num,
                         event->connect.conn_handle);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d;"
-                              "\n ",
+            MODLOG_DFLT(WARN,
+                        "Connection failed; status=%d; conn handle=%d;"
+                        "\n ",
                         event->connect.status, event->connect.conn_handle);
 
             rx_stress_adv_start(TEST_INSTANCE);
@@ -263,8 +258,7 @@ rx_stress_2_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[2].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(2);
         } else {
@@ -287,15 +281,16 @@ rx_stress_3_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[3].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d;"
-                              " handle=%d;\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[3].num,
+            MODLOG_DFLT(INFO,
+                        "\nConnection established; status=%d; num=%d;"
+                        " handle=%d;\n",
+                        event->connect.status, ++rx_stress_ctx->con_stat[3].num,
                         event->connect.conn_handle);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(WARN, "Connection failed; status=%d; conn handle=%d;"
-                              "\n ",
+            MODLOG_DFLT(WARN,
+                        "Connection failed; status=%d; conn handle=%d;"
+                        "\n ",
                         event->connect.status, event->connect.conn_handle);
 
             rx_stress_adv_start(TEST_INSTANCE);
@@ -303,8 +298,7 @@ rx_stress_3_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[3].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(3);
         } else {
@@ -331,8 +325,7 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[4].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[4].num);
 
             /* Remember connection handler */
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
@@ -348,8 +341,7 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
-        if (rx_stress_ctx->con_stat[4].prms_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[4].prms_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(4);
         } else {
             /* Connection terminated; resume advertising. */
@@ -366,11 +358,9 @@ rx_stress_4_gap_event(struct ble_gap_event *event, void *arg)
                         ++rx_stress_ctx->con_stat[4].prms_upd_num);
         }
 
-        if (rx_stress_ctx->con_stat[4].prms_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[4].prms_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             /* Test completed. */
-            ble_gap_terminate(rx_stress_ctx->conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(rx_stress_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         }
         return 0;
 
@@ -395,8 +385,7 @@ rx_stress_5_con_update(void)
          * that value won't grow significantly and will be different with every
          * iteration. */
         .supervision_timeout = BLE_GAP_INITIAL_SUPERVISION_TIMEOUT +
-                               (rx_stress_ctx->con_stat[5].prms_upd_num % 2 ?
-                                1 : 2),
+                               (rx_stress_ctx->con_stat[5].prms_upd_num % 2 ? 1 : 2),
         .min_ce_len = BLE_GAP_INITIAL_CONN_MIN_CE_LEN,
         .max_ce_len = BLE_GAP_INITIAL_CONN_MAX_CE_LEN,
     };
@@ -429,8 +418,7 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[5].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[5].num);
 
             /* Remember connection handler */
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
@@ -450,8 +438,7 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
-        if (rx_stress_ctx->con_stat[5].prms_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[5].prms_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(5);
         } else {
             /* Connection terminated; resume advertising. */
@@ -467,11 +454,9 @@ rx_stress_5_gap_event(struct ble_gap_event *event, void *arg)
                         ++rx_stress_ctx->con_stat[5].prms_upd_num);
         }
 
-        if (rx_stress_ctx->con_stat[5].prms_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[5].prms_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             /* Test completed. */
-            ble_gap_terminate(rx_stress_ctx->conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(rx_stress_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         } else {
             /* Update connection. */
             rc = rx_stress_5_con_update();
@@ -505,8 +490,7 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[7].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[7].num);
 
             /* Remember connection handler */
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
@@ -514,16 +498,14 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ", event->connect.status);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
-        if (rx_stress_ctx->con_stat[7].phy_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[7].phy_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(7);
         } else {
             /* Connection terminated; resume advertising. */
@@ -540,11 +522,9 @@ rx_stress_7_gap_event(struct ble_gap_event *event, void *arg)
                         event->phy_updated.rx_phy, event->phy_updated.tx_phy);
         }
 
-        if (rx_stress_ctx->con_stat[7].phy_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[7].phy_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             /* Test completed. */
-            ble_gap_terminate(rx_stress_ctx->conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(rx_stress_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         }
         return 0;
 
@@ -561,8 +541,7 @@ rx_stress_8_con_update(void)
     uint8_t tx_phys_mask;
     uint8_t rx_phys_mask;
 
-    ble_gap_read_le_phy(rx_stress_ctx->conn_handle, &tx_phys_mask,
-                        &rx_phys_mask);
+    ble_gap_read_le_phy(rx_stress_ctx->conn_handle, &tx_phys_mask, &rx_phys_mask);
 
     /* With every next update at least one param must change */
     switch (rx_phys_mask) {
@@ -599,8 +578,8 @@ rx_stress_8_con_update(void)
         break;
     }
 
-    rc = ble_gap_set_prefered_le_phy(rx_stress_ctx->conn_handle,
-                                     tx_phys_mask, rx_phys_mask, 0);
+    rc = ble_gap_set_prefered_le_phy(rx_stress_ctx->conn_handle, tx_phys_mask,
+                                     rx_phys_mask, 0);
 
     MODLOG_DFLT(INFO, "Set PHY params: tx_phys_mask=%d; rx_phys_mask=%d\n",
                 tx_phys_mask, rx_phys_mask);
@@ -630,8 +609,7 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(DEBUG, "Connection established; status=%d; num=%d",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[8].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[8].num);
 
             /* Remember connection handler */
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
@@ -643,16 +621,14 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
             assert(rc == 0);
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ", event->connect.status);
             rx_stress_adv_start(TEST_INSTANCE);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(DEBUG, "Disconnect; reason=%d ", event->disconnect.reason);
-        if (rx_stress_ctx->con_stat[8].phy_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[8].phy_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(8);
         } else {
             /* Connection terminated; resume advertising. */
@@ -669,11 +645,9 @@ rx_stress_8_gap_event(struct ble_gap_event *event, void *arg)
                         event->phy_updated.rx_phy, event->phy_updated.tx_phy);
         }
 
-        if (rx_stress_ctx->con_stat[8].phy_upd_num >=
-            MYNEWT_VAL(BLE_STRESS_REPEAT)) {
+        if (rx_stress_ctx->con_stat[8].phy_upd_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             /* Test completed. */
-            ble_gap_terminate(rx_stress_ctx->conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(rx_stress_ctx->conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         } else {
             /* Update connection. */
             rc = rx_stress_8_con_update();
@@ -697,30 +671,25 @@ rx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[9].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[9].num);
 
             /* Remember max number of established connections */
-            if (rx_stress_ctx->con_stat[9].num >
-                rx_stress_ctx->con_stat[9].max_num) {
+            if (rx_stress_ctx->con_stat[9].num > rx_stress_ctx->con_stat[9].max_num) {
                 rx_stress_ctx->con_stat[9].max_num = rx_stress_ctx->con_stat[9].num;
             }
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d\n",
-                        event->connect.status);
+            MODLOG_DFLT(INFO, "Connection failed; status=%d\n", event->connect.status);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
         MODLOG_DFLT(INFO, "Disconnect; reason=%d; conn handle=%d\n",
                     event->disconnect.reason, event->connect.conn_handle);
-        MODLOG_DFLT(INFO, "Connections num: %d\n",
-                    --rx_stress_ctx->con_stat[9].num);
+        MODLOG_DFLT(INFO, "Connections num: %d\n", --rx_stress_ctx->con_stat[9].num);
 
         if (rx_stress_ctx->con_stat[9].num != 0 &&
-            rx_stress_ctx->con_stat[9].num <
-            MYNEWT_VAL(BLE_MAX_CONNECTIONS) + 1) {
+            rx_stress_ctx->con_stat[9].num < MYNEWT_VAL(BLE_MAX_CONNECTIONS) + 1) {
             rx_stress_adv_start_with_rand_addr(TEST_INSTANCE);
         } else {
             /* When TX device has terminated all connections, stop advertising. */
@@ -733,8 +702,7 @@ rx_stress_9_gap_event(struct ble_gap_event *event, void *arg)
         /* Stop test when TX device has terminated all connections or
          * number of connections has reached the max possible value. */
         if (rx_stress_ctx->con_stat[9].num != 0 &&
-            rx_stress_ctx->con_stat[9].num <
-            MYNEWT_VAL(BLE_MAX_CONNECTIONS) + 1) {
+            rx_stress_ctx->con_stat[9].num < MYNEWT_VAL(BLE_MAX_CONNECTIONS) + 1) {
             rx_stress_adv_start_with_rand_addr(TEST_INSTANCE);
         }
         return 0;
@@ -749,11 +717,12 @@ static void
 tx_stress_10_l2cap_update_event(uint16_t conn_handle, int status, void *arg)
 {
     if (status == 0) {
-        MODLOG_DFLT(INFO, "L2CAP params updated; conn handle=%d\n",
-                    conn_handle);
+        MODLOG_DFLT(INFO, "L2CAP params updated; conn handle=%d\n", conn_handle);
     } else {
-        MODLOG_DFLT(ERROR, "L2CAP params update failed; rc=%d; conn "
-                           "handle=%d\n", status, conn_handle);
+        MODLOG_DFLT(ERROR,
+                    "L2CAP params update failed; rc=%d; conn "
+                    "handle=%d\n",
+                    status, conn_handle);
         assert(0);
     }
 }
@@ -780,16 +749,13 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
         MODLOG_DFLT(INFO,
                     "LE COC connected, conn: %d, chan: 0x%08lx, scid: 0x%04x, "
                     "dcid: 0x%04x, our_mtu: 0x%04x, peer_mtu: 0x%04x\n",
-                    event->connect.conn_handle,
-                    (uint32_t) event->connect.chan,
-                    chan_info.scid,
-                    chan_info.dcid,
-                    chan_info.our_l2cap_mtu,
+                    event->connect.conn_handle, (uint32_t)event->connect.chan,
+                    chan_info.scid, chan_info.dcid, chan_info.our_l2cap_mtu,
                     chan_info.peer_l2cap_mtu);
 
         struct ble_l2cap_sig_update_params params = {
-            .itvl_min = 0x0006,//BLE_GAP_INITIAL_CONN_ITVL_MIN
-            .itvl_max = 0x0006,//BLE_GAP_INITIAL_CONN_ITVL_MIN
+            .itvl_min = 0x0006, // BLE_GAP_INITIAL_CONN_ITVL_MIN
+            .itvl_max = 0x0006, // BLE_GAP_INITIAL_CONN_ITVL_MIN
             .slave_latency = 0x0000,
             .timeout_multiplier = 0x0100,
         };
@@ -801,12 +767,11 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
         MODLOG_DFLT(INFO, "LE CoC disconnected, chan: 0x%08lx\n",
-                    (uint32_t) event->disconnect.chan);
+                    (uint32_t)event->disconnect.chan);
         return 0;
 
     case BLE_L2CAP_EVENT_COC_ACCEPT:
-        stress_l2cap_coc_accept(event->accept.peer_sdu_size,
-                                event->accept.chan);
+        stress_l2cap_coc_accept(event->accept.peer_sdu_size, event->accept.chan);
         return 0;
 
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
@@ -860,8 +825,10 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
             MODLOG_DFLT(ERROR, "L2CAP stalled - waiting\n");
             stalled = true;
         } else {
-            MODLOG_DFLT(ERROR, "Sending data via L2CAP failed with error "
-                        "code %d\n", rc);
+            MODLOG_DFLT(ERROR,
+                        "Sending data via L2CAP failed with error "
+                        "code %d\n",
+                        rc);
         }
     }
 
@@ -883,16 +850,13 @@ rx_stress_10_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "Connection established; status=%d; num=%d",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[10].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[10].num);
 
             ble_gap_conn_find(event->connect.conn_handle, &out_desc);
-            MODLOG_DFLT(INFO, "Address %s",
-                        addr_str(out_desc.peer_id_addr.val));
+            MODLOG_DFLT(INFO, "Address %s", addr_str(out_desc.peer_id_addr.val));
         } else {
             /* Connection failed; resume advertising. */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(INFO, "Connection failed; status=%d ", event->connect.status);
         }
         return 0;
 
@@ -916,22 +880,21 @@ rx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         ++rx_stress_ctx->con_stat[11].attempts_num;
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
-            MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d; "
-                              "conn handle=%d\n", event->connect.status,
-                              ++rx_stress_ctx->con_stat[11].num,
-                              event->connect.conn_handle);
+            MODLOG_DFLT(INFO,
+                        "\nConnection established; status=%d; num=%d; "
+                        "conn handle=%d\n",
+                        event->connect.status, ++rx_stress_ctx->con_stat[11].num,
+                        event->connect.conn_handle);
         } else {
             MODLOG_DFLT(ERROR, "Error: connection attempt failed; status=%d\n",
                         event->connect.status);
         }
 
-        ble_gap_terminate(event->connect.conn_handle,
-                          BLE_ERR_REM_USER_CONN_TERM);
+        ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[11].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(11);
         } else {
@@ -959,27 +922,23 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[12].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[12].num);
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
 
             break;
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ", event->connect.status);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
 
-        rx_stress_ctx->s12_notif_time = rx_stress_ctx->time_sum /
-                                        rx_stress_ctx->send_num;
+        rx_stress_ctx->s12_notif_time =
+            rx_stress_ctx->time_sum / rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(DEBUG, "Average time: %d us\n",
-                    rx_stress_ctx->s12_notif_time);
+        MODLOG_DFLT(DEBUG, "Average time: %d us\n", rx_stress_ctx->s12_notif_time);
 
         rx_stress_on_test_finish(12);
         return 0;
@@ -995,8 +954,7 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
         assert(event->notify_tx.status == BLE_HS_EDONE);
 
         if (rx_stress_ctx->send_num++ >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
-            ble_gap_terminate(event->notify_tx.conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(event->notify_tx.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
             return 0;
         }
 
@@ -1015,8 +973,7 @@ rx_stress_12_gap_event(struct ble_gap_event *event, void *arg)
     rx_stress_ctx->begin_us = os_get_uptime_usec();
     om = os_msys_get_pkthdr(om_len, 0);
     stress_fill_mbuf_with_pattern(om, om_len);
-    rc = ble_gatts_indicate_custom(rx_stress_ctx->conn_handle, hrs_hrm_handle,
-                                   om);
+    rc = ble_gatts_indicate_custom(rx_stress_ctx->conn_handle, hrs_hrm_handle, om);
     assert(rc == 0);
     return 0;
 }
@@ -1030,10 +987,8 @@ rx_stress_13_notify_ev_func(struct ble_npl_event *ev)
     int rc;
 
     om = ble_hs_mbuf_from_flat(test_6_pattern, 10);
-    rc = ble_gatts_notify_custom(rx_stress_ctx->conn_handle,
-                                 hrs_hrm_handle, om);
+    rc = ble_gatts_notify_custom(rx_stress_ctx->conn_handle, hrs_hrm_handle, om);
     assert(rc == 0);
-
 }
 
 static int
@@ -1044,8 +999,7 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[13].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[13].num);
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
 
             rx_stress_ctx->begin_us = os_get_uptime_usec();
@@ -1055,36 +1009,30 @@ rx_stress_13_gap_event(struct ble_gap_event *event, void *arg)
             break;
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(INFO, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(INFO, "Connection failed; status=%d ", event->connect.status);
             assert(0);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(INFO, "Disconnect; reason=%d \n", event->disconnect.reason);
 
-        rx_stress_ctx->time_sum = rx_stress_ctx->end_us -
-                                  rx_stress_ctx->begin_us;
+        rx_stress_ctx->time_sum = rx_stress_ctx->end_us - rx_stress_ctx->begin_us;
 
-        rx_stress_ctx->s13_notif_time = rx_stress_ctx->time_sum /
-                                        rx_stress_ctx->send_num;
+        rx_stress_ctx->s13_notif_time =
+            rx_stress_ctx->time_sum / rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(INFO, "Average time: %d us\n",
-                    rx_stress_ctx->s13_notif_time);
+        MODLOG_DFLT(INFO, "Average time: %d us\n", rx_stress_ctx->s13_notif_time);
         rx_stress_on_test_finish(13);
         return 0;
 
     case BLE_GAP_EVENT_NOTIFY_TX:
-        MODLOG_DFLT(INFO, "Notify TX event; num=%d\n",
-                    ++rx_stress_ctx->send_num);
+        MODLOG_DFLT(INFO, "Notify TX event; num=%d\n", ++rx_stress_ctx->send_num);
         assert(event->notify_tx.status == 0);
 
         if (rx_stress_ctx->send_num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_ctx->end_us = os_get_uptime_usec();
-            ble_gap_terminate(event->connect.conn_handle,
-                              BLE_ERR_REM_USER_CONN_TERM);
+            ble_gap_terminate(event->connect.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
             return 0;
         }
 
@@ -1112,26 +1060,22 @@ rx_stress_14_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[14].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[14].num);
             rx_stress_ctx->conn_handle = event->connect.conn_handle;
         } else {
             /* Connection failed; resume advertising */
-            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ",
-                        event->connect.status);
+            MODLOG_DFLT(DEBUG, "Connection failed; status=%d ", event->connect.status);
             assert(0);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
 
-        rx_stress_ctx->s14_notif_time = rx_stress_ctx->time_sum /
-                                        rx_stress_ctx->send_num;
+        rx_stress_ctx->s14_notif_time =
+            rx_stress_ctx->time_sum / rx_stress_ctx->send_num;
 
-        MODLOG_DFLT(DEBUG, "Average time: %d us\n",
-                    rx_stress_ctx->s14_notif_time);
+        MODLOG_DFLT(DEBUG, "Average time: %d us\n", rx_stress_ctx->s14_notif_time);
 
         rx_stress_on_test_finish(14);
         return 0;
@@ -1177,18 +1121,18 @@ rx_stress_15_gap_event(struct ble_gap_event *event, void *arg)
         /* A new connection was established or a connection attempt failed. */
         if (event->connect.status == 0) {
             MODLOG_DFLT(INFO, "\nConnection established; status=%d; num=%d\n",
-                        event->connect.status,
-                        ++rx_stress_ctx->con_stat[15].num);
+                        event->connect.status, ++rx_stress_ctx->con_stat[15].num);
         } else {
-            MODLOG_DFLT(DEBUG, "Error: connection attempt failed; "
-                              "status=%d\n", event->connect.status);
+            MODLOG_DFLT(DEBUG,
+                        "Error: connection attempt failed; "
+                        "status=%d\n",
+                        event->connect.status);
             assert(0);
         }
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n",
-                    event->disconnect.reason);
+        MODLOG_DFLT(DEBUG, "Disconnect; reason=%d \n", event->disconnect.reason);
         if (rx_stress_ctx->con_stat[15].num >= MYNEWT_VAL(BLE_STRESS_REPEAT)) {
             rx_stress_on_test_finish(15);
         } else {
@@ -1206,133 +1150,133 @@ rx_stress_15_gap_event(struct ble_gap_event *event, void *arg)
 /* Advert settings for each test. */
 static struct rx_stress_adv_set rx_stress_adv_sets[] = {
     {
-        .instance = SWITCHER_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[0],
-        .legacy_pdu = LEGACY_ADVERT,
-        .cb = rx_stress_0_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = SWITCHER_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[0],
+     .legacy_pdu = LEGACY_ADVERT,
+     .cb = rx_stress_0_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = SWITCHER_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[1],
-        .legacy_pdu = LEGACY_ADVERT,
-        .cb = rx_stress_0_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = SWITCHER_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[1],
+     .legacy_pdu = LEGACY_ADVERT,
+     .cb = rx_stress_0_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[2],
-        .legacy_pdu = LEGACY_ADVERT,
-        .cb = rx_stress_2_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[2],
+     .legacy_pdu = LEGACY_ADVERT,
+     .cb = rx_stress_2_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[3],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_3_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[3],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_3_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[4],
-        .legacy_pdu = LEGACY_ADVERT,
-        .cb = rx_stress_4_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[4],
+     .legacy_pdu = LEGACY_ADVERT,
+     .cb = rx_stress_4_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[5],
-        .legacy_pdu = LEGACY_ADVERT,
-        .cb = rx_stress_5_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[5],
+     .legacy_pdu = LEGACY_ADVERT,
+     .cb = rx_stress_5_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[6],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_6_gap_event,
-        .pattern_data = test_6_pattern,
-        .pattern_len = 1640,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[6],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_6_gap_event,
+     .pattern_data = test_6_pattern,
+     .pattern_len = 1640,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[7],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_7_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[7],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_7_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[8],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_8_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[8],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_8_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[9],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_9_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[9],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_9_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[10],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_10_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[10],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_10_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[11],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_11_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[11],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_11_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[12],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_12_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[12],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_12_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[13],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_13_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[13],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_13_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[14],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_14_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[14],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_14_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
     {
-        .instance = TEST_INSTANCE,
-        .instance_uuid128 = rx_stress_uuid128[15],
-        .legacy_pdu = EXTENDED_ADVERT,
-        .cb = rx_stress_15_gap_event,
-        .pattern_data = NULL,
-        .pattern_len = 0,
-    },
+     .instance = TEST_INSTANCE,
+     .instance_uuid128 = rx_stress_uuid128[15],
+     .legacy_pdu = EXTENDED_ADVERT,
+     .cb = rx_stress_15_gap_event,
+     .pattern_data = NULL,
+     .pattern_len = 0,
+     },
 };
 
 static void
@@ -1405,8 +1349,7 @@ rx_stress_start(int test_num)
         break;
     case 13:
         MODLOG_DFLT(INFO, "Stress GATT notification\n");
-        ble_npl_event_init(&rx_stress_13_notify_ev,
-                           rx_stress_13_notify_ev_func, NULL);
+        ble_npl_event_init(&rx_stress_13_notify_ev, rx_stress_13_notify_ev_func, NULL);
         rx_stress_simple_adv(&rx_stress_adv_sets[13]);
         break;
     case 14:
@@ -1423,7 +1366,7 @@ rx_stress_start(int test_num)
     }
 
     /* Wait for the test to finish. Then 1 token will be released
-    * allowing to pass through semaphore. */
+     * allowing to pass through semaphore. */
     os_sem_pend(&rx_stress_main_sem, OS_TIMEOUT_NEVER);
 
     ble_gap_ext_adv_stop(SWITCHER_INSTANCE);
@@ -1484,8 +1427,7 @@ void
 rx_stress_start_auto()
 {
     /* Start task that will run all stress tests one by one. */
-    os_task_init(&rx_stress_main_task, "rx_stress_main_task",
-                 rx_stress_main_task_fn, NULL, RX_STRESS_MAIN_TASK_PRIO,
-                 OS_WAIT_FOREVER, rx_stress_main_task_stack,
-                 RX_STRESS_MAIN_TASK_STACK_SIZE);
+    os_task_init(&rx_stress_main_task, "rx_stress_main_task", rx_stress_main_task_fn,
+                 NULL, RX_STRESS_MAIN_TASK_PRIO, OS_WAIT_FOREVER,
+                 rx_stress_main_task_stack, RX_STRESS_MAIN_TASK_STACK_SIZE);
 }

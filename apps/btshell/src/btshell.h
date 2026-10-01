@@ -111,20 +111,18 @@ int btshell_disc_full(uint16_t conn_handle);
 int btshell_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
                           uint16_t end_handle);
 int btshell_read(uint16_t conn_handle, uint16_t attr_handle);
-int btshell_read_long(uint16_t conn_handle, uint16_t attr_handle,
-                      uint16_t offset);
+int btshell_read_long(uint16_t conn_handle, uint16_t attr_handle, uint16_t offset);
 int btshell_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
                          uint16_t end_handle, const ble_uuid_t *uuid);
 int btshell_read_mult(uint16_t conn_handle, uint16_t *attr_handles,
                       int num_attr_handles, bool variable);
-int btshell_write(uint16_t conn_handle, uint16_t attr_handle,
-                  struct os_mbuf *om);
+int btshell_write(uint16_t conn_handle, uint16_t attr_handle, struct os_mbuf *om);
 int btshell_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
                          struct os_mbuf *om);
 int btshell_write_long(uint16_t conn_handle, uint16_t attr_handle,
                        uint16_t offset, struct os_mbuf *om);
-int btshell_write_reliable(uint16_t conn_handle,
-                           struct ble_gatt_attr *attrs, int num_attrs);
+int btshell_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs,
+                           int num_attrs);
 #if MYNEWT_VAL(BLE_GATT_NOTIFY_MULTIPLE)
 int btshell_enqueue_notif(uint16_t handle, uint16_t len, uint8_t *value);
 int btshell_send_pending_notif(uint16_t conn_handle);
@@ -135,21 +133,17 @@ int btshell_clear_pending_notif(void);
 int btshell_ext_adv_configure(uint8_t instance,
                               const struct ble_gap_ext_adv_params *params,
                               int8_t *selected_tx_power);
-int btshell_ext_adv_start(uint8_t instance, int duration,
-                          int max_events, bool restart);
+int btshell_ext_adv_start(uint8_t instance, int duration, int max_events, bool restart);
 int btshell_ext_adv_stop(uint8_t instance);
 #endif
 int btshell_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
                       int32_t duration_ms,
-                      const struct ble_gap_adv_params *params,
-                      bool restart);
+                      const struct ble_gap_adv_params *params, bool restart);
 int btshell_adv_stop(void);
 int btshell_conn_initiate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
-                          int32_t duration_ms,
-                          struct ble_gap_conn_params *params);
+                          int32_t duration_ms, struct ble_gap_conn_params *params);
 int btshell_ext_conn_initiate(uint8_t own_addr_type,
-                              const ble_addr_t *peer_addr,
-                              int32_t duration_ms,
+                              const ble_addr_t *peer_addr, int32_t duration_ms,
                               struct ble_gap_conn_params *phy_1m_params,
                               struct ble_gap_conn_params *phy_2m_params,
                               struct ble_gap_conn_params *phy_coded_params);
@@ -159,62 +153,48 @@ int btshell_wl_set(ble_addr_t *addrs, int addrs_count);
 int btshell_scan(uint8_t own_addr_type, int32_t duration_ms,
                  const struct ble_gap_disc_params *disc_params, void *cb_args);
 int btshell_ext_scan(uint8_t own_addr_type, uint16_t duration, uint16_t period,
-                     uint8_t filter_duplicates, uint8_t filter_policy,
-                     uint8_t limited,
+                     uint8_t filter_duplicates, uint8_t filter_policy, uint8_t limited,
                      const struct ble_gap_ext_disc_params *uncoded_params,
                      const struct ble_gap_ext_disc_params *coded_params,
                      void *cb_args);
 int btshell_scan_cancel(void);
-int btshell_update_conn(uint16_t conn_handle,
-                         struct ble_gap_upd_params *params);
+int btshell_update_conn(uint16_t conn_handle, struct ble_gap_upd_params *params);
 void btshell_notify(uint16_t attr_handle);
-int btshell_datalen(uint16_t conn_handle, uint16_t tx_octets,
-                    uint16_t tx_time);
+int btshell_datalen(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time);
 int btshell_l2cap_update(uint16_t conn_handle,
-                          struct ble_l2cap_sig_update_params *params);
+                         struct ble_l2cap_sig_update_params *params);
 int btshell_sec_start(uint16_t conn_handle);
 int btshell_sec_pair(uint16_t conn_handle);
 int btshell_sec_unpair(ble_addr_t *peer_addr);
-int btshell_sec_restart(uint16_t conn_handle, uint8_t key_size,
-                        uint8_t *ltk, uint16_t ediv,
-                        uint64_t rand_val, int auth);
-int btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate,
-                     uint16_t num);
+int btshell_sec_restart(uint16_t conn_handle, uint8_t key_size, uint8_t *ltk,
+                        uint16_t ediv, uint64_t rand_val, int auth);
+int btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num);
 void btshell_tx_stop(void);
 int btshell_rssi(uint16_t conn_handle, int8_t *out_rssi);
 int btshell_l2cap_create_srv(uint16_t psm, uint16_t mtu, int accept_response);
 int btshell_l2cap_connect(uint16_t conn, uint16_t psm, uint16_t mtu, uint8_t num);
 int btshell_l2cap_disconnect(uint16_t conn, uint16_t idx);
 int btshell_l2cap_send(uint16_t conn, uint16_t idx, uint16_t bytes);
-int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
-                           uint8_t num, uint8_t idxs[]);
+int btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu, uint8_t num,
+                           uint8_t idxs[]);
 
 #if (MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE))
 int btshell_broadcast_base_add(uint8_t adv_instance, uint32_t presentation_delay);
-int btshell_broadcast_big_sub_add(uint8_t adv_instance,
-                                  uint8_t codec_fmt,
-                                  uint16_t company_id,
-                                  uint16_t vendor_spec,
-                                  uint8_t *metadata,
-                                  unsigned int metadata_len,
+int btshell_broadcast_big_sub_add(uint8_t adv_instance, uint8_t codec_fmt,
+                                  uint16_t company_id, uint16_t vendor_spec,
+                                  uint8_t *metadata, unsigned int metadata_len,
                                   uint8_t *codec_spec_cfg,
                                   unsigned int codec_spec_cfg_len);
-int btshell_broadcast_bis_add(uint8_t adv_instance,
-                              uint8_t *codec_spec_cfg,
+int btshell_broadcast_bis_add(uint8_t adv_instance, uint8_t *codec_spec_cfg,
                               unsigned int codec_spec_cfg_len);
 int btshell_broadcast_create(uint8_t adv_instance,
                              struct ble_gap_ext_adv_params *ext_params,
-                             struct ble_gap_periodic_adv_params
-                             *per_params,
-                             const char *name,
-                             struct ble_iso_big_params big_params,
-                             uint8_t *extra_data,
-                             unsigned int extra_data_len);
+                             struct ble_gap_periodic_adv_params *per_params,
+                             const char *name, struct ble_iso_big_params big_params,
+                             uint8_t *extra_data, unsigned int extra_data_len);
 int btshell_broadcast_destroy(uint8_t adv_instance);
-int btshell_broadcast_update(uint8_t adv_instance,
-                             const char *name,
-                             uint8_t *extra_data,
-                             unsigned int extra_data_len);
+int btshell_broadcast_update(uint8_t adv_instance, const char *name,
+                             uint8_t *extra_data, unsigned int extra_data_len);
 int btshell_broadcast_start(uint8_t adv_instance);
 int btshell_broadcast_stop(uint8_t adv_instance);
 #endif
@@ -229,12 +209,12 @@ int btshell_gap_event(struct ble_gap_event *event, void *arg);
 void btshell_sync_stats(uint16_t handle);
 uint8_t btshell_get_default_own_addr_type(void);
 /** GATT server. */
-#define GATT_SVR_SVC_ALERT_UUID               0x1811
-#define GATT_SVR_CHR_SUP_NEW_ALERT_CAT_UUID   0x2A47
-#define GATT_SVR_CHR_NEW_ALERT                0x2A46
-#define GATT_SVR_CHR_SUP_UNR_ALERT_CAT_UUID   0x2A48
-#define GATT_SVR_CHR_UNR_ALERT_STAT_UUID      0x2A45
-#define GATT_SVR_CHR_ALERT_NOT_CTRL_PT        0x2A44
+#define GATT_SVR_SVC_ALERT_UUID             0x1811
+#define GATT_SVR_CHR_SUP_NEW_ALERT_CAT_UUID 0x2A47
+#define GATT_SVR_CHR_NEW_ALERT              0x2A46
+#define GATT_SVR_CHR_SUP_UNR_ALERT_CAT_UUID 0x2A48
+#define GATT_SVR_CHR_UNR_ALERT_STAT_UUID    0x2A45
+#define GATT_SVR_CHR_ALERT_NOT_CTRL_PT      0x2A44
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 int gatt_svr_init(void);
@@ -246,8 +226,7 @@ void print_mbuf(const struct os_mbuf *om);
 void print_addr(const void *addr);
 void print_uuid(const ble_uuid_t *uuid);
 int svc_is_empty(const struct btshell_svc *svc);
-uint16_t chr_end_handle(const struct btshell_svc *svc,
-                        const struct btshell_chr *chr);
+uint16_t chr_end_handle(const struct btshell_svc *svc, const struct btshell_chr *chr);
 int chr_is_empty(const struct btshell_svc *svc, const struct btshell_chr *chr);
 void print_conn_desc(const struct ble_gap_conn_desc *desc);
 void print_svc(struct btshell_svc *svc);

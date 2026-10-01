@@ -22,17 +22,17 @@
 
 #include "cmd.h"
 
-#define CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ                                  (9)
+#define CMD_ADV_DATA_CODEC_SPEC_CFG_MAX_SZ (9)
 /**
  * Maximum Metadata size is maximum adv size minus minimum size of other
  * fields in BASE advertising
  */
-#define CMD_ADV_DATA_METADATA_MAX_SZ    (MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
+#define CMD_ADV_DATA_METADATA_MAX_SZ (MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
 /**
  * Maximum size of extra data included in BASE advertising. Assumes minimum
  * size of other fields.
  */
-#define CMD_ADV_DATA_EXTRA_MAX_SZ       (MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
+#define CMD_ADV_DATA_EXTRA_MAX_SZ    (MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
 
 int cmd_leaudio_base_add(int argc, char **argv);
 int cmd_leaudio_big_sub_add(int argc, char **argv);

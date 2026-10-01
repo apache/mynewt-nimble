@@ -29,47 +29,38 @@ com_stress_print_report(const struct com_stress_test_ctx *test_ctxs)
 
     MODLOG_DFLT(INFO, "Use case 1 - "
                       "Stress Connect -> Connect Cancel: \n");
-    MODLOG_DFLT(INFO, "Con attempts = %d\n",
-                test_ctxs->con_stat[1].attempts_num);
+    MODLOG_DFLT(INFO, "Con attempts = %d\n", test_ctxs->con_stat[1].attempts_num);
     MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[1].num);
 
     MODLOG_DFLT(INFO, "Use case 2 - "
                       "Stress Connect/Disconnect legacy: \n");
-    MODLOG_DFLT(INFO, "Con attempts = %d\n",
-                test_ctxs->con_stat[2].attempts_num);
+    MODLOG_DFLT(INFO, "Con attempts = %d\n", test_ctxs->con_stat[2].attempts_num);
     MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[2].num);
 
     MODLOG_DFLT(INFO, "Use case 3 - "
                       "Stress Connect/Disconnect ext adv: \n");
-    MODLOG_DFLT(INFO, "Con attempts = %d\n",
-                test_ctxs->con_stat[3].attempts_num);
+    MODLOG_DFLT(INFO, "Con attempts = %d\n", test_ctxs->con_stat[3].attempts_num);
     MODLOG_DFLT(INFO, "Con success = %d\n", test_ctxs->con_stat[3].num);
 
     MODLOG_DFLT(INFO, "Use case 4 - "
                       "Stress connection params update (TX): \n");
-    MODLOG_DFLT(INFO, "Params updates = %d\n",
-                test_ctxs->con_stat[4].prms_upd_num);
+    MODLOG_DFLT(INFO, "Params updates = %d\n", test_ctxs->con_stat[4].prms_upd_num);
 
     MODLOG_DFLT(INFO, "Use case 5 - "
                       "Stress connection params update (RX): \n");
-    MODLOG_DFLT(INFO, "Params updates = %d\n",
-                test_ctxs->con_stat[5].prms_upd_num);
+    MODLOG_DFLT(INFO, "Params updates = %d\n", test_ctxs->con_stat[5].prms_upd_num);
 
     MODLOG_DFLT(INFO, "Use case 6 - Stress Scan: \n");
-    MODLOG_DFLT(INFO, "Received first packets = %d\n",
-                test_ctxs->s6_rcv_adv_first);
-    MODLOG_DFLT(INFO, "Received all packets = %d\n",
-                test_ctxs->s6_rcv_adv_suc);
+    MODLOG_DFLT(INFO, "Received first packets = %d\n", test_ctxs->s6_rcv_adv_first);
+    MODLOG_DFLT(INFO, "Received all packets = %d\n", test_ctxs->s6_rcv_adv_suc);
 
     MODLOG_DFLT(INFO, "Use case 7 - "
                       "Stress PHY Update (TX): \n");
-    MODLOG_DFLT(INFO, "PHY updates = %d\n",
-                test_ctxs->con_stat[7].phy_upd_num);
+    MODLOG_DFLT(INFO, "PHY updates = %d\n", test_ctxs->con_stat[7].phy_upd_num);
 
     MODLOG_DFLT(INFO, "Use case 8 - "
                       "Stress PHY Update (RX): \n");
-    MODLOG_DFLT(INFO, "PHY updates = %d\n",
-                test_ctxs->con_stat[8].phy_upd_num);
+    MODLOG_DFLT(INFO, "PHY updates = %d\n", test_ctxs->con_stat[8].phy_upd_num);
 
     MODLOG_DFLT(INFO, "Use case 9 - "
                       "Stress multi connection: \n");
@@ -151,7 +142,7 @@ stress_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
     int rc;
     MODLOG_DFLT(DEBUG, "LE CoC SDU received, chan: 0x%08lx, data len %d\n",
-                (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
+                (uint32_t)chan, OS_MBUF_PKTLEN(sdu));
 
     rc = os_mbuf_free_chain(sdu);
     assert(rc == 0);
@@ -172,7 +163,7 @@ stress_l2cap_coc_accept(uint16_t peer_mtu, struct ble_l2cap_chan *chan)
     int rc;
 
     MODLOG_DFLT(DEBUG, "LE CoC accepting, chan: 0x%08lx, peer_mtu %d\n",
-                (uint32_t) chan, peer_mtu);
+                (uint32_t)chan, peer_mtu);
 
     for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
         sdu_rx = os_msys_get_pkthdr(STRESS_COC_MTU, 0);
@@ -192,8 +183,7 @@ stress_start_timer(uint32_t timeout_ms, os_event_fn *ev_cb)
 
     os_callout_init(&stress_timer_callout, os_eventq_dflt_get(), ev_cb, NULL);
 
-    rc = os_callout_reset(&stress_timer_callout,
-                          os_time_ms_to_ticks32(timeout_ms));
+    rc = os_callout_reset(&stress_timer_callout, os_time_ms_to_ticks32(timeout_ms));
 
     assert(rc == 0);
 }
@@ -210,16 +200,13 @@ stress_calc_bit_rate(int64_t us, int64_t bytes_num)
 }
 
 static int
-stress_disc_dsc_fn(uint16_t conn_handle,
-                   const struct ble_gatt_error *error,
-                   uint16_t chr_val_handle,
-                   const struct ble_gatt_dsc *dsc,
-                   void *arg)
+stress_disc_dsc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
+                   uint16_t chr_val_handle, const struct ble_gatt_dsc *dsc, void *arg)
 {
     struct stress_gatt_search_ctx *search_ctx;
     static bool found = false;
 
-    search_ctx = (struct stress_gatt_search_ctx *) arg;
+    search_ctx = (struct stress_gatt_search_ctx *)arg;
 
     if (error->status == 0) {
         if (!ble_uuid_cmp(&dsc->uuid.u, &search_ctx->dsc_uuid.u) && !found) {
@@ -251,15 +238,14 @@ stress_disc_dsc_fn(uint16_t conn_handle,
 }
 
 static int
-stress_disc_chr_fn(uint16_t conn_handle,
-                   const struct ble_gatt_error *error,
+stress_disc_chr_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
                    const struct ble_gatt_chr *chr, void *arg)
 {
     int rc;
     struct stress_gatt_search_ctx *search_ctx;
     static bool found = false;
 
-    search_ctx = (struct stress_gatt_search_ctx *) arg;
+    search_ctx = (struct stress_gatt_search_ctx *)arg;
 
     if (error->status == 0) {
         MODLOG_DFLT(DEBUG, "Found characteristic\n");
@@ -279,8 +265,7 @@ stress_disc_chr_fn(uint16_t conn_handle,
                 return 0;
             }
 
-            rc = ble_gattc_disc_all_dscs(conn_handle,
-                                         search_ctx->chr_start_handle,
+            rc = ble_gattc_disc_all_dscs(conn_handle, search_ctx->chr_start_handle,
                                          search_ctx->srv_end_handle,
                                          &stress_disc_dsc_fn, search_ctx);
             assert(rc == 0);
@@ -304,7 +289,7 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
     struct stress_gatt_search_ctx *search_ctx = NULL;
     static bool found = false;
 
-    search_ctx = (struct stress_gatt_search_ctx *) arg;
+    search_ctx = (struct stress_gatt_search_ctx *)arg;
 
     if (error->status == 0) {
         MODLOG_DFLT(DEBUG, "Found service\n");
@@ -324,19 +309,15 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
                 return 0;
             }
 
-            rc = ble_gattc_disc_chrs_by_uuid(conn_handle,
-                                             search_ctx->srv_start_handle,
-                                             search_ctx->srv_end_handle,
-                                             &search_ctx->chr_uuid.u,
-                                             &stress_disc_chr_fn,
-                                             search_ctx);
+            rc = ble_gattc_disc_chrs_by_uuid(
+                conn_handle, search_ctx->srv_start_handle, search_ctx->srv_end_handle,
+                &search_ctx->chr_uuid.u, &stress_disc_chr_fn, search_ctx);
             MODLOG_DFLT(DEBUG, "rc=%d\n", rc);
             assert(rc == 0);
             return 0;
         }
 
-        MODLOG_DFLT(ERROR,
-                    "Did not find particular service\n");
+        MODLOG_DFLT(ERROR, "Did not find particular service\n");
         return 0;
     }
 
@@ -348,16 +329,15 @@ stress_disc_svc_fn(uint16_t conn_handle, const struct ble_gatt_error *error,
 static void
 stress_gatt_find_handle(uint16_t conn_handle, const ble_uuid_t *srv_uuid,
                         const ble_uuid_t *chr_uuid, const ble_uuid_t *dsc_uuid,
-                        stress_gatt_disc_end_fn *disc_end_fn,
-                        uint8_t search_goal)
+                        stress_gatt_disc_end_fn *disc_end_fn, uint8_t search_goal)
 {
     static struct stress_gatt_search_ctx search_ctx;
     int rc;
 
     search_ctx.conn_handle = conn_handle;
-    ble_uuid_copy((ble_uuid_any_t *) &search_ctx.srv_uuid, srv_uuid);
-    ble_uuid_copy((ble_uuid_any_t *) &search_ctx.chr_uuid, chr_uuid);
-    ble_uuid_copy((ble_uuid_any_t *) &search_ctx.dsc_uuid, dsc_uuid);
+    ble_uuid_copy((ble_uuid_any_t *)&search_ctx.srv_uuid, srv_uuid);
+    ble_uuid_copy((ble_uuid_any_t *)&search_ctx.chr_uuid, chr_uuid);
+    ble_uuid_copy((ble_uuid_any_t *)&search_ctx.dsc_uuid, dsc_uuid);
     search_ctx.disc_end_fn = disc_end_fn;
     search_ctx.search_goal = search_goal;
     search_ctx.srv_start_handle = 0;
@@ -380,8 +360,7 @@ stress_find_svc_handle(uint16_t conn_handle, const ble_uuid_t *srv_uuid,
 
 void
 stress_find_chr_handle(uint16_t conn_handle, const ble_uuid_t *srv_uuid,
-                       const ble_uuid_t *chr_uuid,
-                       stress_gatt_disc_end_fn *disc_end_fn)
+                       const ble_uuid_t *chr_uuid, stress_gatt_disc_end_fn *disc_end_fn)
 {
     stress_gatt_find_handle(conn_handle, srv_uuid, chr_uuid, NULL, disc_end_fn,
                             STRESS_FIND_CHR);

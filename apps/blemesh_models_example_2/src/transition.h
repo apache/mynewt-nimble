@@ -27,30 +27,30 @@
 #ifndef _TRANSITION_H
 #define _TRANSITION_H
 
-#define UNKNOWN_VALUE 0x3F
+#define UNKNOWN_VALUE              0x3F
 #define DEVICE_SPECIFIC_RESOLUTION 10
 
 enum level_transition_types {
-	LEVEL_TT,
-	LEVEL_TT_DELTA,
-	LEVEL_TT_MOVE,
+    LEVEL_TT,
+    LEVEL_TT_DELTA,
+    LEVEL_TT_MOVE,
 
-	LEVEL_TEMP_TT,
-	LEVEL_TEMP_TT_DELTA,
-	LEVEL_TEMP_TT_MOVE,
+    LEVEL_TEMP_TT,
+    LEVEL_TEMP_TT_DELTA,
+    LEVEL_TEMP_TT_MOVE,
 };
 
 struct transition {
-	bool just_started;
-	uint8_t tt;
-	uint8_t rt;
-	uint8_t delay;
-	uint32_t quo_tt;
-	uint32_t counter;
-	uint32_t total_duration;
-	int64_t start_timestamp;
+    bool just_started;
+    uint8_t tt;
+    uint8_t rt;
+    uint8_t delay;
+    uint32_t quo_tt;
+    uint32_t counter;
+    uint32_t total_duration;
+    int64_t start_timestamp;
 
-	struct os_callout timer;
+    struct os_callout timer;
 };
 
 extern uint8_t transition_type, default_tt;
@@ -63,16 +63,14 @@ extern struct os_callout dummy_timer;
 
 void calculate_rt(struct transition *transition);
 
-
 void onoff_tt_values(struct generic_onoff_state *state, uint8_t tt, uint8_t delay);
 void level_tt_values(struct generic_level_state *state, uint8_t tt, uint8_t delay);
 void light_lightness_actual_tt_values(struct light_lightness_state *state,
-				      uint8_t tt, uint8_t delay);
+                                      uint8_t tt, uint8_t delay);
 void light_lightness_linear_tt_values(struct light_lightness_state *state,
-				      uint8_t tt, uint8_t delay);
+                                      uint8_t tt, uint8_t delay);
 void light_ctl_tt_values(struct light_ctl_state *state, uint8_t tt, uint8_t delay);
-void light_ctl_temp_tt_values(struct light_ctl_state *state,
-			      uint8_t tt, uint8_t delay);
+void light_ctl_temp_tt_values(struct light_ctl_state *state, uint8_t tt, uint8_t delay);
 
 void onoff_handler(struct generic_onoff_state *state);
 void level_lightness_handler(struct generic_level_state *state);

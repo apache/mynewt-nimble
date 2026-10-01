@@ -50,62 +50,66 @@ struct bt_gatt_cpf {
 #define CPF_FORMAT_UTF8 0x19
 
 static const struct bt_gatt_cpf name_cpf = {
-        .format = CPF_FORMAT_UTF8,
+    .format = CPF_FORMAT_UTF8,
 };
 
-static const ble_uuid128_t name_uuid = BLE_UUID128_INIT(
-        0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-        0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
+static const ble_uuid128_t name_uuid =
+    BLE_UUID128_INIT(0xf0, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12, 0x78,
+                     0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
 
-static const ble_uuid128_t name_enc_uuid = BLE_UUID128_INIT(
-        0xf1, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12,
-        0x78, 0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
+static const ble_uuid128_t name_enc_uuid =
+    BLE_UUID128_INIT(0xf1, 0xde, 0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12, 0x78,
+                     0x56, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12);
 
-static int
-gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
-                    struct ble_gatt_access_ctxt *ctxt,
-                    void *arg);
+static int gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
+                               struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = &name_uuid.u,
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid = &name_enc_uuid.u,
-            .access_cb = gatt_svr_chr_access,
-            .flags = BLE_GATT_CHR_F_READ |
-                    BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
-            .descriptors = (struct ble_gatt_dsc_def[]) { {
-                    .uuid = &gatt_cud_uuid.u,
-                    .access_cb = gatt_svr_chr_access,
-                    .att_flags = BLE_ATT_F_READ,
-                }, {
-                    .uuid = &gatt_cpf_uuid.u,
-                    .access_cb = gatt_svr_chr_access,
-                    .att_flags = BLE_ATT_F_READ,
-                }, {
-                    0, /* No more descriptors in this characteristic. */
-                } }
-        }, {
-            0, /* No more characteristics in this service. */
-        } },
-    },
+     .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = &name_uuid.u,
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                { .uuid = &name_enc_uuid.u,
+                  .access_cb = gatt_svr_chr_access,
+                  .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+                  .descriptors =
+                      (struct ble_gatt_dsc_def[]){
+                          {
+                              .uuid = &gatt_cud_uuid.u,
+                              .access_cb = gatt_svr_chr_access,
+                              .att_flags = BLE_ATT_F_READ,
+                          },
+                          {
+                              .uuid = &gatt_cpf_uuid.u,
+                              .access_cb = gatt_svr_chr_access,
+                              .att_flags = BLE_ATT_F_READ,
+                          },
+                          {
+                              0, /* No more descriptors in this characteristic. */
+                          } } },
+                {
+                    0, /* No more characteristics in this service. */
+                } },
+     },
 
     {
-        0, /* No more services. */
+     0, /* No more services. */
     },
 };
 
-static int read_name(struct os_mbuf *om)
+static int
+read_name(struct os_mbuf *om)
 {
     const char *value = bt_get_name();
     int rc;
 
-    rc = os_mbuf_append(om, value, (uint16_t) strlen(value));
+    rc = os_mbuf_append(om, value, (uint16_t)strlen(value));
     return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
 }
 
-static int write_name(struct os_mbuf *om)
+static int
+write_name(struct os_mbuf *om)
 {
     char name[MYNEWT_VAL(BLE_SVC_GAP_DEVICE_NAME_MAX_LENGTH)];
     uint16_t len;
@@ -136,8 +140,7 @@ static int write_name(struct os_mbuf *om)
 
 static int
 gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
-                    struct ble_gatt_access_ctxt *ctxt,
-                    void *arg)
+                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     const ble_uuid_t *uuid;
     int rc;
@@ -159,12 +162,10 @@ gatt_svr_chr_access(uint16_t conn_handle, uint16_t attr_handle,
             return BLE_ATT_ERR_UNLIKELY;
         }
     } else if (ble_uuid_cmp(uuid, &gatt_cud_uuid.u) == 0) {
-        rc = os_mbuf_append(ctxt->om, "Badge Name",
-                            (uint16_t) strlen("Badge Name"));
+        rc = os_mbuf_append(ctxt->om, "Badge Name", (uint16_t)strlen("Badge Name"));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     } else if (ble_uuid_cmp(uuid, &gatt_cpf_uuid.u) == 0) {
-        rc = os_mbuf_append(ctxt->om, &name_cpf,
-                            (uint16_t) sizeof(name_cpf));
+        rc = os_mbuf_append(ctxt->om, &name_cpf, (uint16_t)sizeof(name_cpf));
         return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
@@ -183,22 +184,20 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
     switch (ctxt->op) {
     case BLE_GATT_REGISTER_OP_SVC:
         MODLOG_DFLT(DEBUG, "registered service %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
-                    ctxt->svc.handle);
+                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf), ctxt->svc.handle);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
-        MODLOG_DFLT(DEBUG, "registering characteristic %s with "
-                           "def_handle=%d val_handle=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "registering characteristic %s with "
+                    "def_handle=%d val_handle=%d\n",
                     ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
-                    ctxt->chr.def_handle,
-                    ctxt->chr.val_handle);
+                    ctxt->chr.def_handle, ctxt->chr.val_handle);
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
         MODLOG_DFLT(DEBUG, "registering descriptor %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
-                    ctxt->dsc.handle);
+                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf), ctxt->dsc.handle);
         break;
 
     default:

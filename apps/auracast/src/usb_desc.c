@@ -36,13 +36,13 @@
 #endif
 
 typedef enum {
-    USB_STRING_DESCRIPTOR_LANG          = 0,
-    USB_STRING_DESCRIPTOR_MANUFACTURER  = 1,
-    USB_STRING_DESCRIPTOR_PRODUCT       = 2,
-    USB_STRING_DESCRIPTOR_INTERFACE     = 3,
-    USB_STRING_DESCRIPTOR_CDC           = 4,
-    USB_STRING_DESCRIPTOR_SERIAL        = 16,
-    USB_STRING_DESCRIPTOR_MICROSOFT_OS  = 0xEE,
+    USB_STRING_DESCRIPTOR_LANG = 0,
+    USB_STRING_DESCRIPTOR_MANUFACTURER = 1,
+    USB_STRING_DESCRIPTOR_PRODUCT = 2,
+    USB_STRING_DESCRIPTOR_INTERFACE = 3,
+    USB_STRING_DESCRIPTOR_CDC = 4,
+    USB_STRING_DESCRIPTOR_SERIAL = 16,
+    USB_STRING_DESCRIPTOR_MICROSOFT_OS = 0xEE,
 } usb_string_descriptor_ix_t;
 
 #define CDC_IF_STR_IX (MYNEWT_VAL(USBD_CDC_DESCRIPTOR_STRING) == NULL ? 0 : 4)
@@ -79,8 +79,9 @@ tud_descriptor_device_cb(void)
     return (const uint8_t *)&desc_device;
 }
 
-#if MYNEWT_VAL_CHOICE(MCU_TARGET, nRF5340_APP) || MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840)
-#define ISO_EP  8
+#if MYNEWT_VAL_CHOICE(MCU_TARGET, nRF5340_APP) ||                             \
+    MYNEWT_VAL_CHOICE(MCU_TARGET, nRF52840)
+#define ISO_EP 8
 #else
 #error MCU not supported
 #endif
@@ -125,32 +126,34 @@ enum {
     ITF_NUM_TOTAL
 };
 
-#define CONFIG_TOTAL_LEN    (TUD_CONFIG_DESC_LEN + \
-                             CFG_TUD_CDC * TUD_CDC_DESC_LEN + \
-                             CFG_TUD_MSC * TUD_MSC_DESC_LEN + \
-                             CFG_TUD_HID * TUD_HID_DESC_LEN + \
-                             CFG_TUD_BTH * TUD_BTH_DESC_LEN + \
-                             CFG_TUD_AUDIO_IN * TUD_AUDIO_MIC_ONE_CH_DESC_LEN + \
-                             (1 + CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
-                             (TUD_AUDIO_SPEAKER_MONO_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) + \
-                             (1 - CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
-                             (TUD_AUDIO_SPEAKER_STEREO_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 2 ? 1 : 0)) + \
-                             0)
+#define CONFIG_TOTAL_LEN                                                                 \
+    (TUD_CONFIG_DESC_LEN + CFG_TUD_CDC * TUD_CDC_DESC_LEN +                              \
+     CFG_TUD_MSC * TUD_MSC_DESC_LEN + CFG_TUD_HID * TUD_HID_DESC_LEN +                   \
+     CFG_TUD_BTH * TUD_BTH_DESC_LEN + CFG_TUD_AUDIO_IN * TUD_AUDIO_MIC_ONE_CH_DESC_LEN + \
+     (1 + CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT *                        \
+         (TUD_AUDIO_SPEAKER_MONO_DESC_LEN *                                              \
+          (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) +                                  \
+     (1 - CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT *                        \
+         (TUD_AUDIO_SPEAKER_STEREO_DESC_LEN *                                            \
+          (CFG_TUD_AUDIO_N_CHANNELS_RX == 2 ? 1 : 0)) +                                  \
+     0)
 
 const uint8_t desc_configuration[] = {
-    TUD_CONFIG_DESCRIPTOR(CONFIG_NUM, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP,
+    TUD_CONFIG_DESCRIPTOR(CONFIG_NUM, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN,
+                          TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP,
                           MYNEWT_VAL(USBD_CONFIGURATION_MAX_POWER)),
 
 #if CFG_TUD_BTH
-    TUD_BTH_DESCRIPTOR(ITF_NUM_BTH, BTH_IF_STR_IX, USBD_BTH_EVENT_EP, USBD_BTH_EVENT_EP_SIZE,
-                       USBD_BTH_EVENT_EP_INTERVAL, USBD_BTH_DATA_IN_EP, USBD_BTH_DATA_OUT_EP, USBD_BTH_DATA_EP_SIZE,
-                       0, 9, 17, 25, 33, 49),
+    TUD_BTH_DESCRIPTOR(ITF_NUM_BTH, BTH_IF_STR_IX, USBD_BTH_EVENT_EP,
+                       USBD_BTH_EVENT_EP_SIZE, USBD_BTH_EVENT_EP_INTERVAL,
+                       USBD_BTH_DATA_IN_EP, USBD_BTH_DATA_OUT_EP,
+                       USBD_BTH_DATA_EP_SIZE, 0, 9, 17, 25, 33, 49),
 #endif
 
-
 #if CFG_TUD_CDC
-    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, CDC_IF_STR_IX, USBD_CDC_NOTIFY_EP, USBD_CDC_NOTIFY_EP_SIZE,
-                       USBD_CDC_DATA_OUT_EP, USBD_CDC_DATA_IN_EP, USBD_CDC_DATA_EP_SIZE),
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, CDC_IF_STR_IX, USBD_CDC_NOTIFY_EP,
+                       USBD_CDC_NOTIFY_EP_SIZE, USBD_CDC_DATA_OUT_EP,
+                       USBD_CDC_DATA_IN_EP, USBD_CDC_DATA_EP_SIZE),
 #endif
 
 #if CFG_TUD_MSC
@@ -160,8 +163,9 @@ const uint8_t desc_configuration[] = {
 #endif
 
 #if CFG_TUD_HID
-    TUD_HID_DESCRIPTOR(ITF_NUM_HID, HID_IF_STR_IX, HID_PROTOCOL_NONE, sizeof(desc_hid_report),
-                       USBD_HID_REPORT_EP, USBD_HID_REPORT_EP_SIZE, USBD_HID_REPORT_EP_INTERVAL),
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID, HID_IF_STR_IX, HID_PROTOCOL_NONE,
+                       sizeof(desc_hid_report), USBD_HID_REPORT_EP,
+                       USBD_HID_REPORT_EP_SIZE, USBD_HID_REPORT_EP_INTERVAL),
 #endif
 
 #if CFG_TUD_AUDIO_IN_OUT
@@ -169,18 +173,23 @@ const uint8_t desc_configuration[] = {
     TUD_AUDIO_MIC2_DESCRIPTOR(ITF_NUM_AUDIO_AC_IN, 0, 2, 16, 0x80 | ISO_EP, 192),
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 2
 #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP == 1
-    TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
-    8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT, 0x80 | ISO_EP, 1),
+    TUD_AUDIO_SPEAKER_STEREO_FB_DESCRIPTOR(
+        ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
+        8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP,
+        CFG_TUD_AUDIO_EPSIZE_OUT, 0x80 | ISO_EP, 1),
 #else
-    TUD_AUDIO_SPEAKER_STEREO_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
-                                        8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT),
+    TUD_AUDIO_SPEAKER_STEREO_DESCRIPTOR(
+        ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
+        8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT),
 #endif
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 1
-    #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
-    TUD_AUDIO_SPEAKER_MONO_FB_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, 2, 16, ISO_EP, 100, 0x80 | ISO_EP),
+#if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
+    TUD_AUDIO_SPEAKER_MONO_FB_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, 2, 16, ISO_EP,
+                                         100, 0x80 | ISO_EP),
 #else
-    TUD_AUDIO_SPEAKER_MONO_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
-    8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT),
+    TUD_AUDIO_SPEAKER_MONO_DESCRIPTOR(
+        ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
+        8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT),
 #endif
 #endif
 };
@@ -203,18 +212,18 @@ static uint16_t desc_string[MYNEWT_VAL(USBD_STRING_DESCRIPTOR_MAX_LENGTH) + 1];
 #if CFG_TUD_AUDIO
 
 #if CFG_TUD_AUDIO_IN
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_MIC2_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = { TUD_AUDIO_MIC2_DESC_LEN };
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 1
 #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_MONO_FB_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = { TUD_AUDIO_SPEAKER_MONO_FB_DESC_LEN };
 #else
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_MONO_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = { TUD_AUDIO_SPEAKER_MONO_DESC_LEN };
 #endif
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 2
 #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_STEREO_FB_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = { TUD_AUDIO_SPEAKER_STEREO_FB_DESC_LEN };
 #else
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_STEREO_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = { TUD_AUDIO_SPEAKER_STEREO_DESC_LEN };
 #endif
 #endif
 
@@ -223,18 +232,20 @@ static usb_audio_sample_rate_cb_t sample_rate_cb;
 
 /* Invoked when audio class specific set request received for an entity */
 bool
-tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_request, uint8_t *pBuff)
+tud_audio_set_req_entity_cb(uint8_t rhport,
+                            tusb_control_request_t const *p_request, uint8_t *pBuff)
 {
     uint32_t new_sample_rate;
 
-    (void) rhport;
-    audio_control_request_t *request = (audio_control_request_t *) p_request;
+    (void)rhport;
+    audio_control_request_t *request = (audio_control_request_t *)p_request;
 
     if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_VOLUME &&
         request->bRequest == AUDIO_CS_REQ_CUR) {
         /* Ignore value but accept request */
         return true;
-    } else if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ &&
+    } else if (request->bEntityID == 4 &&
+               request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ &&
                request->bRequest == AUDIO_CS_REQ_CUR) {
         /* Ignore value but accept request */
         new_sample_rate = ((audio_control_cur_4_t *)(pBuff))->bCur;
@@ -252,52 +263,62 @@ tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_req
 }
 
 bool
-tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_request)
+tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const *p_request)
 {
-    (void) rhport;
-    audio_control_request_t *request = (audio_control_request_t *) p_request;
+    (void)rhport;
+    audio_control_request_t *request = (audio_control_request_t *)p_request;
     if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ) {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_4_t curf = {g_sample_rate};
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
+            audio_control_cur_4_t curf = { g_sample_rate };
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &curf, sizeof(curf));
         } else if (request->bRequest == AUDIO_CS_REQ_RANGE) {
 #if 1
             audio_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
-                .subrange[0] = {g_sample_rate, g_sample_rate, 0},
+                .subrange[0] = { g_sample_rate, g_sample_rate, 0 },
             };
 #else
             audio_control_range_4_n_t(2) rangef = {
                 .wNumSubRanges = 2,
-                .subrange[0] = {16000, 16000, 0},
-                .subrange[1] = {48000, 48000, 0},
+                .subrange[0] = { 16000, 16000, 0 },
+                .subrange[1] = { 48000, 48000, 0 },
             };
 #endif
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &rangef, sizeof(rangef));
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &rangef, sizeof(rangef));
         }
-    } else if (request->bEntityID == 5 && request->bControlSelector == AUDIO_CX_CTRL_CONTROL) {
+    } else if (request->bEntityID == 5 &&
+               request->bControlSelector == AUDIO_CX_CTRL_CONTROL) {
         if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t cur_clk = {1};
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_clk, sizeof(cur_clk));
+            audio_control_cur_1_t cur_clk = { 1 };
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &cur_clk, sizeof(cur_clk));
         }
-    } else if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID &&
+    } else if (request->bEntityID == 4 &&
+               request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID &&
                request->bRequest == AUDIO_CS_REQ_CUR) {
-        audio_control_cur_1_t cur_valid = {.bCur = 1};
-        return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
-    } else if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
+        audio_control_cur_1_t cur_valid = { .bCur = 1 };
+        return tud_audio_buffer_and_schedule_control_xfer(
+            rhport, p_request, &cur_valid, sizeof(cur_valid));
+    } else if (request->bEntityID == 2 &&
+               request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
                request->bRequest == AUDIO_CS_REQ_CUR) {
-        audio_control_cur_1_t mute = {.bCur = 0};
-        return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute, sizeof(mute));
-    } else if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_VOLUME) {
+        audio_control_cur_1_t mute = { .bCur = 0 };
+        return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request,
+                                                          &mute, sizeof(mute));
+    } else if (request->bEntityID == 2 &&
+               request->bControlSelector == AUDIO_FU_CTRL_VOLUME) {
         if (request->bRequest == AUDIO_CS_REQ_RANGE) {
             audio_control_range_2_n_t(1) range_vol = {
-                .wNumSubRanges = 1,
-                .subrange[0] = {0, 1000, 10}
+                .wNumSubRanges = 1, .subrange[0] = { 0, 1000, 10 }
             };
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &range_vol, sizeof(range_vol));
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &range_vol, sizeof(range_vol));
         } else if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_2_t cur_vol = {.bCur = 1280};
-            return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_vol, sizeof(cur_vol));
+            audio_control_cur_2_t cur_vol = { .bCur = 1280 };
+            return tud_audio_buffer_and_schedule_control_xfer(
+                rhport, p_request, &cur_vol, sizeof(cur_vol));
         }
     } else {
         __BKPT(1);
@@ -331,19 +352,16 @@ string_to_usb_desc_string(const char *str, uint16_t *desc, uint8_t desc_size)
 }
 
 /* LANGID string descriptors */
-static const uint16_t usbd_lang_id[2] = {
-    (TUSB_DESC_STRING << 8) + 4, /* Size of this descriptor */
-    tu_htole16(MYNEWT_VAL(USBD_LANGID))
-};
+static const uint16_t usbd_lang_id[2] = { (TUSB_DESC_STRING << 8) +
+                                              4, /* Size of this descriptor */
+                                          tu_htole16(MYNEWT_VAL(USBD_LANGID)) };
 
 static struct {
     uint16_t major;
     uint16_t minor;
     uint16_t revision;
     uint32_t build;
-} img_version = {
-    1, 0, 0, 1
-};
+} img_version = { 1, 0, 0, 1 };
 
 static char serial_number[11];
 
@@ -379,13 +397,17 @@ tud_descriptor_string_cb(uint8_t index, uint16_t langid)
     } else if (index == USB_STRING_DESCRIPTOR_SERIAL) {
         ret = serial_to_usb_desc_string(desc_string, ARRAY_SIZE(desc_string));
     } else if (index == USB_STRING_DESCRIPTOR_MANUFACTURER) {
-        ret = string_to_usb_desc_string(MYNEWT_VAL(USBD_VENDOR_STRING), desc_string, ARRAY_SIZE(desc_string));
+        ret = string_to_usb_desc_string(MYNEWT_VAL(USBD_VENDOR_STRING),
+                                        desc_string, ARRAY_SIZE(desc_string));
     } else if (index == USB_STRING_DESCRIPTOR_PRODUCT) {
-        ret = string_to_usb_desc_string(MYNEWT_VAL(USBD_PRODUCT_STRING), desc_string, ARRAY_SIZE(desc_string));
+        ret = string_to_usb_desc_string(MYNEWT_VAL(USBD_PRODUCT_STRING),
+                                        desc_string, ARRAY_SIZE(desc_string));
     } else if (index == USB_STRING_DESCRIPTOR_INTERFACE) {
-        snprintf(interface, sizeof(interface), "%s, (%u.%u.%u.%lu)", MYNEWT_VAL(USBD_PRODUCT_STRING),
-                 img_version.major, img_version.minor, img_version.revision, img_version.build);
-        ret = string_to_usb_desc_string(interface, desc_string, ARRAY_SIZE(desc_string));
+        snprintf(interface, sizeof(interface), "%s, (%u.%u.%u.%lu)",
+                 MYNEWT_VAL(USBD_PRODUCT_STRING), img_version.major,
+                 img_version.minor, img_version.revision, img_version.build);
+        ret = string_to_usb_desc_string(interface, desc_string,
+                                        ARRAY_SIZE(desc_string));
     }
     return ret;
 }

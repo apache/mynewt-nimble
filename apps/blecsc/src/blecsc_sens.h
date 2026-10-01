@@ -80,9 +80,9 @@ extern "C" {
 #define SC_CP_RESPONSE_OP_FAILED                4
 
 /* CSC simulation configuration */
-#define CSC_FEATURES                         (CSC_FEATURE_WHEEL_REV_DATA | \
-                                              CSC_FEATURE_CRANK_REV_DATA |\
-                                              CSC_FEATURE_MULTIPLE_SENSOR_LOC)
+#define CSC_FEATURES                                                          \
+    (CSC_FEATURE_WHEEL_REV_DATA | CSC_FEATURE_CRANK_REV_DATA |                \
+     CSC_FEATURE_MULTIPLE_SENSOR_LOC)
 
 struct ble_csc_measurement_state {
     uint32_t cumulative_wheel_rev;
@@ -94,7 +94,7 @@ struct ble_csc_measurement_state {
 extern uint16_t csc_measurement_handle;
 extern uint16_t csc_control_point_handle;
 
-int gatt_svr_init(struct ble_csc_measurement_state * csc_measurement_state);
+int gatt_svr_init(struct ble_csc_measurement_state *csc_measurement_state);
 int gatt_svr_chr_notify_csc_measurement(uint16_t conn_handle);
 void gatt_svr_set_cp_indicate(uint8_t indication_status);
 

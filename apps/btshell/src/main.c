@@ -63,22 +63,22 @@
 #endif
 
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
-#define BTSHELL_MAX_SVCS               32
-#define BTSHELL_MAX_CHRS               64
-#define BTSHELL_MAX_DSCS               64
+#define BTSHELL_MAX_SVCS 32
+#define BTSHELL_MAX_CHRS 64
+#define BTSHELL_MAX_DSCS 64
 #else
-#define BTSHELL_MAX_SVCS               1
-#define BTSHELL_MAX_CHRS               1
-#define BTSHELL_MAX_DSCS               1
+#define BTSHELL_MAX_SVCS 1
+#define BTSHELL_MAX_CHRS 1
+#define BTSHELL_MAX_DSCS 1
 #endif
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-#define BTSHELL_COC_MTU               (256)
+#define BTSHELL_COC_MTU       (256)
 /* We use same pool for incoming and outgoing sdu */
-#define BTSHELL_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define BTSHELL_COC_BUF_COUNT (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
 
-#define INT_TO_PTR(x)     (void *)((intptr_t)(x))
-#define PTR_TO_INT(x)     (int) ((intptr_t)(x))
+#define INT_TO_PTR(x)         (void *)((intptr_t)(x))
+#define PTR_TO_INT(x)         (int)((intptr_t)(x))
 #endif
 
 bssnz_t struct btshell_conn btshell_conns[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
@@ -86,31 +86,21 @@ int btshell_num_conns;
 
 static uint8_t default_own_addr_type;
 
-static os_membuf_t btshell_svc_mem[
-    OS_MEMPOOL_SIZE(BTSHELL_MAX_SVCS, sizeof(struct btshell_svc))
-];
+static os_membuf_t btshell_svc_mem[OS_MEMPOOL_SIZE(BTSHELL_MAX_SVCS, sizeof(struct btshell_svc))];
 static struct os_mempool btshell_svc_pool;
 
-static os_membuf_t btshell_chr_mem[
-    OS_MEMPOOL_SIZE(BTSHELL_MAX_CHRS, sizeof(struct btshell_chr))
-];
+static os_membuf_t btshell_chr_mem[OS_MEMPOOL_SIZE(BTSHELL_MAX_CHRS, sizeof(struct btshell_chr))];
 static struct os_mempool btshell_chr_pool;
 
-static os_membuf_t btshell_dsc_mem[
-    OS_MEMPOOL_SIZE(BTSHELL_MAX_DSCS, sizeof(struct btshell_dsc))
-];
+static os_membuf_t btshell_dsc_mem[OS_MEMPOOL_SIZE(BTSHELL_MAX_DSCS, sizeof(struct btshell_dsc))];
 static struct os_mempool btshell_dsc_pool;
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-static os_membuf_t btshell_coc_conn_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
-    sizeof(struct btshell_l2cap_coc))
-];
+static os_membuf_t btshell_coc_conn_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM), sizeof(struct btshell_l2cap_coc))];
 static struct os_mempool btshell_coc_conn_pool;
 
-static os_membuf_t btshell_sdu_coc_mem[
-    OS_MEMPOOL_SIZE(BTSHELL_COC_BUF_COUNT, BTSHELL_COC_MTU)
-];
+static os_membuf_t btshell_sdu_coc_mem[OS_MEMPOOL_SIZE(BTSHELL_COC_BUF_COUNT, BTSHELL_COC_MTU)];
 struct os_mbuf_pool sdu_os_mbuf_pool;
 static struct os_mempool sdu_coc_mbuf_mempool;
 #endif
@@ -121,8 +111,7 @@ static size_t pending_notif_cnt;
 #endif
 
 static struct os_callout btshell_tx_timer;
-struct btshell_tx_data_s
-{
+struct btshell_tx_data_s {
     uint16_t tx_num;
     uint16_t tx_num_requested;
     uint16_t tx_rate;
@@ -137,38 +126,30 @@ struct ble_sm_sc_oob_data oob_data_local;
 struct ble_sm_sc_oob_data oob_data_remote;
 
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
-static struct {struct ble_audio_base *base; uint8_t adv_instance;}
-btshell_base_list[MYNEWT_VAL(BLE_ISO_MAX_BIGS)];
+static struct {
+    struct ble_audio_base *base;
+    uint8_t adv_instance;
+} btshell_base_list[MYNEWT_VAL(BLE_ISO_MAX_BIGS)];
 
-static os_membuf_t btshell_base_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS),
-                    sizeof(struct ble_audio_base))
-];
+static os_membuf_t btshell_base_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_audio_base))];
 static struct os_mempool btshell_base_pool;
 
-static os_membuf_t btshell_big_params_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS),
-                    sizeof(struct ble_iso_big_params))
-];
+static os_membuf_t btshell_big_params_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_iso_big_params))];
 static struct os_mempool btshell_big_params_pool;
 
 /** Mempool size: in worst case every BIS is in separate subgroup */
-static os_membuf_t btshell_big_sub_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
-                    sizeof(struct ble_audio_big_subgroup))
-];
+static os_membuf_t btshell_big_sub_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_ISO_MAX_BISES), sizeof(struct ble_audio_big_subgroup))];
 static struct os_mempool btshell_big_sub_pool;
 
-static os_membuf_t btshell_bis_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
-                    sizeof(struct ble_audio_bis))
-];
+static os_membuf_t btshell_bis_mem[OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
+                                                   sizeof(struct ble_audio_bis))];
 static struct os_mempool btshell_bis_pool;
 
-static os_membuf_t btshell_metadata_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
-                    MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)
-];
+static os_membuf_t btshell_metadata_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_ISO_MAX_BISES), MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE) - 27)];
 static struct os_mempool btshell_metadata_pool;
 
 /**
@@ -176,14 +157,11 @@ static struct os_mempool btshell_metadata_pool;
  * codec specific configuration, every BIS is in separate subgroup and also
  * has one. This is inefficient but possible and should not cause error if
  * used that way */
-static os_membuf_t btshell_codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 9)
-];
+static os_membuf_t btshell_codec_spec_mem[OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 9)];
 static struct os_mempool btshell_codec_spec_pool;
 
-static os_membuf_t btshell_big_params_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_iso_big_params))
-];
+static os_membuf_t btshell_big_params_mem[OS_MEMPOOL_SIZE(
+    MYNEWT_VAL(BLE_ISO_MAX_BIGS), sizeof(struct ble_iso_big_params))];
 static struct os_mempool btshell_big_params_pool;
 #endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 
@@ -192,11 +170,10 @@ static struct os_mempool btshell_big_params_pool;
 #define STR(s) #s
 #endif
 
-
 #ifdef DEVICE_NAME
-#define BTSHELL_AUTO_DEVICE_NAME    XSTR(DEVICE_NAME)
+#define BTSHELL_AUTO_DEVICE_NAME XSTR(DEVICE_NAME)
 #else
-#define BTSHELL_AUTO_DEVICE_NAME    ""
+#define BTSHELL_AUTO_DEVICE_NAME ""
 #endif
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
@@ -215,15 +192,14 @@ static struct {
 } adv_params;
 
 static void
-btshell_print_error(char *msg, uint16_t conn_handle,
-                    const struct ble_gatt_error *error)
+btshell_print_error(char *msg, uint16_t conn_handle, const struct ble_gatt_error *error)
 {
     if (msg == NULL) {
         msg = "ERROR";
     }
 
-    console_printf("%s: conn_handle=%d status=%d att_handle=%d\n",
-                   msg, conn_handle, error->status, error->att_handle);
+    console_printf("%s: conn_handle=%d status=%d att_handle=%d\n", msg,
+                   conn_handle, error->status, error->att_handle);
 }
 
 static void
@@ -236,20 +212,20 @@ btshell_print_adv_fields(const struct ble_hs_adv_fields *fields)
         console_printf("    flags=0x%02x:\n", fields->flags);
 
         if (!(fields->flags & BLE_HS_ADV_F_DISC_LTD) &&
-                !(fields->flags & BLE_HS_ADV_F_DISC_GEN)) {
-                console_printf("        Non-discoverable mode\n");
+            !(fields->flags & BLE_HS_ADV_F_DISC_GEN)) {
+            console_printf("        Non-discoverable mode\n");
         }
 
         if (fields->flags & BLE_HS_ADV_F_DISC_LTD) {
-                console_printf("        Limited discoverable mode\n");
+            console_printf("        Limited discoverable mode\n");
         }
 
         if (fields->flags & BLE_HS_ADV_F_DISC_GEN) {
-                console_printf("        General discoverable mode\n");
+            console_printf("        General discoverable mode\n");
         }
 
         if (fields->flags & BLE_HS_ADV_F_BREDR_UNSUP) {
-                console_printf("        BR/EDR not supported\n");
+            console_printf("        BR/EDR not supported\n");
         }
     }
 
@@ -284,8 +260,7 @@ btshell_print_adv_fields(const struct ble_hs_adv_fields *fields)
     }
 
     if (fields->name != NULL) {
-        console_printf("    name(%scomplete)=",
-                       fields->name_is_complete ? "" : "in");
+        console_printf("    name(%scomplete)=", fields->name_is_complete ? "" : "in");
         console_write((char *)fields->name, fields->name_len);
         console_printf("\n");
     }
@@ -296,15 +271,13 @@ btshell_print_adv_fields(const struct ble_hs_adv_fields *fields)
 
     if (fields->slave_itvl_range != NULL) {
         console_printf("    slave_itvl_range=");
-        print_bytes(fields->slave_itvl_range,
-                            BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN);
+        print_bytes(fields->slave_itvl_range, BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN);
         console_printf("\n");
     }
 
     if (fields->svc_data_uuid16 != NULL) {
         console_printf("    svc_data_uuid16=");
-        print_bytes(fields->svc_data_uuid16,
-                            fields->svc_data_uuid16_len);
+        print_bytes(fields->svc_data_uuid16, fields->svc_data_uuid16_len);
         console_printf("\n");
     }
 
@@ -328,15 +301,13 @@ btshell_print_adv_fields(const struct ble_hs_adv_fields *fields)
 
     if (fields->svc_data_uuid32 != NULL) {
         console_printf("    svc_data_uuid32=");
-        print_bytes(fields->svc_data_uuid32,
-                             fields->svc_data_uuid32_len);
+        print_bytes(fields->svc_data_uuid32, fields->svc_data_uuid32_len);
         console_printf("\n");
     }
 
     if (fields->svc_data_uuid128 != NULL) {
         console_printf("    svc_data_uuid128=");
-        print_bytes(fields->svc_data_uuid128,
-                            fields->svc_data_uuid128_len);
+        print_bytes(fields->svc_data_uuid128, fields->svc_data_uuid128_len);
         console_printf("\n");
     }
 
@@ -428,8 +399,7 @@ btshell_svc_find_range(struct btshell_conn *conn, uint16_t attr_handle)
     struct btshell_svc *svc;
 
     SLIST_FOREACH(svc, &conn->svcs, next) {
-        if (svc->svc.start_handle <= attr_handle &&
-            svc->svc.end_handle >= attr_handle) {
+        if (svc->svc.start_handle <= attr_handle && svc->svc.end_handle >= attr_handle) {
 
             return svc;
         }
@@ -473,8 +443,9 @@ btshell_svc_add(uint16_t conn_handle, const struct ble_gatt_svc *gatt_svc)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
-                           "HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+                    "HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
@@ -547,7 +518,7 @@ btshell_chr_find(const struct btshell_svc *svc, uint16_t chr_val_handle,
 }
 
 static struct btshell_chr *
-btshell_chr_add(uint16_t conn_handle,  uint16_t svc_start_handle,
+btshell_chr_add(uint16_t conn_handle, uint16_t svc_start_handle,
                 const struct ble_gatt_chr *gatt_chr)
 {
     struct btshell_conn *conn;
@@ -557,8 +528,9 @@ btshell_chr_add(uint16_t conn_handle,  uint16_t svc_start_handle,
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
-                           "HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+                    "HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
@@ -648,8 +620,9 @@ btshell_dsc_add(uint16_t conn_handle, uint16_t chr_val_handle,
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        MODLOG_DFLT(DEBUG, "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
-                           "HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "RECEIVED SERVICE FOR UNKNOWN CONNECTION; "
+                    "HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
@@ -663,8 +636,9 @@ btshell_dsc_add(uint16_t conn_handle, uint16_t chr_val_handle,
 
     chr = btshell_chr_find(svc, chr_val_handle, NULL);
     if (chr == NULL) {
-        MODLOG_DFLT(DEBUG, "CAN'T FIND CHARACTERISTIC FOR DISCOVERED DSC; "
-                           "HANDLE=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "CAN'T FIND CHARACTERISTIC FOR DISCOVERED DSC; "
+                    "HANDLE=%d\n",
                     conn_handle);
         return NULL;
     }
@@ -772,20 +746,20 @@ btshell_disc_full_dscs(uint16_t conn_handle)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        MODLOG_DFLT(DEBUG, "Failed to discover descriptors for conn=%d; "
-                           "not connected\n", conn_handle);
+        MODLOG_DFLT(DEBUG,
+                    "Failed to discover descriptors for conn=%d; "
+                    "not connected\n",
+                    conn_handle);
         btshell_full_disc_complete(BLE_HS_ENOTCONN);
         return;
     }
 
     SLIST_FOREACH(svc, &conn->svcs, next) {
         SLIST_FOREACH(chr, &svc->chrs, next) {
-            if (!chr_is_empty(svc, chr) &&
-                SLIST_EMPTY(&chr->dscs) &&
+            if (!chr_is_empty(svc, chr) && SLIST_EMPTY(&chr->dscs) &&
                 btshell_full_disc_prev_chr_val <= chr->chr.def_handle) {
 
-                rc = btshell_disc_all_dscs(conn_handle,
-                                           chr->chr.val_handle,
+                rc = btshell_disc_all_dscs(conn_handle, chr->chr.val_handle,
                                            chr_end_handle(svc, chr));
                 if (rc != 0) {
                     btshell_full_disc_complete(rc);
@@ -810,8 +784,10 @@ btshell_disc_full_chrs(uint16_t conn_handle)
 
     conn = btshell_conn_find(conn_handle);
     if (conn == NULL) {
-        MODLOG_DFLT(DEBUG, "Failed to discover characteristics for conn=%d; "
-                           "not connected\n", conn_handle);
+        MODLOG_DFLT(DEBUG,
+                    "Failed to discover characteristics for conn=%d; "
+                    "not connected\n",
+                    conn_handle);
         btshell_full_disc_complete(BLE_HS_ENOTCONN);
         return;
     }
@@ -911,8 +887,7 @@ btshell_on_disc_c_in_s(uint16_t conn_handle, const struct ble_gatt_error *error,
 
 static int
 btshell_on_disc_d(uint16_t conn_handle, const struct ble_gatt_error *error,
-                  uint16_t chr_val_handle, const struct ble_gatt_dsc *dsc,
-                  void *arg)
+                  uint16_t chr_val_handle, const struct ble_gatt_dsc *dsc, void *arg)
 {
     switch (error->status) {
     case 0:
@@ -941,11 +916,12 @@ btshell_on_read_var(uint16_t conn_handle, const struct ble_gatt_error *error,
 
     switch (error->status) {
     case 0:
-        console_printf("characteristic read; conn_handle=%d , number of attributes=%d\n", conn_handle, num_attrs);
+        console_printf("characteristic read; conn_handle=%d , number of attributes=%d\n",
+                       conn_handle, num_attrs);
 
         for (i = 0; i < num_attrs; i++) {
-            console_printf("\t attr_handle=%d, len=%d value=",
-                            attr[i].handle, OS_MBUF_PKTLEN(attr[i].om));
+            console_printf("\t attr_handle=%d, len=%d value=", attr[i].handle,
+                           OS_MBUF_PKTLEN(attr[i].om));
             print_mbuf(attr[i].om);
             console_printf("\n");
         }
@@ -970,8 +946,8 @@ btshell_on_read(uint16_t conn_handle, const struct ble_gatt_error *error,
     switch (error->status) {
     case 0:
         console_printf("characteristic read; conn_handle=%d "
-                       "attr_handle=%d len=%d value=", conn_handle,
-                       attr->handle, OS_MBUF_PKTLEN(attr->om));
+                       "attr_handle=%d len=%d value=",
+                       conn_handle, attr->handle, OS_MBUF_PKTLEN(attr->om));
         print_mbuf(attr->om);
         console_printf("\n");
         break;
@@ -995,7 +971,8 @@ btshell_on_write(uint16_t conn_handle, const struct ble_gatt_error *error,
     switch (error->status) {
     case 0:
         console_printf("characteristic write complete; conn_handle=%d "
-                       "attr_handle=%d\n", conn_handle, attr->handle);
+                       "attr_handle=%d\n",
+                       conn_handle, attr->handle);
         break;
 
     default:
@@ -1007,17 +984,16 @@ btshell_on_write(uint16_t conn_handle, const struct ble_gatt_error *error,
 }
 
 static int
-btshell_on_write_reliable(uint16_t conn_handle,
-                          const struct ble_gatt_error *error,
-                          struct ble_gatt_attr *attrs, uint8_t num_attrs,
-                          void *arg)
+btshell_on_write_reliable(uint16_t conn_handle, const struct ble_gatt_error *error,
+                          struct ble_gatt_attr *attrs, uint8_t num_attrs, void *arg)
 {
     int i;
 
     switch (error->status) {
     case 0:
         console_printf("characteristic write reliable complete; "
-                       "conn_handle=%d", conn_handle);
+                       "conn_handle=%d",
+                       conn_handle);
 
         for (i = 0; i < num_attrs; i++) {
             console_printf(" attr_handle=%d len=%d value=", attrs[i].handle,
@@ -1115,7 +1091,7 @@ btshell_decode_event_type(struct ble_gap_ext_disc_desc *desc, void *arg)
         console_printf("'scan rsp' ");
     }
 
-    switch(desc->data_status) {
+    switch (desc->data_status) {
     case BLE_GAP_EXT_ADV_DATA_STATUS_COMPLETE:
         console_printf("complete");
         break;
@@ -1143,7 +1119,7 @@ common_data:
 
     console_printf("\n");
 
-    if(!desc->length_data) {
+    if (!desc->length_data) {
         return;
     }
 
@@ -1212,8 +1188,7 @@ btshell_sync_stats(uint16_t handle)
         return;
     }
 
-    console_printf("completed=%u truncated=%u\n",
-                    psync->complete, psync->truncated);
+    console_printf("completed=%u truncated=%u\n", psync->complete, psync->truncated);
 }
 
 static void
@@ -1229,8 +1204,8 @@ handle_periodic_report(struct ble_gap_event *event)
     psync = &g_periodic_data[handle];
 
     if (psync->changed ||
-            memcmp(psync->data + psync->off, event->periodic_report.data,
-                   event->periodic_report.data_length)) {
+        memcmp(psync->data + psync->off, event->periodic_report.data,
+               event->periodic_report.data_length)) {
         /* first fragment with changed data */
         if (!psync->changed) {
             console_printf("Sync data changed, completed=%u, truncated=%u\n",
@@ -1240,7 +1215,7 @@ handle_periodic_report(struct ble_gap_event *event)
         psync->changed = true;
 
         console_printf("Sync report handle=%u status=", handle);
-        switch(event->periodic_report.data_status) {
+        switch (event->periodic_report.data_status) {
         case BLE_HCI_PERIODIC_DATA_STATUS_COMPLETE:
             console_printf("complete");
             break;
@@ -1266,7 +1241,7 @@ handle_periodic_report(struct ble_gap_event *event)
     memcpy(psync->data + psync->off, event->periodic_report.data,
            event->periodic_report.data_length);
 
-    switch(event->periodic_report.data_status) {
+    switch (event->periodic_report.data_status) {
     case BLE_HCI_PERIODIC_DATA_STATUS_INCOMPLETE:
         psync->off += event->periodic_report.data_length;
         break;
@@ -1339,8 +1314,9 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         }
 
         console_printf("received advertisement; event_type=%d rssi=%d "
-                       "addr_type=%d addr=", event->disc.event_type,
-                       event->disc.rssi, event->disc.addr.type);
+                       "addr_type=%d addr=",
+                       event->disc.event_type, event->disc.rssi,
+                       event->disc.addr.type);
         print_addr(event->disc.addr.val);
 
         /*
@@ -1348,8 +1324,8 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
          * directed advertising
          */
         if (event->disc.event_type == BLE_HCI_ADV_RPT_EVTYPE_DIR_IND) {
-                console_printf("\nConnectable directed advertising event\n");
-                return 0;
+            console_printf("\nConnectable directed advertising event\n");
+            return 0;
         }
 
         btshell_decode_adv_data(event->disc.data, event->disc.length_data, arg);
@@ -1358,8 +1334,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     }
 
     case BLE_GAP_EVENT_CONN_UPDATE:
-        console_printf("connection updated; status=%d ",
-                       event->conn_update.status);
+        console_printf("connection updated; status=%d ", event->conn_update.status);
         rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
         assert(rc == 0);
         print_conn_desc(&desc);
@@ -1367,24 +1342,19 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE_REQ:
         console_printf("connection update request\n");
-        *event->conn_update_req.self_params =
-            *event->conn_update_req.peer_params;
+        *event->conn_update_req.self_params = *event->conn_update_req.peer_params;
         return 0;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-        console_printf("passkey action event; action=%d",
-                       event->passkey.params.action);
+        console_printf("passkey action event; action=%d", event->passkey.params.action);
         if (event->passkey.params.action == BLE_SM_IOACT_NUMCMP) {
-            console_printf(" numcmp=%lu",
-                           (unsigned long)event->passkey.params.numcmp);
+            console_printf(" numcmp=%lu", (unsigned long)event->passkey.params.numcmp);
         }
         console_printf("\n");
         return 0;
 
-
     case BLE_GAP_EVENT_DISC_COMPLETE:
-        console_printf("discovery complete; reason=%d\n",
-                       event->disc_complete.reason);
+        console_printf("discovery complete; reason=%d\n", event->disc_complete.reason);
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
@@ -1396,14 +1366,12 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         ext_adv_restart[event->adv_complete.instance].conn_handle =
             event->adv_complete.conn_handle;
 #else
-        console_printf("advertise complete; reason=%d\n",
-                       event->adv_complete.reason);
+        console_printf("advertise complete; reason=%d\n", event->adv_complete.reason);
 #endif
         return 0;
 
     case BLE_GAP_EVENT_ENC_CHANGE:
-        console_printf("encryption change event; status=%d ",
-                       event->enc_change.status);
+        console_printf("encryption change event; status=%d ", event->enc_change.status);
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         assert(rc == 0);
         print_conn_desc(&desc);
@@ -1412,8 +1380,7 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_NOTIFY_RX:
         console_printf("notification rx event; attr_handle=%d indication=%d "
                        "len=%d data=",
-                       event->notify_rx.attr_handle,
-                       event->notify_rx.indication,
+                       event->notify_rx.attr_handle, event->notify_rx.indication,
                        OS_MBUF_PKTLEN(event->notify_rx.om));
 
         print_mbuf(event->notify_rx.om);
@@ -1423,27 +1390,22 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_NOTIFY_TX:
         console_printf("notification tx event; status=%d attr_handle=%d "
                        "indication=%d\n",
-                       event->notify_tx.status,
-                       event->notify_tx.attr_handle,
+                       event->notify_tx.status, event->notify_tx.attr_handle,
                        event->notify_tx.indication);
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
         console_printf("subscribe event; conn_handle=%d attr_handle=%d "
                        "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
-                       event->subscribe.conn_handle,
-                       event->subscribe.attr_handle,
-                       event->subscribe.reason,
-                       event->subscribe.prev_notify,
-                       event->subscribe.cur_notify,
-                       event->subscribe.prev_indicate,
+                       event->subscribe.conn_handle, event->subscribe.attr_handle,
+                       event->subscribe.reason, event->subscribe.prev_notify,
+                       event->subscribe.cur_notify, event->subscribe.prev_indicate,
                        event->subscribe.cur_indicate);
         return 0;
 
     case BLE_GAP_EVENT_MTU:
         console_printf("mtu update event; conn_handle=%d cid=%d mtu=%d\n",
-                       event->mtu.conn_handle,
-                       event->mtu.channel_id,
+                       event->mtu.conn_handle, event->mtu.channel_id,
                        event->mtu.value);
         return 0;
 
@@ -1457,10 +1419,8 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_PHY_UPDATE_COMPLETE:
         console_printf("PHY update complete; status=%d, conn_handle=%d "
                        " tx_phy=%d, rx_phy=%d\n",
-                       event->phy_updated.status,
-                       event->phy_updated.conn_handle,
-                       event->phy_updated.tx_phy,
-                       event->phy_updated.rx_phy);
+                       event->phy_updated.status, event->phy_updated.conn_handle,
+                       event->phy_updated.tx_phy, event->phy_updated.rx_phy);
         return 0;
 
     case BLE_GAP_EVENT_REPEAT_PAIRING:
@@ -1485,12 +1445,12 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
                            event->periodic_sync.status);
         } else {
             console_printf("Periodic Sync Established; sync_handle=%u sid=%u "
-                            "phy=%u adv_interval=%u ca=%u addr_type=%u addr=",
-                       event->periodic_sync.sync_handle,
-                       event->periodic_sync.sid, event->periodic_sync.adv_phy,
-                       event->periodic_sync.per_adv_ival,
-                       event->periodic_sync.adv_clk_accuracy,
-                       event->periodic_sync.adv_addr.type);
+                           "phy=%u adv_interval=%u ca=%u addr_type=%u addr=",
+                           event->periodic_sync.sync_handle,
+                           event->periodic_sync.sid, event->periodic_sync.adv_phy,
+                           event->periodic_sync.per_adv_ival,
+                           event->periodic_sync.adv_clk_accuracy,
+                           event->periodic_sync.adv_addr.type);
             print_addr(event->periodic_sync.adv_addr.val);
             console_printf("\n");
 
@@ -1507,17 +1467,18 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
     case BLE_GAP_EVENT_PERIODIC_SYNC_LOST:
         /* TODO non-NimBLE controllers may not start handles from 0 */
-        if (event->periodic_sync_lost.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
+        if (event->periodic_sync_lost.sync_handle >=
+            MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
             console_printf("Periodic Sync Lost; sync_handle=%d reason=%d\n",
-                            event->periodic_sync_lost.sync_handle,
-                            event->periodic_sync_lost.reason);
+                           event->periodic_sync_lost.sync_handle,
+                           event->periodic_sync_lost.reason);
         } else {
             psync = &g_periodic_data[event->periodic_sync_lost.sync_handle];
 
             console_printf("Periodic Sync Lost; sync_handle=%d reason=%d completed=%u truncated=%u\n",
                            event->periodic_sync_lost.sync_handle,
-                           event->periodic_sync_lost.reason,
-                           psync->complete, psync->truncated);
+                           event->periodic_sync_lost.reason, psync->complete,
+                           psync->truncated);
 
             memset(psync, 0, sizeof(*psync));
         }
@@ -1527,23 +1488,22 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
     case BLE_GAP_EVENT_PERIODIC_TRANSFER:
-        console_printf("Periodic Sync Transfer Received on conn=%u; status=%u,"
-                        " sync_handle=%u sid=%u phy=%u adv_interval=%u ca=%u "
-                        "addr_type=%u addr=",
-                       event->periodic_transfer.conn_handle,
-                       event->periodic_transfer.status,
-                       event->periodic_transfer.sync_handle,
-                       event->periodic_transfer.sid,
-                       event->periodic_transfer.adv_phy,
-                       event->periodic_transfer.per_adv_itvl,
-                       event->periodic_transfer.adv_clk_accuracy,
-                       event->periodic_transfer.adv_addr.type);
+        console_printf(
+            "Periodic Sync Transfer Received on conn=%u; status=%u,"
+            " sync_handle=%u sid=%u phy=%u adv_interval=%u ca=%u "
+            "addr_type=%u addr=",
+            event->periodic_transfer.conn_handle, event->periodic_transfer.status,
+            event->periodic_transfer.sync_handle, event->periodic_transfer.sid,
+            event->periodic_transfer.adv_phy, event->periodic_transfer.per_adv_itvl,
+            event->periodic_transfer.adv_clk_accuracy,
+            event->periodic_transfer.adv_addr.type);
         print_addr(event->periodic_transfer.adv_addr.val);
         console_printf("\n");
 
         if (!event->periodic_transfer.status) {
             /* TODO non-NimBLE controllers may not start handles from 0 */
-            if (event->periodic_transfer.sync_handle >= MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
+            if (event->periodic_transfer.sync_handle >=
+                MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)) {
                 console_printf("Unable to prepare cache for sync data\n");
             } else {
                 psync = &g_periodic_data[event->periodic_transfer.sync_handle];
@@ -1581,8 +1541,8 @@ btshell_tx_timer_cb(struct os_event *ev)
     }
 
     console_printf("Sending %d/%d len: %d\n",
-                       btshell_tx_data.tx_num_requested - btshell_tx_data.tx_num + 1,
-                       btshell_tx_data.tx_num_requested, btshell_tx_data.tx_len);
+                   btshell_tx_data.tx_num_requested - btshell_tx_data.tx_num + 1,
+                   btshell_tx_data.tx_num_requested, btshell_tx_data.tx_len);
 
     len = btshell_tx_data.tx_len;
 
@@ -1630,8 +1590,7 @@ btshell_exchange_mtu(uint16_t conn_handle)
 }
 
 int
-btshell_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle,
-                      uint16_t end_handle)
+btshell_disc_all_chrs(uint16_t conn_handle, uint16_t start_handle, uint16_t end_handle)
 {
     intptr_t svc_start_handle;
     int rc;
@@ -1648,22 +1607,20 @@ btshell_disc_all_chrs_in_svc(uint16_t conn_handle, struct btshell_svc *svc)
     int rc;
 
     rc = ble_gattc_disc_all_chrs(conn_handle, svc->svc.start_handle,
-                                 svc->svc.end_handle, btshell_on_disc_c_in_s,
-                                 svc);
+                                 svc->svc.end_handle, btshell_on_disc_c_in_s, svc);
     return rc;
 }
 
 int
 btshell_disc_chrs_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                           uint16_t end_handle, const ble_uuid_t *uuid)
+                          uint16_t end_handle, const ble_uuid_t *uuid)
 {
     intptr_t svc_start_handle;
     int rc;
 
     svc_start_handle = start_handle;
-    rc = ble_gattc_disc_chrs_by_uuid(conn_handle, start_handle, end_handle,
-                                     uuid, btshell_on_disc_c,
-                                     (void *)svc_start_handle);
+    rc = ble_gattc_disc_chrs_by_uuid(conn_handle, start_handle, end_handle, uuid,
+                                     btshell_on_disc_c, (void *)svc_start_handle);
     return rc;
 }
 
@@ -1681,14 +1638,12 @@ btshell_disc_svc_by_uuid(uint16_t conn_handle, const ble_uuid_t *uuid)
 {
     int rc;
 
-    rc = ble_gattc_disc_svc_by_uuid(conn_handle, uuid,
-                                    btshell_on_disc_s, NULL);
+    rc = ble_gattc_disc_svc_by_uuid(conn_handle, uuid, btshell_on_disc_s, NULL);
     return rc;
 }
 
 int
-btshell_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle,
-                      uint16_t end_handle)
+btshell_disc_all_dscs(uint16_t conn_handle, uint16_t start_handle, uint16_t end_handle)
 {
     int rc;
 
@@ -1721,8 +1676,7 @@ btshell_disc_full(uint16_t conn_handle)
 }
 
 int
-btshell_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle,
-                       uint16_t end_handle)
+btshell_find_inc_svcs(uint16_t conn_handle, uint16_t start_handle, uint16_t end_handle)
 {
     int rc;
 
@@ -1740,8 +1694,8 @@ btshell_read(uint16_t conn_handle, uint16_t attr_handle)
     if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         rc = ble_att_svr_read_local(attr_handle, &om);
         if (rc == 0) {
-            console_printf("read local; attr_handle=%d len=%d value=",
-                           attr_handle, OS_MBUF_PKTLEN(om));
+            console_printf("read local; attr_handle=%d len=%d value=", attr_handle,
+                           OS_MBUF_PKTLEN(om));
             print_mbuf(om);
             console_printf("\n");
 
@@ -1758,14 +1712,13 @@ btshell_read_long(uint16_t conn_handle, uint16_t attr_handle, uint16_t offset)
 {
     int rc;
 
-    rc = ble_gattc_read_long(conn_handle, attr_handle, offset,
-                             btshell_on_read, NULL);
+    rc = ble_gattc_read_long(conn_handle, attr_handle, offset, btshell_on_read, NULL);
     return rc;
 }
 
 int
 btshell_read_by_uuid(uint16_t conn_handle, uint16_t start_handle,
-                      uint16_t end_handle, const ble_uuid_t *uuid)
+                     uint16_t end_handle, const ble_uuid_t *uuid)
 {
     int rc;
 
@@ -1783,10 +1736,8 @@ btshell_read_mult(uint16_t conn_handle, uint16_t *attr_handles,
                                        btshell_on_read_var, NULL);
     }
 
-    return ble_gattc_read_mult(conn_handle, attr_handles,
-                               num_attr_handles,
+    return ble_gattc_read_mult(conn_handle, attr_handles, num_attr_handles,
                                btshell_on_read, NULL);
-
 }
 
 int
@@ -1797,16 +1748,14 @@ btshell_write(uint16_t conn_handle, uint16_t attr_handle, struct os_mbuf *om)
     if (conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         rc = ble_att_svr_write_local(attr_handle, om);
     } else {
-        rc = ble_gattc_write(conn_handle, attr_handle, om,
-                             btshell_on_write, NULL);
+        rc = ble_gattc_write(conn_handle, attr_handle, om, btshell_on_write, NULL);
     }
 
     return rc;
 }
 
 int
-btshell_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
-                     struct os_mbuf *om)
+btshell_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle, struct os_mbuf *om)
 {
     int rc;
 
@@ -1816,20 +1765,18 @@ btshell_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 int
-btshell_write_long(uint16_t conn_handle, uint16_t attr_handle,
-                   uint16_t offset, struct os_mbuf *om)
+btshell_write_long(uint16_t conn_handle, uint16_t attr_handle, uint16_t offset,
+                   struct os_mbuf *om)
 {
     int rc;
 
-    rc = ble_gattc_write_long(conn_handle, attr_handle, offset,
-                              om, btshell_on_write, NULL);
+    rc = ble_gattc_write_long(conn_handle, attr_handle, offset, om,
+                              btshell_on_write, NULL);
     return rc;
 }
 
 int
-btshell_write_reliable(uint16_t conn_handle,
-                       struct ble_gatt_attr *attrs,
-                       int num_attrs)
+btshell_write_reliable(uint16_t conn_handle, struct ble_gatt_attr *attrs, int num_attrs)
 {
     int rc;
 
@@ -1883,8 +1830,7 @@ btshell_send_pending_notif(uint16_t conn_handle)
         return EALREADY;
     }
 
-    rc = ble_gatts_notify_multiple_custom(conn_handle, pending_notif_cnt,
-                                          pending_notif);
+    rc = ble_gatts_notify_multiple_custom(conn_handle, pending_notif_cnt, pending_notif);
     for (i = 0; i < pending_notif_cnt; i++) {
         pending_notif[i].handle = 0;
         pending_notif[i].value = NULL;
@@ -1913,8 +1859,7 @@ btshell_clear_pending_notif(void)
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 int
-btshell_ext_adv_configure(uint8_t instance,
-                          const struct ble_gap_ext_adv_params *params,
+btshell_ext_adv_configure(uint8_t instance, const struct ble_gap_ext_adv_params *params,
                           int8_t *selected_tx_power)
 {
     return ble_gap_ext_adv_configure(instance, params, selected_tx_power,
@@ -1922,8 +1867,7 @@ btshell_ext_adv_configure(uint8_t instance,
 }
 
 int
-btshell_ext_adv_start(uint8_t instance, int duration,
-                      int max_events, bool restart)
+btshell_ext_adv_start(uint8_t instance, int duration, int max_events, bool restart)
 {
     int rc;
 
@@ -1976,7 +1920,8 @@ btshell_adv_start(uint8_t own_addr_type, const ble_addr_t *direct_addr,
         adv_params.duration_ms = duration_ms;
 
         if (direct_addr) {
-            memcpy(&adv_params.direct_addr, direct_addr, sizeof(adv_params.direct_addr));
+            memcpy(&adv_params.direct_addr, direct_addr,
+                   sizeof(adv_params.direct_addr));
         }
 
         if (params) {
@@ -2003,8 +1948,7 @@ btshell_conn_initiate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 
 int
 btshell_ext_conn_initiate(uint8_t own_addr_type, const ble_addr_t *peer_addr,
-                          int32_t duration_ms,
-                          struct ble_gap_conn_params *phy_1m_params,
+                          int32_t duration_ms, struct ble_gap_conn_params *phy_1m_params,
                           struct ble_gap_conn_params *phy_2m_params,
                           struct ble_gap_conn_params *phy_coded_params)
 {
@@ -2076,11 +2020,9 @@ btshell_scan(uint8_t own_addr_type, int32_t duration_ms,
 
 int
 btshell_ext_scan(uint8_t own_addr_type, uint16_t duration, uint16_t period,
-                 uint8_t filter_duplicates, uint8_t filter_policy,
-                 uint8_t limited,
+                 uint8_t filter_duplicates, uint8_t filter_policy, uint8_t limited,
                  const struct ble_gap_ext_disc_params *uncoded_params,
-                 const struct ble_gap_ext_disc_params *coded_params,
-                 void *cb_args)
+                 const struct ble_gap_ext_disc_params *coded_params, void *cb_args)
 {
     struct btshell_scan_opts *scan_opts = cb_args;
 
@@ -2134,13 +2076,11 @@ btshell_datalen(uint16_t conn_handle, uint16_t tx_octets, uint16_t tx_time)
 }
 
 int
-btshell_l2cap_update(uint16_t conn_handle,
-                     struct ble_l2cap_sig_update_params *params)
+btshell_l2cap_update(uint16_t conn_handle, struct ble_l2cap_sig_update_params *params)
 {
     int rc;
 
-    rc = ble_l2cap_sig_update(conn_handle, params, btshell_on_l2cap_update,
-                              NULL);
+    rc = ble_l2cap_sig_update(conn_handle, params, btshell_on_l2cap_update, NULL);
     return rc;
 }
 
@@ -2184,12 +2124,8 @@ btshell_sec_start(uint16_t conn_handle)
 }
 
 int
-btshell_sec_restart(uint16_t conn_handle,
-                    uint8_t key_size,
-                    uint8_t *ltk,
-                    uint16_t ediv,
-                    uint64_t rand_val,
-                    int auth)
+btshell_sec_restart(uint16_t conn_handle, uint8_t key_size, uint8_t *ltk,
+                    uint16_t ediv, uint64_t rand_val, int auth)
 {
 #if !NIMBLE_BLE_SM
     return BLE_HS_ENOTSUP;
@@ -2231,8 +2167,7 @@ btshell_sec_restart(uint16_t conn_handle,
         auth = value_sec.authenticated;
     }
 
-    rc = ble_gap_encryption_initiate(conn_handle, key_size, ltk,
-                                     ediv, rand_val, auth);
+    rc = ble_gap_encryption_initiate(conn_handle, key_size, ltk, ediv, rand_val, auth);
     return rc;
 }
 
@@ -2276,8 +2211,7 @@ btshell_tx_start(uint16_t conn_handle, uint16_t len, uint16_t rate, uint16_t num
     ble_hs_unlock();
 
     if (!btshell_tx_data.conn) {
-        console_printf("Could not find ble_hs_conn for handle: %d\n",
-                       conn_handle);
+        console_printf("Could not find ble_hs_conn for handle: %d\n", conn_handle);
         return -1;
     }
 
@@ -2397,8 +2331,8 @@ btshell_l2cap_coc_remove(uint16_t conn_handle, struct ble_l2cap_chan *chan)
 static void
 btshell_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
-    console_printf("LE CoC SDU received, chan: %p, data len %d\n",
-                   chan, OS_MBUF_PKTLEN(sdu));
+    console_printf("LE CoC SDU received, chan: %p, data len %d\n", chan,
+                   OS_MBUF_PKTLEN(sdu));
 
     os_mbuf_free_chain(sdu);
     sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
@@ -2416,8 +2350,7 @@ btshell_l2cap_coc_accept(uint16_t conn_handle, uint16_t peer_mtu,
     struct os_mbuf *sdu_rx;
     int rc;
 
-    console_printf("LE CoC accepting, chan: %p, peer_mtu %d\n",
-                   chan, peer_mtu);
+    console_printf("LE CoC accepting, chan: %p, peer_mtu %d\n", chan, peer_mtu);
 
     for (int i = 0; i < MYNEWT_VAL(BLE_L2CAP_COC_SDU_BUFF_COUNT); i++) {
         sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
@@ -2463,85 +2396,85 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
     int accept_response;
     struct ble_l2cap_chan_info chan_info;
 
-    switch(event->type) {
-        case BLE_L2CAP_EVENT_COC_CONNECTED:
-            if (event->connect.status) {
-                console_printf("LE COC error: %d\n", event->connect.status);
-                return 0;
-            }
-
-            if (ble_l2cap_get_chan_info(event->connect.chan, &chan_info)) {
-                assert(0);
-            }
-
-            console_printf("LE COC connected, conn: %d, chan: %p, psm: 0x%02x, scid: 0x%04x, "
-                           "dcid: 0x%04x, our_mps: %d, our_mtu: %d, peer_mps: %d, peer_mtu: %d\n",
-                           event->connect.conn_handle, event->connect.chan,
-                           chan_info.psm, chan_info.scid, chan_info.dcid,
-                           chan_info.our_l2cap_mtu, chan_info.our_coc_mtu, chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
-
-            btshell_l2cap_coc_add(event->connect.conn_handle,
-                                  event->connect.chan);
-
+    switch (event->type) {
+    case BLE_L2CAP_EVENT_COC_CONNECTED:
+        if (event->connect.status) {
+            console_printf("LE COC error: %d\n", event->connect.status);
             return 0;
-        case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-            console_printf("LE CoC disconnected, chan: %p\n",
-                           event->disconnect.chan);
+        }
 
-            btshell_l2cap_coc_remove(event->disconnect.conn_handle,
-                                     event->disconnect.chan);
-            return 0;
-        case BLE_L2CAP_EVENT_COC_ACCEPT:
-            accept_response = PTR_TO_INT(arg);
-            if (accept_response) {
-                return accept_response;
-            }
+        if (ble_l2cap_get_chan_info(event->connect.chan, &chan_info)) {
+            assert(0);
+        }
 
-            return btshell_l2cap_coc_accept(event->accept.conn_handle,
-                                            event->accept.peer_sdu_size,
-                                            event->accept.chan);
+        console_printf(
+            "LE COC connected, conn: %d, chan: %p, psm: 0x%02x, scid: 0x%04x, "
+            "dcid: 0x%04x, our_mps: %d, our_mtu: %d, peer_mps: %d, peer_mtu: %d\n",
+            event->connect.conn_handle, event->connect.chan, chan_info.psm,
+            chan_info.scid, chan_info.dcid, chan_info.our_l2cap_mtu,
+            chan_info.our_coc_mtu, chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
 
-        case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
-            btshell_l2cap_coc_recv(event->receive.chan, event->receive.sdu_rx);
-            return 0;
-        case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
+        btshell_l2cap_coc_add(event->connect.conn_handle, event->connect.chan);
 
-            if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
-                assert(0);
-            }
+        return 0;
+    case BLE_L2CAP_EVENT_COC_DISCONNECTED:
+        console_printf("LE CoC disconnected, chan: %p\n", event->disconnect.chan);
 
-            console_printf("LE CoC reconfigure completed status 0x%02x," \
-                            "chan: %p\n",
-                            event->reconfigured.status,
-                            event->reconfigured.chan);
+        btshell_l2cap_coc_remove(event->disconnect.conn_handle,
+                                 event->disconnect.chan);
+        return 0;
+    case BLE_L2CAP_EVENT_COC_ACCEPT:
+        accept_response = PTR_TO_INT(arg);
+        if (accept_response) {
+            return accept_response;
+        }
 
-            if (event->reconfigured.status == 0) {
-                console_printf("\t our_mps: %d our_mtu %d\n", chan_info.our_l2cap_mtu, chan_info.our_coc_mtu);
-            }
-            return 0;
-        case BLE_L2CAP_EVENT_COC_PEER_RECONFIGURED:
+        return btshell_l2cap_coc_accept(event->accept.conn_handle,
+                                        event->accept.peer_sdu_size,
+                                        event->accept.chan);
 
-            if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
-                assert(0);
-            }
+    case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
+        btshell_l2cap_coc_recv(event->receive.chan, event->receive.sdu_rx);
+        return 0;
+    case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
 
-            console_printf("LE CoC peer reconfigured status 0x%02x," \
-                            "chan: %p\n",
-                            event->reconfigured.status,
-                            event->reconfigured.chan);
+        if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
+            assert(0);
+        }
 
-            if (event->reconfigured.status == 0) {
-                console_printf("\t peer_mps: %d peer_mtu %d\n", chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
-            }
+        console_printf("LE CoC reconfigure completed status 0x%02x,"
+                       "chan: %p\n",
+                       event->reconfigured.status, event->reconfigured.chan);
 
-            return 0;
-        case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
-            console_printf("L2CAP CoC channel %p unstalled, last sdu sent with err=0x%02x\n",
-                            event->tx_unstalled.chan, event->tx_unstalled.status);
-            btshell_l2cap_coc_unstalled(event->tx_unstalled.conn_handle, event->tx_unstalled.chan);
-            return 0;
-        default:
-            return 0;
+        if (event->reconfigured.status == 0) {
+            console_printf("\t our_mps: %d our_mtu %d\n",
+                           chan_info.our_l2cap_mtu, chan_info.our_coc_mtu);
+        }
+        return 0;
+    case BLE_L2CAP_EVENT_COC_PEER_RECONFIGURED:
+
+        if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
+            assert(0);
+        }
+
+        console_printf("LE CoC peer reconfigured status 0x%02x,"
+                       "chan: %p\n",
+                       event->reconfigured.status, event->reconfigured.chan);
+
+        if (event->reconfigured.status == 0) {
+            console_printf("\t peer_mps: %d peer_mtu %d\n",
+                           chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
+        }
+
+        return 0;
+    case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
+        console_printf("L2CAP CoC channel %p unstalled, last sdu sent with err=0x%02x\n",
+                       event->tx_unstalled.chan, event->tx_unstalled.status);
+        btshell_l2cap_coc_unstalled(event->tx_unstalled.conn_handle,
+                                    event->tx_unstalled.chan);
+        return 0;
+    default:
+        return 0;
     }
 }
 #endif
@@ -2589,11 +2522,11 @@ btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu, uint8_t 
 
     if (num == 1) {
         return ble_l2cap_connect(conn_handle, psm, mtu, sdu_rx[0],
-                                     btshell_l2cap_event, NULL);
+                                 btshell_l2cap_event, NULL);
     }
 
-    return ble_l2cap_enhanced_connect(conn_handle, psm, mtu,
-                                      num, sdu_rx,btshell_l2cap_event, NULL);
+    return ble_l2cap_enhanced_connect(conn_handle, psm, mtu, num, sdu_rx,
+                                      btshell_l2cap_event, NULL);
 #endif
 }
 
@@ -2617,7 +2550,7 @@ btshell_l2cap_disconnect(uint16_t conn_handle, uint16_t idx)
     i = 0;
     SLIST_FOREACH(coc, &conn->coc_list, next) {
         if (i == idx) {
-                break;
+            break;
         }
         i++;
     }
@@ -2633,12 +2566,11 @@ btshell_l2cap_disconnect(uint16_t conn_handle, uint16_t idx)
 }
 
 int
-btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
-                       uint8_t num, uint8_t idxs[])
+btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu, uint8_t num, uint8_t idxs[])
 {
     struct btshell_conn *conn;
     struct btshell_l2cap_coc *coc;
-    struct ble_l2cap_chan * chans[5] = {0};
+    struct ble_l2cap_chan *chans[5] = { 0 };
     int i, j;
     int cnt;
 
@@ -2682,7 +2614,7 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
     struct btshell_conn *conn;
     struct btshell_l2cap_coc *coc;
     struct os_mbuf *sdu_tx;
-    uint8_t b[] = {0x00, 0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88, 0x99};
+    uint8_t b[] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99 };
     int i;
     int rc;
 
@@ -2741,8 +2673,8 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
     rc = ble_l2cap_send(coc->chan, sdu_tx);
     if (rc) {
         if (rc == BLE_HS_ESTALLED) {
-          console_printf("CoC module is stalled with data. Wait for unstalled \n");
-          coc->stalled = true;
+            console_printf("CoC module is stalled with data. Wait for unstalled \n");
+            coc->stalled = true;
         } else {
             console_printf("Could not send data rc=%d\n", rc);
         }
@@ -2802,8 +2734,7 @@ btshell_base_find(uint8_t adv_instance)
 static int
 btshell_broadcast_destroy_fn(struct ble_audio_base *base, void *args)
 {
-    struct ble_iso_big_params *big_params =
-        (struct ble_iso_big_params *)args;
+    struct ble_iso_big_params *big_params = (struct ble_iso_big_params *)args;
     struct ble_audio_big_subgroup *big_sub;
     struct ble_audio_bis *bis;
 
@@ -2849,13 +2780,10 @@ btshell_broadcast_base_add(uint8_t adv_instance, uint32_t presentation_delay)
 }
 
 int
-btshell_broadcast_big_sub_add(uint8_t adv_instance,
-                              uint8_t codec_fmt, uint16_t company_id,
-                              uint16_t vendor_spec,
-                              uint8_t *metadata,
-                              unsigned int metadata_len,
-                              uint8_t *codec_spec_cfg,
-                              unsigned int codec_spec_cfg_len)
+btshell_broadcast_big_sub_add(uint8_t adv_instance, uint8_t codec_fmt,
+                              uint16_t company_id, uint16_t vendor_spec,
+                              uint8_t *metadata, unsigned int metadata_len,
+                              uint8_t *codec_spec_cfg, unsigned int codec_spec_cfg_len)
 {
     struct ble_audio_big_subgroup *big_sub;
     struct ble_audio_base *base;
@@ -2896,8 +2824,7 @@ btshell_broadcast_big_sub_add(uint8_t adv_instance,
     big_sub->codec_id.company_id = company_id;
     big_sub->codec_id.vendor_specific = vendor_spec;
     big_sub->codec_id.vendor_specific = vendor_spec;
-    big_sub->codec_spec_config = codec_spec_cfg_len > 0 ?
-                                 new_codec_spec_cfg : NULL;
+    big_sub->codec_spec_config = codec_spec_cfg_len > 0 ? new_codec_spec_cfg : NULL;
     big_sub->codec_spec_config_len = codec_spec_cfg_len;
     big_sub->metadata = metadata_len > 0 ? new_metadata : NULL;
     big_sub->metadata_len = metadata_len;
@@ -2914,8 +2841,7 @@ btshell_broadcast_big_sub_add(uint8_t adv_instance,
 }
 
 int
-btshell_broadcast_bis_add(uint8_t adv_instance,
-                          uint8_t *codec_spec_cfg,
+btshell_broadcast_bis_add(uint8_t adv_instance, uint8_t *codec_spec_cfg,
                           unsigned int codec_spec_cfg_len)
 {
     struct ble_audio_bis *bis;
@@ -2947,8 +2873,7 @@ btshell_broadcast_bis_add(uint8_t adv_instance,
         memcpy(new_codec_spec_cfg, codec_spec_cfg, codec_spec_cfg_len);
     }
 
-    bis->codec_spec_config = codec_spec_cfg_len > 0 ?
-                             new_codec_spec_cfg : NULL;
+    bis->codec_spec_config = codec_spec_cfg_len > 0 ? new_codec_spec_cfg : NULL;
     bis->codec_spec_config_len = codec_spec_cfg_len;
 
     if (STAILQ_EMPTY(&big_sub->bises)) {
@@ -2962,13 +2887,10 @@ btshell_broadcast_bis_add(uint8_t adv_instance,
 }
 
 int
-btshell_broadcast_create(uint8_t adv_instance,
-                         struct ble_gap_ext_adv_params *ext_params,
+btshell_broadcast_create(uint8_t adv_instance, struct ble_gap_ext_adv_params *ext_params,
                          struct ble_gap_periodic_adv_params *per_params,
-                         const char *name,
-                         struct ble_iso_big_params big_params,
-                         uint8_t *extra_data,
-                         unsigned int extra_data_len)
+                         const char *name, struct ble_iso_big_params big_params,
+                         uint8_t *extra_data, unsigned int extra_data_len)
 {
     struct ble_audio_base *base;
     struct ble_broadcast_create_params create_params;
@@ -2996,10 +2918,8 @@ btshell_broadcast_create(uint8_t adv_instance,
     create_params.svc_data = extra_data;
     create_params.svc_data_len = extra_data_len;
 
-    rc = ble_audio_broadcast_create(&create_params,
-                                    btshell_broadcast_destroy_fn,
-                                    (void *)big_params_ptr,
-                                    btshell_gap_event);
+    rc = ble_audio_broadcast_create(&create_params, btshell_broadcast_destroy_fn,
+                                    (void *)big_params_ptr, btshell_gap_event);
     return rc;
 }
 
@@ -3010,10 +2930,8 @@ btshell_broadcast_destroy(uint8_t adv_instance)
 }
 
 int
-btshell_broadcast_update(uint8_t adv_instance,
-                         const char *name,
-                         uint8_t *extra_data,
-                         unsigned int extra_data_len)
+btshell_broadcast_update(uint8_t adv_instance, const char *name,
+                         uint8_t *extra_data, unsigned int extra_data_len)
 {
     struct ble_audio_base *base;
     struct ble_broadcast_update_params params;
@@ -3060,52 +2978,47 @@ mynewt_main(int argc, char **argv)
 
     /* Initialize some application specific memory pools. */
     rc = os_mempool_init(&btshell_svc_pool, BTSHELL_MAX_SVCS,
-                         sizeof (struct btshell_svc), btshell_svc_mem,
+                         sizeof(struct btshell_svc), btshell_svc_mem,
                          "btshell_svc_pool");
     assert(rc == 0);
 
     rc = os_mempool_init(&btshell_chr_pool, BTSHELL_MAX_CHRS,
-                         sizeof (struct btshell_chr), btshell_chr_mem,
+                         sizeof(struct btshell_chr), btshell_chr_mem,
                          "btshell_chr_pool");
     assert(rc == 0);
 
     rc = os_mempool_init(&btshell_dsc_pool, BTSHELL_MAX_DSCS,
-                         sizeof (struct btshell_dsc), btshell_dsc_mem,
+                         sizeof(struct btshell_dsc), btshell_dsc_mem,
                          "btshell_dsc_pool");
     assert(rc == 0);
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
     /* For testing we want to support all the available channels */
-    rc = os_mempool_init(&sdu_coc_mbuf_mempool, BTSHELL_COC_BUF_COUNT,
-                         BTSHELL_COC_MTU, btshell_sdu_coc_mem,
-                         "btshell_coc_sdu_pool");
+    rc = os_mempool_init(&sdu_coc_mbuf_mempool, BTSHELL_COC_BUF_COUNT, BTSHELL_COC_MTU,
+                         btshell_sdu_coc_mem, "btshell_coc_sdu_pool");
     assert(rc == 0);
 
     rc = os_mbuf_pool_init(&sdu_os_mbuf_pool, &sdu_coc_mbuf_mempool,
                            BTSHELL_COC_MTU, BTSHELL_COC_BUF_COUNT);
     assert(rc == 0);
 
-    rc = os_mempool_init(&btshell_coc_conn_pool,
-                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
-                         sizeof (struct btshell_l2cap_coc), btshell_coc_conn_mem,
-                         "btshell_coc_conn_pool");
+    rc = os_mempool_init(&btshell_coc_conn_pool, MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                         sizeof(struct btshell_l2cap_coc),
+                         btshell_coc_conn_mem, "btshell_coc_conn_pool");
     assert(rc == 0);
 #endif
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     rc = os_mempool_init(&btshell_base_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
-                         sizeof(struct ble_audio_base),
-                         btshell_base_mem,
+                         sizeof(struct ble_audio_base), btshell_base_mem,
                          "btshell_base_pool");
     assert(rc == 0);
     rc = os_mempool_init(&btshell_big_params_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_iso_big_params),
-                         btshell_big_params_mem,
-                         "btshell_big_params_pool");
+                         btshell_big_params_mem, "btshell_big_params_pool");
     assert(rc == 0);
     rc = os_mempool_init(&btshell_big_sub_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          sizeof(struct ble_audio_big_subgroup),
-                         btshell_big_sub_mem,
-                   "btshell_big_sub_pool");
+                         btshell_big_sub_mem, "btshell_big_sub_pool");
     assert(rc == 0);
     rc = os_mempool_init(&btshell_bis_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
                          sizeof(struct ble_audio_bis), btshell_bis_mem,
@@ -3117,13 +3030,11 @@ mynewt_main(int argc, char **argv)
                          btshell_metadata_mem, "btshell_metadata_pool");
     assert(rc == 0);
 
-    rc = os_mempool_init(&btshell_codec_spec_pool,
-                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
-                         btshell_codec_spec_mem, "btshell_codec_spec_pool");
+    rc = os_mempool_init(&btshell_codec_spec_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2,
+                         19, btshell_codec_spec_mem, "btshell_codec_spec_pool");
     assert(rc == 0);
 
-    rc = os_mempool_init(&btshell_big_params_pool,
-                         MYNEWT_VAL(BLE_ISO_MAX_BIGS),
+    rc = os_mempool_init(&btshell_big_params_pool, MYNEWT_VAL(BLE_ISO_MAX_BIGS),
                          sizeof(struct ble_iso_big_params),
                          btshell_big_params_mem, "btshell_big_params_pool");
     assert(rc == 0);
@@ -3146,8 +3057,7 @@ mynewt_main(int argc, char **argv)
     /* Create a callout (timer).  This callout is used by the "tx" btshell
      * command to repeatedly send packets of sequential data bytes.
      */
-    os_callout_init(&btshell_tx_timer, os_eventq_dflt_get(),
-                    btshell_tx_timer_cb, NULL);
+    os_callout_init(&btshell_tx_timer, os_eventq_dflt_get(), btshell_tx_timer_cb, NULL);
 
     btshell_init_ext_adv_restart();
 

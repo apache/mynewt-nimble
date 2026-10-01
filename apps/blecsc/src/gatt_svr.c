@@ -25,113 +25,112 @@
 #include "host/ble_uuid.h"
 #include "blecsc_sens.h"
 
-#define CSC_ERR_CCC_DESC_IMPROPERLY_CONFIGURED  0x81
+#define CSC_ERR_CCC_DESC_IMPROPERLY_CONFIGURED 0x81
 
 static const char *manuf_name = "Apache Mynewt";
 static const char *model_num = "Mynewt CSC Sensor";
 
 static const uint8_t csc_supported_sensor_locations[] = {
-    SENSOR_LOCATION_FRONT_WHEEL,
-    SENSOR_LOCATION_REAR_DROPOUT,
-    SENSOR_LOCATION_CHAINSTAY,
-    SENSOR_LOCATION_REAR_WHEEL
+    SENSOR_LOCATION_FRONT_WHEEL, SENSOR_LOCATION_REAR_DROPOUT,
+    SENSOR_LOCATION_CHAINSTAY, SENSOR_LOCATION_REAR_WHEEL
 };
 
 static uint8_t sensor_location = SENSOR_LOCATION_REAR_DROPOUT;
-static struct ble_csc_measurement_state * measurement_state;
+static struct ble_csc_measurement_state *measurement_state;
 uint16_t csc_measurement_handle;
 uint16_t csc_control_point_handle;
 uint8_t csc_cp_indication_status;
 
-static int
-gatt_svr_chr_access_csc_measurement(uint16_t conn_handle,
-                                    uint16_t attr_handle,
-                                    struct ble_gatt_access_ctxt *ctxt,
-                                    void *arg);
+static int gatt_svr_chr_access_csc_measurement(uint16_t conn_handle,
+                                               uint16_t attr_handle,
+                                               struct ble_gatt_access_ctxt *ctxt,
+                                               void *arg);
 
-static int
-gatt_svr_chr_access_csc_feature(uint16_t conn_handle,
-                                uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt,
-                                void *arg);
+static int gatt_svr_chr_access_csc_feature(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt,
+                                           void *arg);
 
-static int
-gatt_svr_chr_access_sensor_location(uint16_t conn_handle,
-                                    uint16_t attr_handle,
-                                    struct ble_gatt_access_ctxt *ctxt,
-                                    void *arg);
+static int gatt_svr_chr_access_sensor_location(uint16_t conn_handle,
+                                               uint16_t attr_handle,
+                                               struct ble_gatt_access_ctxt *ctxt,
+                                               void *arg);
 
-static int
-gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
-                                     uint16_t attr_handle,
-                                     struct ble_gatt_access_ctxt *ctxt,
-                                     void *arg);
+static int gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
+                                                uint16_t attr_handle,
+                                                struct ble_gatt_access_ctxt *ctxt,
+                                                void *arg);
 
-static int
-gatt_svr_chr_access_device_info(uint16_t conn_handle,
-                                uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt,
-                                void *arg);
+static int gatt_svr_chr_access_device_info(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt,
+                                           void *arg);
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
-    {
-        /* Service: Cycling Speed and Cadence */
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(GATT_CSC_UUID),
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            /* Characteristic: Cycling Speed and Cadence Measurement */
-            .uuid = BLE_UUID16_DECLARE(GATT_CSC_MEASUREMENT_UUID),
-            .access_cb = gatt_svr_chr_access_csc_measurement,
-            .val_handle = &csc_measurement_handle,
-            .flags = BLE_GATT_CHR_F_NOTIFY,
-        }, {
-            /* Characteristic: Cycling Speed and Cadence features */
-            .uuid = BLE_UUID16_DECLARE(GATT_CSC_FEATURE_UUID),
-            .access_cb = gatt_svr_chr_access_csc_feature,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            /* Characteristic: Sensor Location */
-            .uuid = BLE_UUID16_DECLARE(GATT_SENSOR_LOCATION_UUID),
-            .access_cb = gatt_svr_chr_access_sensor_location,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            /* Characteristic: SC Control Point*/
-            .uuid = BLE_UUID16_DECLARE(GATT_SC_CONTROL_POINT_UUID),
-            .access_cb = gatt_svr_chr_access_sc_control_point,
-            .val_handle = &csc_control_point_handle,
-            .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_INDICATE,
-        }, {
-            0, /* No more characteristics in this service */
-        }, }
-    },
+    { /* Service: Cycling Speed and Cadence */
+      .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = BLE_UUID16_DECLARE(GATT_CSC_UUID),
+     .characteristics =
+          (struct ble_gatt_chr_def[]){
+              {
+                  /* Characteristic: Cycling Speed and Cadence Measurement */
+                  .uuid = BLE_UUID16_DECLARE(GATT_CSC_MEASUREMENT_UUID),
+                  .access_cb = gatt_svr_chr_access_csc_measurement,
+                  .val_handle = &csc_measurement_handle,
+                  .flags = BLE_GATT_CHR_F_NOTIFY,
+              },
+              {
+                  /* Characteristic: Cycling Speed and Cadence features */
+                  .uuid = BLE_UUID16_DECLARE(GATT_CSC_FEATURE_UUID),
+                  .access_cb = gatt_svr_chr_access_csc_feature,
+                  .flags = BLE_GATT_CHR_F_READ,
+              },
+              {
+                  /* Characteristic: Sensor Location */
+                  .uuid = BLE_UUID16_DECLARE(GATT_SENSOR_LOCATION_UUID),
+                  .access_cb = gatt_svr_chr_access_sensor_location,
+                  .flags = BLE_GATT_CHR_F_READ,
+              },
+              {
+                  /* Characteristic: SC Control Point*/
+                  .uuid = BLE_UUID16_DECLARE(GATT_SC_CONTROL_POINT_UUID),
+                  .access_cb = gatt_svr_chr_access_sc_control_point,
+                  .val_handle = &csc_control_point_handle,
+                  .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_INDICATE,
+              },
+              {
+                  0, /* No more characteristics in this service */
+              },
+          } },
+
+    { /* Service: Device Information */
+      .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = BLE_UUID16_DECLARE(GATT_DEVICE_INFO_UUID),
+     .characteristics =
+          (struct ble_gatt_chr_def[]){
+              {
+                  /* Characteristic: * Manufacturer name */
+                  .uuid = BLE_UUID16_DECLARE(GATT_MANUFACTURER_NAME_UUID),
+                  .access_cb = gatt_svr_chr_access_device_info,
+                  .flags = BLE_GATT_CHR_F_READ,
+              },
+              {
+                  /* Characteristic: Model number string */
+                  .uuid = BLE_UUID16_DECLARE(GATT_MODEL_NUMBER_UUID),
+                  .access_cb = gatt_svr_chr_access_device_info,
+                  .flags = BLE_GATT_CHR_F_READ,
+              },
+              {
+                  0, /* No more characteristics in this service */
+              },
+          } },
 
     {
-        /* Service: Device Information */
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(GATT_DEVICE_INFO_UUID),
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            /* Characteristic: * Manufacturer name */
-            .uuid = BLE_UUID16_DECLARE(GATT_MANUFACTURER_NAME_UUID),
-            .access_cb = gatt_svr_chr_access_device_info,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            /* Characteristic: Model number string */
-            .uuid = BLE_UUID16_DECLARE(GATT_MODEL_NUMBER_UUID),
-            .access_cb = gatt_svr_chr_access_device_info,
-            .flags = BLE_GATT_CHR_F_READ,
-        }, {
-            0, /* No more characteristics in this service */
-        }, }
-    },
-
-    {
-        0, /* No more services */
+     0, /* No more services */
     },
 };
 
 static int
 gatt_svr_chr_access_csc_measurement(uint16_t conn_handle, uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
+                                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     return BLE_ATT_ERR_READ_NOT_PERMITTED;
 }
@@ -151,7 +150,7 @@ gatt_svr_chr_access_csc_feature(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_chr_access_sensor_location(uint16_t conn_handle, uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
+                                    struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     int rc;
 
@@ -162,10 +161,8 @@ gatt_svr_chr_access_sensor_location(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static int
-gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
-                                     uint16_t attr_handle,
-                                     struct ble_gatt_access_ctxt *ctxt,
-                                     void *arg)
+gatt_svr_chr_access_sc_control_point(uint16_t conn_handle, uint16_t attr_handle,
+                                     struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint8_t op_code;
     uint8_t new_sensor_location;
@@ -185,7 +182,7 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
 
     /* Read control point op code*/
     rc = os_mbuf_copydata(ctxt->om, 0, sizeof(op_code), &op_code);
-    if (rc != 0){
+    if (rc != 0) {
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
     MODLOG_DFLT(INFO, "SC Control Point; opcode=%d\n", op_code);
@@ -193,19 +190,18 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     /* Allocate response buffer */
     om_indication = ble_hs_mbuf_att_pkt();
 
-    switch(op_code){
+    switch (op_code) {
 #if (CSC_FEATURES & CSC_FEATURE_WHEEL_REV_DATA)
     case SC_CP_OP_SET_CUMULATIVE_VALUE:
         /* Read new cumulative wheel revolutions value*/
-        rc = os_mbuf_copydata(ctxt->om, 1,
-                              sizeof(new_cumulative_wheel_rev_arr),
+        rc = os_mbuf_copydata(ctxt->om, 1, sizeof(new_cumulative_wheel_rev_arr),
                               new_cumulative_wheel_rev_arr);
-        if (rc != 0){
+        if (rc != 0) {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
 
         measurement_state->cumulative_wheel_rev =
-                           get_le32(new_cumulative_wheel_rev_arr);
+            get_le32(new_cumulative_wheel_rev_arr);
 
         MODLOG_DFLT(INFO, "SC Control Point; Set cumulative value = %d\n",
                     measurement_state->cumulative_wheel_rev);
@@ -218,8 +214,8 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     case SC_CP_OP_UPDATE_SENSOR_LOCATION:
         /* Read new sensor location value*/
         rc = os_mbuf_copydata(ctxt->om, 1, 1, &new_sensor_location);
-        if (rc != 0){
-          return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
+        if (rc != 0) {
+            return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
         }
 
         MODLOG_DFLT(INFO, "SC Control Point; Sensor location update = %d\n",
@@ -227,8 +223,8 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
 
         /* Verify if requested new location is on supported locations list */
         response = SC_CP_RESPONSE_INVALID_PARAM;
-        for (ii = 0; ii < sizeof(csc_supported_sensor_locations); ii++){
-            if (new_sensor_location == csc_supported_sensor_locations[ii]){
+        for (ii = 0; ii < sizeof(csc_supported_sensor_locations); ii++) {
+            if (new_sensor_location == csc_supported_sensor_locations[ii]) {
                 sensor_location = new_sensor_location;
                 response = SC_CP_RESPONSE_SUCCESS;
                 break;
@@ -248,24 +244,23 @@ gatt_svr_chr_access_sc_control_point(uint16_t conn_handle,
     /* Append response value */
     rc = os_mbuf_append(om_indication, &response, sizeof(response));
 
-    if (rc != 0){
-      return BLE_ATT_ERR_INSUFFICIENT_RES;
+    if (rc != 0) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 
 #if (CSC_FEATURES & CSC_FEATURE_MULTIPLE_SENSOR_LOC)
     /* In case of supported locations request append locations list */
-    if (op_code == SC_CP_OP_REQ_SUPPORTED_SENSOR_LOCATIONS){
-      rc = os_mbuf_append(om_indication, &csc_supported_sensor_locations,
-                          sizeof(csc_supported_sensor_locations));
+    if (op_code == SC_CP_OP_REQ_SUPPORTED_SENSOR_LOCATIONS) {
+        rc = os_mbuf_append(om_indication, &csc_supported_sensor_locations,
+                            sizeof(csc_supported_sensor_locations));
     }
 
-    if (rc != 0){
-      return BLE_ATT_ERR_INSUFFICIENT_RES;
+    if (rc != 0) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
     }
 #endif
 
-    rc = ble_gatts_indicate_custom(conn_handle, csc_control_point_handle,
-                                   om_indication);
+    rc = ble_gatts_indicate_custom(conn_handle, csc_control_point_handle, om_indication);
 
     return rc;
 }
@@ -312,10 +307,8 @@ gatt_svr_chr_notify_csc_measurement(uint16_t conn_handle)
 
 #if (CSC_FEATURES & CSC_FEATURE_CRANK_REV_DATA)
     data_buf[0] |= CSC_MEASUREMENT_CRANK_REV_PRESENT;
-    put_le16(&(data_buf[data_offset]),
-             measurement_state->cumulative_crank_rev);
-    put_le16(&(data_buf[data_offset + 2]),
-             measurement_state->last_crank_evt_time);
+    put_le16(&(data_buf[data_offset]), measurement_state->cumulative_crank_rev);
+    put_le16(&(data_buf[data_offset + 2]), measurement_state->last_crank_evt_time);
     data_offset += 4;
 #endif
 
@@ -328,7 +321,7 @@ gatt_svr_chr_notify_csc_measurement(uint16_t conn_handle)
 void
 gatt_svr_set_cp_indicate(uint8_t indication_status)
 {
-  csc_cp_indication_status = indication_status;
+    csc_cp_indication_status = indication_status;
 }
 
 void
@@ -339,22 +332,20 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
     switch (ctxt->op) {
     case BLE_GATT_REGISTER_OP_SVC:
         MODLOG_DFLT(DEBUG, "registered service %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
-                    ctxt->svc.handle);
+                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf), ctxt->svc.handle);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
-        MODLOG_DFLT(DEBUG, "registering characteristic %s with "
-                           "def_handle=%d val_handle=%d\n",
+        MODLOG_DFLT(DEBUG,
+                    "registering characteristic %s with "
+                    "def_handle=%d val_handle=%d\n",
                     ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
-                    ctxt->chr.def_handle,
-                    ctxt->chr.val_handle);
+                    ctxt->chr.def_handle, ctxt->chr.val_handle);
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
         MODLOG_DFLT(DEBUG, "registering descriptor %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
-                    ctxt->dsc.handle);
+                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf), ctxt->dsc.handle);
         break;
 
     default:
@@ -364,7 +355,7 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 }
 
 int
-gatt_svr_init(struct ble_csc_measurement_state * csc_measurement_state)
+gatt_svr_init(struct ble_csc_measurement_state *csc_measurement_state)
 {
     int rc;
 
@@ -382,4 +373,3 @@ gatt_svr_init(struct ble_csc_measurement_state * csc_measurement_state)
 
     return 0;
 }
-

@@ -30,15 +30,15 @@
 #include <bootutil/image.h>
 
 static const struct parse_arg_kv_pair phy_opts[] = {
-    { "1M",          0x01 },
-    { "2M",          0x02 },
-    { "coded",       0x03 },
+    { "1M", 0x01 },
+    { "2M", 0x02 },
+    { "coded", 0x03 },
     { NULL }
 };
 
 static const struct parse_arg_kv_pair modulation_index_opts[] = {
-    { "standard",    0x00 },
-    { "stable",      0x01 },
+    { "standard", 0x00 },
+    { "stable", 0x01 },
     { NULL }
 };
 
@@ -65,8 +65,8 @@ cmd_rx_test(int argc, char **argv)
         return rc;
     }
 
-    params.modulation_index = parse_arg_kv_dflt("modulation_index",
-                                                modulation_index_opts, 0x00, &rc);
+    params.modulation_index =
+        parse_arg_kv_dflt("modulation_index", modulation_index_opts, 0x00, &rc);
     if (rc != 0) {
         console_printf("invalid 'modulation_index' parameter\n");
         return rc;
@@ -160,15 +160,14 @@ cmd_tx_power(int argc, char **argv)
         return rc;
     }
 
-    cmd.tx_power = parse_arg_long_bounds_dflt("power",
-                                             -127, 127, 127, &rc);
+    cmd.tx_power = parse_arg_long_bounds_dflt("power", -127, 127, 127, &rc);
     if (rc != 0) {
         console_printf("invalid 'power' parameter\n");
         return rc;
     }
 
     rc = ble_hs_hci_send_vs_cmd(BLE_HCI_OCF_VS_SET_TX_PWR, &cmd, sizeof(cmd),
-                               &rsp, sizeof(rsp));
+                                &rsp, sizeof(rsp));
     if (rc) {
         console_printf("failed to set TX power\n");
         return rc;
@@ -207,10 +206,10 @@ cmd_set_antenna(int argc, char **argv)
 }
 
 static const struct shell_param cmd_rx_test_params[] = {
-    {"channel", "RX channel, usage: =[0-39]"},
-    {"phy", "usage: =[1M|2M], default: 1M"},
-    {"modulation_index", "usage: =[standard|stable], default=standard"},
-    {NULL}
+    { "channel", "RX channel, usage: =[0-39]" },
+    { "phy", "usage: =[1M|2M], default: 1M" },
+    { "modulation_index", "usage: =[standard|stable], default=standard" },
+    { NULL }
 };
 
 static const struct shell_cmd_help cmd_rx_test_help = {
@@ -220,11 +219,11 @@ static const struct shell_cmd_help cmd_rx_test_help = {
 };
 
 static const struct shell_param cmd_tx_test_params[] = {
-    {"channel", "TX channel, usage: =[0-39]"},
-    {"phy", "usage: =[1M|2M], default: 1M"},
-    {"data_length", "usage: =[0-255], default: 0"},
-    {"payload", "usage: =[0-7, 255]"},
-    {NULL}
+    { "channel", "TX channel, usage: =[0-39]" },
+    { "phy", "usage: =[1M|2M], default: 1M" },
+    { "data_length", "usage: =[0-255], default: 0" },
+    { "payload", "usage: =[0-7, 255]" },
+    { NULL }
 };
 
 static const struct shell_cmd_help cmd_tx_test_help = {
@@ -240,8 +239,8 @@ static const struct shell_cmd_help cmd_stop_test_help = {
 };
 
 static const struct shell_param cmd_tx_power_params[] = {
-    {"power", "usage: =[-127-127], default: 127"},
-    {NULL}
+    { "power", "usage: =[-127-127], default: 127" },
+    { NULL }
 };
 
 static const struct shell_cmd_help cmd_tx_power_help = {
@@ -251,8 +250,8 @@ static const struct shell_cmd_help cmd_tx_power_help = {
 };
 
 static const struct shell_param cmd_set_antenna_params[] = {
-    {"antenna", "usage: =[0,1,2], default: 0"},
-    {NULL}
+    { "antenna", "usage: =[0,1,2], default: 0" },
+    { NULL }
 };
 
 static const struct shell_cmd_help cmd_set_antenna_help = {
@@ -263,31 +262,31 @@ static const struct shell_cmd_help cmd_set_antenna_help = {
 
 static const struct shell_cmd dtm_commands[] = {
     {
-        .sc_cmd = "rx-test",
-        .sc_cmd_func = cmd_rx_test,
-        .help = &cmd_rx_test_help,
-    },
+     .sc_cmd = "rx-test",
+     .sc_cmd_func = cmd_rx_test,
+     .help = &cmd_rx_test_help,
+     },
     {
-        .sc_cmd = "tx-test",
-        .sc_cmd_func = cmd_tx_test,
-        .help = &cmd_tx_test_help,
-    },
+     .sc_cmd = "tx-test",
+     .sc_cmd_func = cmd_tx_test,
+     .help = &cmd_tx_test_help,
+     },
     {
-        .sc_cmd = "stop-test",
-        .sc_cmd_func = cmd_stop_test,
-        .help = &cmd_stop_test_help,
-    },
+     .sc_cmd = "stop-test",
+     .sc_cmd_func = cmd_stop_test,
+     .help = &cmd_stop_test_help,
+     },
     {
-        .sc_cmd = "tx-power",
-        .sc_cmd_func = cmd_tx_power,
-        .help = &cmd_tx_power_help,
-    },
+     .sc_cmd = "tx-power",
+     .sc_cmd_func = cmd_tx_power,
+     .help = &cmd_tx_power_help,
+     },
     {
-        .sc_cmd = "set-antenna",
-        .sc_cmd_func = cmd_set_antenna,
-        .help = &cmd_set_antenna_help,
-    },
-    { }
+     .sc_cmd = "set-antenna",
+     .sc_cmd_func = cmd_set_antenna,
+     .help = &cmd_set_antenna_help,
+     },
+    {}
 };
 
 static void
@@ -312,8 +311,8 @@ mynewt_main(int argc, char **argv)
 
     img_mgmt_read_info(0, &the_version, NULL, NULL);
 
-    snprintf(prompt, sizeof(prompt), "dtm_%u.%u.%u",
-             the_version.iv_major, the_version.iv_minor, the_version.iv_revision);
+    snprintf(prompt, sizeof(prompt), "dtm_%u.%u.%u", the_version.iv_major,
+             the_version.iv_minor, the_version.iv_revision);
 
     /* Initialize the NimBLE host configuration. */
     ble_hs_cfg.reset_cb = on_reset;

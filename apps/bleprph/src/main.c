@@ -51,24 +51,21 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg);
 static void
 bleprph_print_conn_desc(struct ble_gap_conn_desc *desc)
 {
-    MODLOG_DFLT(INFO, "handle=%d our_ota_addr_type=%d our_ota_addr=",
-                desc->conn_handle, desc->our_ota_addr.type);
+    MODLOG_DFLT(INFO, "handle=%d our_ota_addr_type=%d our_ota_addr=", desc->conn_handle,
+                desc->our_ota_addr.type);
     print_addr(desc->our_ota_addr.val);
-    MODLOG_DFLT(INFO, " our_id_addr_type=%d our_id_addr=",
-                desc->our_id_addr.type);
+    MODLOG_DFLT(INFO, " our_id_addr_type=%d our_id_addr=", desc->our_id_addr.type);
     print_addr(desc->our_id_addr.val);
-    MODLOG_DFLT(INFO, " peer_ota_addr_type=%d peer_ota_addr=",
-                desc->peer_ota_addr.type);
+    MODLOG_DFLT(INFO,
+                " peer_ota_addr_type=%d peer_ota_addr=", desc->peer_ota_addr.type);
     print_addr(desc->peer_ota_addr.val);
-    MODLOG_DFLT(INFO, " peer_id_addr_type=%d peer_id_addr=",
-                desc->peer_id_addr.type);
+    MODLOG_DFLT(INFO, " peer_id_addr_type=%d peer_id_addr=", desc->peer_id_addr.type);
     print_addr(desc->peer_id_addr.val);
-    MODLOG_DFLT(INFO, " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+    MODLOG_DFLT(INFO,
+                " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
                 "encrypted=%d authenticated=%d bonded=%d\n",
-                desc->conn_itvl, desc->conn_latency,
-                desc->supervision_timeout,
-                desc->sec_state.encrypted,
-                desc->sec_state.authenticated,
+                desc->conn_itvl, desc->conn_latency, desc->supervision_timeout,
+                desc->sec_state.encrypted, desc->sec_state.authenticated,
                 desc->sec_state.bonded);
 }
 
@@ -107,8 +104,7 @@ bleprph_advertise(void)
      *     o Discoverability in forthcoming advertisement (general)
      *     o BLE-only (BR/EDR unsupported).
      */
-    fields.flags = BLE_HS_ADV_F_DISC_GEN |
-                   BLE_HS_ADV_F_BREDR_UNSUP;
+    fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
 
     /* Indicate that the TX power level field should be included; have the
      * stack fill this value automatically.  This is done by assiging the
@@ -122,9 +118,7 @@ bleprph_advertise(void)
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
 
-    fields.uuids16 = (ble_uuid16_t[]){
-        BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID)
-    };
+    fields.uuids16 = (ble_uuid16_t[]){ BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID) };
     fields.num_uuids16 = 1;
     fields.uuids16_is_complete = 1;
 
@@ -138,8 +132,8 @@ bleprph_advertise(void)
     memset(&adv_params, 0, sizeof adv_params);
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, bleprph_gap_event, NULL);
+    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params,
+                           bleprph_gap_event, NULL);
     if (rc != 0) {
         MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
         return;
@@ -205,8 +199,7 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         /* The central has updated the connection parameters. */
-        MODLOG_DFLT(INFO, "connection updated; status=%d ",
-                    event->conn_update.status);
+        MODLOG_DFLT(INFO, "connection updated; status=%d ", event->conn_update.status);
         rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
         assert(rc == 0);
         bleprph_print_conn_desc(&desc);
@@ -214,8 +207,7 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        MODLOG_DFLT(INFO, "advertise complete; reason=%d",
-                    event->adv_complete.reason);
+        MODLOG_DFLT(INFO, "advertise complete; reason=%d", event->adv_complete.reason);
         bleprph_advertise();
         return 0;
 
@@ -230,22 +222,18 @@ bleprph_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        MODLOG_DFLT(INFO, "subscribe event; conn_handle=%d attr_handle=%d "
-                          "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
-                    event->subscribe.conn_handle,
-                    event->subscribe.attr_handle,
-                    event->subscribe.reason,
-                    event->subscribe.prev_notify,
-                    event->subscribe.cur_notify,
-                    event->subscribe.prev_indicate,
+        MODLOG_DFLT(INFO,
+                    "subscribe event; conn_handle=%d attr_handle=%d "
+                    "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
+                    event->subscribe.conn_handle, event->subscribe.attr_handle,
+                    event->subscribe.reason, event->subscribe.prev_notify,
+                    event->subscribe.cur_notify, event->subscribe.prev_indicate,
                     event->subscribe.cur_indicate);
         return 0;
 
     case BLE_GAP_EVENT_MTU:
         MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d cid=%d mtu=%d\n",
-                    event->mtu.conn_handle,
-                    event->mtu.channel_id,
-                    event->mtu.value);
+                    event->mtu.conn_handle, event->mtu.channel_id, event->mtu.value);
         return 0;
 
     case BLE_GAP_EVENT_REPEAT_PAIRING:

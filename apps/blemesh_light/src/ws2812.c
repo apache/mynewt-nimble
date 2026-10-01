@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
- 
+
 #include "syscfg/syscfg.h"
 
 #if (MYNEWT_VAL(USE_NEOPIXEL))
@@ -32,14 +32,15 @@
 #include "nrfx_pwm.h"
 #include "ws2812.h"
 
-#define BITS_PER_SEQ    (24)
-#define BIT0            (0x8000 | 6)
-#define BIT1            (0x8000 | 11)
+#define BITS_PER_SEQ (24)
+#define BIT0         (0x8000 | 6)
+#define BIT1         (0x8000 | 11)
 
 static const nrfx_pwm_t pwm = NRFX_PWM_INSTANCE(WS2812_PWM);
 
 static const nrfx_pwm_config_t pwm_config = {
-    .output_pins = { WS2812_GPIO, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED },
+    .output_pins = { WS2812_GPIO, NRFX_PWM_PIN_NOT_USED, NRFX_PWM_PIN_NOT_USED,
+                    NRFX_PWM_PIN_NOT_USED },
     .irq_priority = 3,
     .base_clock = NRF_PWM_CLK_16MHz,
     .count_mode = NRF_PWM_MODE_UP,
@@ -51,17 +52,18 @@ static const nrfx_pwm_config_t pwm_config = {
 static uint16_t pwm_seq_values[2][BITS_PER_SEQ];
 
 static const nrf_pwm_sequence_t pwm_seq[2] = {
-        {
-            .values.p_raw = pwm_seq_values[0],
-            .length = BITS_PER_SEQ,
-            .repeats = 0,
-            .end_delay = 0,
-        }, {
-            .values.p_raw = pwm_seq_values[1],
-            .length = BITS_PER_SEQ,
-            .repeats = 0,
-            .end_delay = 0,
-        },
+    {
+     .values.p_raw = pwm_seq_values[0],
+     .length = BITS_PER_SEQ,
+     .repeats = 0,
+     .end_delay = 0,
+     },
+    {
+     .values.p_raw = pwm_seq_values[1],
+     .length = BITS_PER_SEQ,
+     .repeats = 0,
+     .end_delay = 0,
+     },
 };
 
 static uint32_t led_color[WS2812_NUM_LED];
@@ -130,8 +132,7 @@ ws2812_write(const uint32_t *rgb)
     load_pixel();
     nrfx_pwm_complex_playback(&pwm, &pwm_seq[0], &pwm_seq[1], WS2812_NUM_LED,
                               NRFX_PWM_FLAG_SIGNAL_END_SEQ0 |
-                              NRFX_PWM_FLAG_SIGNAL_END_SEQ1 |
-                              NRFX_PWM_FLAG_STOP);
+                                  NRFX_PWM_FLAG_SIGNAL_END_SEQ1 | NRFX_PWM_FLAG_STOP);
 
     return 0;
 }

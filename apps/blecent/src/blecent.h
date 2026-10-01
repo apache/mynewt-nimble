@@ -32,12 +32,12 @@ struct ble_hs_cfg;
 union ble_store_value;
 union ble_store_key;
 
-#define BLECENT_SVC_ALERT_UUID              0x1811
-#define BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID  0x2A47
-#define BLECENT_CHR_NEW_ALERT               0x2A46
-#define BLECENT_CHR_SUP_UNR_ALERT_CAT_UUID  0x2A48
-#define BLECENT_CHR_UNR_ALERT_STAT_UUID     0x2A45
-#define BLECENT_CHR_ALERT_NOT_CTRL_PT       0x2A44
+#define BLECENT_SVC_ALERT_UUID             0x1811
+#define BLECENT_CHR_SUP_NEW_ALERT_CAT_UUID 0x2A47
+#define BLECENT_CHR_NEW_ALERT              0x2A46
+#define BLECENT_CHR_SUP_UNR_ALERT_CAT_UUID 0x2A48
+#define BLECENT_CHR_UNR_ALERT_STAT_UUID    0x2A45
+#define BLECENT_CHR_ALERT_NOT_CTRL_PT      0x2A44
 
 /** Misc. */
 void print_bytes(const uint8_t *bytes, int len);
@@ -90,16 +90,16 @@ struct peer {
     void *disc_cb_arg;
 };
 
-int peer_disc_all(uint16_t conn_handle, peer_disc_fn *disc_cb,
-                  void *disc_cb_arg);
-const struct peer_dsc *
-peer_dsc_find_uuid(const struct peer *peer, const ble_uuid_t *svc_uuid,
-                   const ble_uuid_t *chr_uuid, const ble_uuid_t *dsc_uuid);
-const struct peer_chr *
-peer_chr_find_uuid(const struct peer *peer, const ble_uuid_t *svc_uuid,
-                   const ble_uuid_t *chr_uuid);
-const struct peer_svc *
-peer_svc_find_uuid(const struct peer *peer, const ble_uuid_t *uuid);
+int peer_disc_all(uint16_t conn_handle, peer_disc_fn *disc_cb, void *disc_cb_arg);
+const struct peer_dsc *peer_dsc_find_uuid(const struct peer *peer,
+                                          const ble_uuid_t *svc_uuid,
+                                          const ble_uuid_t *chr_uuid,
+                                          const ble_uuid_t *dsc_uuid);
+const struct peer_chr *peer_chr_find_uuid(const struct peer *peer,
+                                          const ble_uuid_t *svc_uuid,
+                                          const ble_uuid_t *chr_uuid);
+const struct peer_svc *peer_svc_find_uuid(const struct peer *peer,
+                                          const ble_uuid_t *uuid);
 int peer_delete(uint16_t conn_handle);
 int peer_add(uint16_t conn_handle);
 int peer_init(int max_peers, int max_svcs, int max_chrs, int max_dscs);

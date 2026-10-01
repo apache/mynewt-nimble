@@ -51,192 +51,202 @@ static uint32_t neopixel[WS2812_NUM_LED];
 static uint8_t gen_onoff_state;
 static int16_t gen_level_state;
 
-static void light_set_lightness(uint8_t percentage)
+static void
+light_set_lightness(uint8_t percentage)
 {
 #if (!MYNEWT_VAL(USE_NEOPIXEL))
-	int rc;
+    int rc;
 
-	uint16_t pwm_val = (uint16_t) (percentage * top_val / 100);
+    uint16_t pwm_val = (uint16_t)(percentage * top_val / 100);
 
 #if MYNEWT_VAL(PWM_0)
-	rc = pwm_set_duty_cycle(pwm0, 0, pwm_val);
-	assert(rc == 0);
+    rc = pwm_set_duty_cycle(pwm0, 0, pwm_val);
+    assert(rc == 0);
 #endif
 #if MYNEWT_VAL(PWM_1)
-	rc = pwm_set_duty_cycle(pwm1, 0, pwm_val);
-	assert(rc == 0);
+    rc = pwm_set_duty_cycle(pwm1, 0, pwm_val);
+    assert(rc == 0);
 #endif
 #if MYNEWT_VAL(PWM_2)
-	rc = pwm_set_duty_cycle(pwm2, 0, pwm_val);
-	assert(rc == 0);
+    rc = pwm_set_duty_cycle(pwm2, 0, pwm_val);
+    assert(rc == 0);
 #endif
 #if MYNEWT_VAL(PWM_3)
-	rc = pwm_set_duty_cycle(pwm3, 0, pwm_val);
-	assert(rc == 0);
+    rc = pwm_set_duty_cycle(pwm3, 0, pwm_val);
+    assert(rc == 0);
 #endif
 #else
-	int i;
-	uint32_t lightness;
-	uint8_t max_lightness = 0x1f;
+    int i;
+    uint32_t lightness;
+    uint8_t max_lightness = 0x1f;
 
-	lightness = (uint8_t) (percentage * max_lightness / 100);
+    lightness = (uint8_t)(percentage * max_lightness / 100);
 
-	for (i = 0; i < WS2812_NUM_LED; i++) {
-		neopixel[i] = (lightness | lightness << 8 | lightness << 16);
-	}
-	ws2812_write(neopixel);
+    for (i = 0; i < WS2812_NUM_LED; i++) {
+        neopixel[i] = (lightness | lightness << 8 | lightness << 16);
+    }
+    ws2812_write(neopixel);
 #endif
 }
 
-static void update_light_state(void)
+static void
+update_light_state(void)
 {
-	uint16_t level = (uint16_t)gen_level_state;
-	int percent = 100 * level / 0xffff;
+    uint16_t level = (uint16_t)gen_level_state;
+    int percent = 100 * level / 0xffff;
 
-	if (gen_onoff_state == 0) {
-		percent = 0;
-	}
-	light_set_lightness((uint8_t) percent);
+    if (gen_onoff_state == 0) {
+        percent = 0;
+    }
+    light_set_lightness((uint8_t)percent);
 }
 
-int light_model_gen_onoff_get(struct bt_mesh_model *model, uint8_t *state)
+int
+light_model_gen_onoff_get(struct bt_mesh_model *model, uint8_t *state)
 {
-	*state = gen_onoff_state;
-	return 0;
+    *state = gen_onoff_state;
+    return 0;
 }
 
-int light_model_gen_onoff_set(struct bt_mesh_model *model, uint8_t state)
+int
+light_model_gen_onoff_set(struct bt_mesh_model *model, uint8_t state)
 {
-	gen_onoff_state = state;
-	update_light_state();
-	return 0;
+    gen_onoff_state = state;
+    update_light_state();
+    return 0;
 }
 
-int light_model_gen_level_get(struct bt_mesh_model *model, int16_t *level)
+int
+light_model_gen_level_get(struct bt_mesh_model *model, int16_t *level)
 {
-	*level = gen_level_state;
-	return 0;
+    *level = gen_level_state;
+    return 0;
 }
 
-int light_model_gen_level_set(struct bt_mesh_model *model, int16_t level)
+int
+light_model_gen_level_set(struct bt_mesh_model *model, int16_t level)
 {
-	gen_level_state = level;
-	if ((uint16_t)gen_level_state > 0x0000) {
-		gen_onoff_state = 1;
-	}
-	if ((uint16_t)gen_level_state == 0x0000) {
-		gen_onoff_state = 0;
-	}
-	update_light_state();
-	return 0;
+    gen_level_state = level;
+    if ((uint16_t)gen_level_state > 0x0000) {
+        gen_onoff_state = 1;
+    }
+    if ((uint16_t)gen_level_state == 0x0000) {
+        gen_onoff_state = 0;
+    }
+    update_light_state();
+    return 0;
 }
 
-int light_model_light_lightness_get(struct bt_mesh_model *model, int16_t *lightness)
+int
+light_model_light_lightness_get(struct bt_mesh_model *model, int16_t *lightness)
 {
-	return light_model_gen_level_get(model, lightness);
+    return light_model_gen_level_get(model, lightness);
 }
 
-int light_model_light_lightness_set(struct bt_mesh_model *model, int16_t lightness)
+int
+light_model_light_lightness_set(struct bt_mesh_model *model, int16_t lightness)
 {
-	return light_model_gen_level_set(model, lightness);
+    return light_model_gen_level_set(model, lightness);
 }
 
 #if (!MYNEWT_VAL(USE_NEOPIXEL))
 struct pwm_dev_cfg dev_conf = {
-	.n_cycles = 0,
-	.int_prio = 3,
+    .n_cycles = 0,
+    .int_prio = 3,
 };
 
 #if MYNEWT_VAL(PWM_0)
 static struct pwm_chan_cfg led1_conf = {
-	.pin = LED_1,
-	.inverted = true,
+    .pin = LED_1,
+    .inverted = true,
 };
 #endif
 
 #if MYNEWT_VAL(PWM_1)
 static struct pwm_chan_cfg led2_conf = {
-	.pin = LED_2,
-	.inverted = true,
+    .pin = LED_2,
+    .inverted = true,
 };
 #endif
 
 #if MYNEWT_VAL(PWM_2)
 static struct pwm_chan_cfg led3_conf = {
-	.pin = LED_3,
-	.inverted = true,
+    .pin = LED_3,
+    .inverted = true,
 };
 #endif
 #endif
 
 #if MYNEWT_VAL(PWM_3)
 static struct pwm_chan_cfg led4_conf = {
-	.pin = LED_4,
-	.inverted = true,
+    .pin = LED_4,
+    .inverted = true,
 };
 #endif
 
 #if (!MYNEWT_VAL(USE_NEOPIXEL))
-void init_pwm_dev(struct pwm_dev **pwm, char *dev_name, struct pwm_chan_cfg *chan_cfg)
+void
+init_pwm_dev(struct pwm_dev **pwm, char *dev_name, struct pwm_chan_cfg *chan_cfg)
 {
-	int rc = 0;
+    int rc = 0;
 
-	*pwm = (struct pwm_dev *) os_dev_open(dev_name, 0, NULL);
-	assert(pwm);
-	rc = pwm_configure_device(*pwm, &dev_conf);
-	assert(rc == 0);
-	rc = pwm_configure_channel(*pwm, 0, chan_cfg);
-	assert(rc == 0);
-	rc = pwm_enable(*pwm);
-	assert(rc == 0);
+    *pwm = (struct pwm_dev *)os_dev_open(dev_name, 0, NULL);
+    assert(pwm);
+    rc = pwm_configure_device(*pwm, &dev_conf);
+    assert(rc == 0);
+    rc = pwm_configure_channel(*pwm, 0, chan_cfg);
+    assert(rc == 0);
+    rc = pwm_enable(*pwm);
+    assert(rc == 0);
 }
 
-int pwm_init(void)
+int
+pwm_init(void)
 {
 
 #if MYNEWT_VAL(PWM_0)
-	init_pwm_dev(&pwm0, "pwm0", &led1_conf);
+    init_pwm_dev(&pwm0, "pwm0", &led1_conf);
 #endif
 
 #if MYNEWT_VAL(PWM_1)
-	init_pwm_dev(&pwm1, "pwm1", &led2_conf);
+    init_pwm_dev(&pwm1, "pwm1", &led2_conf);
 #endif
 
 #if MYNEWT_VAL(PWM_2)
-	init_pwm_dev(&pwm2, "pwm2", &led3_conf);
+    init_pwm_dev(&pwm2, "pwm2", &led3_conf);
 #endif
 
 #if MYNEWT_VAL(PWM_3)
-	init_pwm_dev(&pwm3, "pwm3", &led4_conf);
+    init_pwm_dev(&pwm3, "pwm3", &led4_conf);
 #endif
 
-	if (!pwm0) {
-		return 0;
-	}
+    if (!pwm0) {
+        return 0;
+    }
 
-	top_val = (uint16_t) pwm_get_top_value(pwm0);
-	update_light_state();
+    top_val = (uint16_t)pwm_get_top_value(pwm0);
+    update_light_state();
 
-	return 0;
+    return 0;
 }
 #endif
 #endif
 
-int light_model_init(void)
+int
+light_model_init(void)
 {
 #if MYNEWT_VAL(BLE_MESH_SHELL_MODELS)
-	int rc;
+    int rc;
 #if (!MYNEWT_VAL(USE_NEOPIXEL))
-	rc = pwm_init();
-	assert(rc == 0);
+    rc = pwm_init();
+    assert(rc == 0);
 #else
-	rc = ws2812_init();
-	assert(rc == 0);
-	update_light_state();
+    rc = ws2812_init();
+    assert(rc == 0);
+    update_light_state();
 #endif
-	return rc;
+    return rc;
 #else
-	return 0;
+    return 0;
 #endif
 }
-

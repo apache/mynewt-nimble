@@ -29,8 +29,8 @@ static const int button_gpio[4] = MYNEWT_VAL(BLEPRPH_LE_PHY_BUTTON_GPIO);
 static const int led_gpio[3] = MYNEWT_VAL(BLEPRPH_LE_PHY_LED_GPIO);
 
 #define PHY_TO_PTR(_mask, _opts) (void *)(((_opts) << 16) | ((_mask)))
-#define PTR_TO_PHY_MASK(_ptr) (uint8_t)(((int)_ptr) & 0x0ff)
-#define PTR_TO_PHY_OPTS(_ptr) (uint8_t)(((int)_ptr) >> 16)
+#define PTR_TO_PHY_MASK(_ptr)    (uint8_t)(((int)_ptr) & 0x0ff)
+#define PTR_TO_PHY_OPTS(_ptr)    (uint8_t)(((int)_ptr) >> 16)
 
 static struct os_event gpio_event;
 
@@ -82,10 +82,8 @@ phy_init(void)
      * valid, buttons gpio pins are pulled-up and LEDs are active-low - this
      * is valid for nRF52840 PDK.
      */
-    setup_button_gpio(button_gpio[0], BLE_GAP_LE_PHY_1M_MASK,
-                      BLE_GAP_LE_PHY_CODED_ANY);
-    setup_button_gpio(button_gpio[1], BLE_GAP_LE_PHY_2M_MASK,
-                      BLE_GAP_LE_PHY_CODED_ANY);
+    setup_button_gpio(button_gpio[0], BLE_GAP_LE_PHY_1M_MASK, BLE_GAP_LE_PHY_CODED_ANY);
+    setup_button_gpio(button_gpio[1], BLE_GAP_LE_PHY_2M_MASK, BLE_GAP_LE_PHY_CODED_ANY);
     setup_button_gpio(button_gpio[2], BLE_GAP_LE_PHY_CODED_MASK,
                       BLE_GAP_LE_PHY_CODED_S2);
     setup_button_gpio(button_gpio[3], BLE_GAP_LE_PHY_CODED_MASK,

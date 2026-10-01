@@ -60,43 +60,37 @@
 #include "mesh/glue.h"
 #include "mesh/mesh.h"
 
-#define CID_RUNTIME 0x05C3
+#define CID_RUNTIME                          0x05C3
 
 /* Model Operation Codes */
-#define BT_MESH_MODEL_OP_GEN_ONOFF_GET		BT_MESH_MODEL_OP_2(0x82, 0x01)
-#define BT_MESH_MODEL_OP_GEN_ONOFF_SET		BT_MESH_MODEL_OP_2(0x82, 0x02)
-#define BT_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK	BT_MESH_MODEL_OP_2(0x82, 0x03)
-#define BT_MESH_MODEL_OP_GEN_ONOFF_STATUS	BT_MESH_MODEL_OP_2(0x82, 0x04)
+#define BT_MESH_MODEL_OP_GEN_ONOFF_GET       BT_MESH_MODEL_OP_2(0x82, 0x01)
+#define BT_MESH_MODEL_OP_GEN_ONOFF_SET       BT_MESH_MODEL_OP_2(0x82, 0x02)
+#define BT_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK BT_MESH_MODEL_OP_2(0x82, 0x03)
+#define BT_MESH_MODEL_OP_GEN_ONOFF_STATUS    BT_MESH_MODEL_OP_2(0x82, 0x04)
 
 static int gen_onoff_set(struct bt_mesh_model *model,
-                          struct bt_mesh_msg_ctx *ctx,
-                          struct os_mbuf *buf);
+                         struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf);
 
 static int gen_onoff_set_unack(struct bt_mesh_model *model,
-                                struct bt_mesh_msg_ctx *ctx,
-                                struct os_mbuf *buf);
+                               struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf);
 
 static int gen_onoff_get(struct bt_mesh_model *model,
-                          struct bt_mesh_msg_ctx *ctx,
-                          struct os_mbuf *buf);
+                         struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf);
 
 static int gen_onoff_status(struct bt_mesh_model *model,
-                             struct bt_mesh_msg_ctx *ctx,
-                             struct os_mbuf *buf);
+                            struct bt_mesh_msg_ctx *ctx, struct os_mbuf *buf);
 
 /*
  * Client Configuration Declaration
  */
 
-static struct bt_mesh_cfg_cli cfg_cli = {
-};
+static struct bt_mesh_cfg_cli cfg_cli = {};
 
 /*
  * Health Server Declaration
  */
 
-static struct bt_mesh_health_srv health_srv = {
-};
+static struct bt_mesh_health_srv health_srv = {};
 
 /*
  * Publication Declarations
@@ -135,27 +129,28 @@ static struct os_mbuf *bt_mesh_pub_msg_gen_onoff_pub_cli_s_1;
 static struct os_mbuf *bt_mesh_pub_msg_gen_onoff_pub_srv_s_2;
 static struct os_mbuf *bt_mesh_pub_msg_gen_onoff_pub_cli_s_2;
 
-void init_pub(void)
+void
+init_pub(void)
 {
-    bt_mesh_pub_msg_health_pub              = NET_BUF_SIMPLE(1 + 3 + 0);
-    bt_mesh_pub_msg_gen_onoff_pub_srv       = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_cli       = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_srv_s_0   = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_cli_s_0   = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_srv_s_1   = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_cli_s_1   = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_srv_s_2   = NET_BUF_SIMPLE(2 + 2);
-    bt_mesh_pub_msg_gen_onoff_pub_cli_s_2   = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_health_pub = NET_BUF_SIMPLE(1 + 3 + 0);
+    bt_mesh_pub_msg_gen_onoff_pub_srv = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_cli = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_srv_s_0 = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_cli_s_0 = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_srv_s_1 = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_cli_s_1 = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_srv_s_2 = NET_BUF_SIMPLE(2 + 2);
+    bt_mesh_pub_msg_gen_onoff_pub_cli_s_2 = NET_BUF_SIMPLE(2 + 2);
 
-    health_pub.msg =                 bt_mesh_pub_msg_health_pub;
-    gen_onoff_pub_srv.msg =          bt_mesh_pub_msg_gen_onoff_pub_srv;
-    gen_onoff_pub_cli.msg =          bt_mesh_pub_msg_gen_onoff_pub_cli;
-    gen_onoff_pub_srv_s_0.msg =      bt_mesh_pub_msg_gen_onoff_pub_srv_s_0;
-    gen_onoff_pub_cli_s_0.msg =      bt_mesh_pub_msg_gen_onoff_pub_cli_s_0;
-    gen_onoff_pub_srv_s_1.msg =      bt_mesh_pub_msg_gen_onoff_pub_srv_s_1;
-    gen_onoff_pub_cli_s_1.msg =      bt_mesh_pub_msg_gen_onoff_pub_cli_s_1;
-    gen_onoff_pub_srv_s_2.msg =      bt_mesh_pub_msg_gen_onoff_pub_srv_s_2;
-    gen_onoff_pub_cli_s_2.msg =      bt_mesh_pub_msg_gen_onoff_pub_cli_s_2;
+    health_pub.msg = bt_mesh_pub_msg_health_pub;
+    gen_onoff_pub_srv.msg = bt_mesh_pub_msg_gen_onoff_pub_srv;
+    gen_onoff_pub_cli.msg = bt_mesh_pub_msg_gen_onoff_pub_cli;
+    gen_onoff_pub_srv_s_0.msg = bt_mesh_pub_msg_gen_onoff_pub_srv_s_0;
+    gen_onoff_pub_cli_s_0.msg = bt_mesh_pub_msg_gen_onoff_pub_cli_s_0;
+    gen_onoff_pub_srv_s_1.msg = bt_mesh_pub_msg_gen_onoff_pub_srv_s_1;
+    gen_onoff_pub_cli_s_1.msg = bt_mesh_pub_msg_gen_onoff_pub_cli_s_1;
+    gen_onoff_pub_srv_s_2.msg = bt_mesh_pub_msg_gen_onoff_pub_srv_s_2;
+    gen_onoff_pub_cli_s_2.msg = bt_mesh_pub_msg_gen_onoff_pub_cli_s_2;
 }
 
 /*
@@ -173,10 +168,10 @@ void init_pub(void)
  */
 
 static const struct bt_mesh_model_op gen_onoff_srv_op[] = {
-        { BT_MESH_MODEL_OP_GEN_ONOFF_GET, 0, gen_onoff_get },
-        { BT_MESH_MODEL_OP_GEN_ONOFF_SET, 2, gen_onoff_set },
-        { BT_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, 2, gen_onoff_set_unack },
-        BT_MESH_MODEL_OP_END,
+    { BT_MESH_MODEL_OP_GEN_ONOFF_GET,       0, gen_onoff_get       },
+    { BT_MESH_MODEL_OP_GEN_ONOFF_SET,       2, gen_onoff_set       },
+    { BT_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK, 2, gen_onoff_set_unack },
+    BT_MESH_MODEL_OP_END,
 };
 
 /*
@@ -184,8 +179,8 @@ static const struct bt_mesh_model_op gen_onoff_srv_op[] = {
  */
 
 static const struct bt_mesh_model_op gen_onoff_cli_op[] = {
-        { BT_MESH_MODEL_OP_GEN_ONOFF_STATUS, 1, gen_onoff_status },
-        BT_MESH_MODEL_OP_END,
+    { BT_MESH_MODEL_OP_GEN_ONOFF_STATUS, 1, gen_onoff_status },
+    BT_MESH_MODEL_OP_END,
 };
 
 struct onoff_state {
@@ -200,10 +195,10 @@ struct onoff_state {
  */
 
 static struct onoff_state onoff_state_arr[] = {
-        { .led_gpio_pin = LED_1 },
-        { .led_gpio_pin = LED_2 },
-        { .led_gpio_pin = LED_3 },
-        { .led_gpio_pin = LED_4 },
+    { .led_gpio_pin = LED_1 },
+    { .led_gpio_pin = LED_2 },
+    { .led_gpio_pin = LED_3 },
+    { .led_gpio_pin = LED_4 },
 };
 
 /*
@@ -214,13 +209,13 @@ static struct onoff_state onoff_state_arr[] = {
  */
 
 static struct bt_mesh_model root_models[] = {
-        BT_MESH_MODEL_CFG_SRV,
-        BT_MESH_MODEL_CFG_CLI(&cfg_cli),
-        BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
-                      &gen_onoff_pub_srv, &onoff_state_arr[0]),
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
-                      &gen_onoff_pub_cli, &onoff_state_arr[0]),
+    BT_MESH_MODEL_CFG_SRV,
+    BT_MESH_MODEL_CFG_CLI(&cfg_cli),
+    BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
+                  &gen_onoff_pub_srv, &onoff_state_arr[0]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
+                  &gen_onoff_pub_cli, &onoff_state_arr[0]),
 };
 
 /*
@@ -228,10 +223,10 @@ static struct bt_mesh_model root_models[] = {
  */
 
 static struct bt_mesh_model secondary_0_models[] = {
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
-                      &gen_onoff_pub_srv_s_0, &onoff_state_arr[1]),
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
-                      &gen_onoff_pub_cli_s_0, &onoff_state_arr[1]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
+                  &gen_onoff_pub_srv_s_0, &onoff_state_arr[1]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
+                  &gen_onoff_pub_cli_s_0, &onoff_state_arr[1]),
 };
 
 /*
@@ -239,10 +234,10 @@ static struct bt_mesh_model secondary_0_models[] = {
  */
 
 static struct bt_mesh_model secondary_1_models[] = {
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
-                      &gen_onoff_pub_srv_s_1, &onoff_state_arr[2]),
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
-                      &gen_onoff_pub_cli_s_1, &onoff_state_arr[2]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
+                  &gen_onoff_pub_srv_s_1, &onoff_state_arr[2]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
+                  &gen_onoff_pub_cli_s_1, &onoff_state_arr[2]),
 };
 
 /*
@@ -250,10 +245,10 @@ static struct bt_mesh_model secondary_1_models[] = {
  */
 
 static struct bt_mesh_model secondary_2_models[] = {
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
-                      &gen_onoff_pub_srv_s_2, &onoff_state_arr[3]),
-        BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
-                      &gen_onoff_pub_cli_s_2, &onoff_state_arr[3]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_srv_op,
+                  &gen_onoff_pub_srv_s_2, &onoff_state_arr[3]),
+    BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_CLI, gen_onoff_cli_op,
+                  &gen_onoff_pub_cli_s_2, &onoff_state_arr[3]),
 };
 
 /*
@@ -261,10 +256,10 @@ static struct bt_mesh_model secondary_2_models[] = {
  */
 
 struct bt_mesh_model *mod_cli_sw[] = {
-        &root_models[4],
-        &secondary_0_models[1],
-        &secondary_1_models[1],
-        &secondary_2_models[1],
+    &root_models[4],
+    &secondary_0_models[1],
+    &secondary_1_models[1],
+    &secondary_2_models[1],
 };
 
 /*
@@ -272,10 +267,10 @@ struct bt_mesh_model *mod_cli_sw[] = {
  */
 
 struct bt_mesh_model *mod_srv_sw[] = {
-        &root_models[3],
-        &secondary_0_models[0],
-        &secondary_1_models[0],
-        &secondary_2_models[0],
+    &root_models[3],
+    &secondary_0_models[0],
+    &secondary_1_models[0],
+    &secondary_2_models[0],
 };
 
 /*
@@ -283,16 +278,16 @@ struct bt_mesh_model *mod_srv_sw[] = {
  */
 
 static struct bt_mesh_elem elements[] = {
-        BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE),
-        BT_MESH_ELEM(0, secondary_0_models, BT_MESH_MODEL_NONE),
-        BT_MESH_ELEM(0, secondary_1_models, BT_MESH_MODEL_NONE),
-        BT_MESH_ELEM(0, secondary_2_models, BT_MESH_MODEL_NONE),
+    BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE),
+    BT_MESH_ELEM(0, secondary_0_models, BT_MESH_MODEL_NONE),
+    BT_MESH_ELEM(0, secondary_1_models, BT_MESH_MODEL_NONE),
+    BT_MESH_ELEM(0, secondary_2_models, BT_MESH_MODEL_NONE),
 };
 
 static const struct bt_mesh_comp comp = {
-        .cid = CID_RUNTIME,
-        .elem = elements,
-        .elem_count = ARRAY_SIZE(elements),
+    .cid = CID_RUNTIME,
+    .elem = elements,
+    .elem_count = ARRAY_SIZE(elements),
 };
 
 struct sw {
@@ -301,7 +296,6 @@ struct sw {
     struct os_callout button_work;
     struct os_callout button_timer;
 };
-
 
 static uint8_t button_press_cnt;
 static struct sw sw;
@@ -318,16 +312,15 @@ static uint16_t primary_net_idx;
  *
  */
 
-static int gen_onoff_get(struct bt_mesh_model *model,
-                          struct bt_mesh_msg_ctx *ctx,
-                          struct os_mbuf *buf)
+static int
+gen_onoff_get(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
     struct os_mbuf *msg = NET_BUF_SIMPLE(2 + 1 + 4);
     struct onoff_state *state = model->user_data;
     int rc;
 
-    BT_INFO("addr 0x%04x onoff 0x%02x",
-                bt_mesh_model_elem(model)->addr, state->current);
+    BT_INFO("addr 0x%04x onoff 0x%02x", bt_mesh_model_elem(model)->addr, state->current);
     bt_mesh_model_msg_init(msg, BT_MESH_MODEL_OP_GEN_ONOFF_STATUS);
     net_buf_simple_add_u8(msg, state->current);
 
@@ -340,21 +333,19 @@ static int gen_onoff_get(struct bt_mesh_model *model,
     return rc;
 }
 
-static int gen_onoff_set_unack(struct bt_mesh_model *model,
-                                struct bt_mesh_msg_ctx *ctx,
-                                struct os_mbuf *buf)
+static int
+gen_onoff_set_unack(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                    struct os_mbuf *buf)
 {
     struct os_mbuf *msg = model->pub->msg;
     struct onoff_state *state = model->user_data;
     int err;
 
     state->current = net_buf_simple_pull_u8(buf);
-    BT_INFO("addr 0x%02x state 0x%02x",
-                bt_mesh_model_elem(model)->addr, state->current);
+    BT_INFO("addr 0x%02x state 0x%02x", bt_mesh_model_elem(model)->addr, state->current);
 
     /* Pin set low turns on LED's on the nrf52840-pca10056 board */
-    hal_gpio_write(state->led_gpio_pin,
-                   state->current ? 0 : 1);
+    hal_gpio_write(state->led_gpio_pin, state->current ? 0 : 1);
 
     /*
      * If a server has a publish address, it is required to
@@ -367,12 +358,9 @@ static int gen_onoff_set_unack(struct bt_mesh_model *model,
 
     if (state->previous != state->current &&
         model->pub->addr != BT_MESH_ADDR_UNASSIGNED) {
-        BT_INFO("publish last 0x%02x cur 0x%02x",
-                    state->previous,
-                    state->current);
+        BT_INFO("publish last 0x%02x cur 0x%02x", state->previous, state->current);
         state->previous = state->current;
-        bt_mesh_model_msg_init(msg,
-                               BT_MESH_MODEL_OP_GEN_ONOFF_STATUS);
+        bt_mesh_model_msg_init(msg, BT_MESH_MODEL_OP_GEN_ONOFF_STATUS);
         net_buf_simple_add_u8(msg, state->current);
         err = bt_mesh_model_publish(model);
         if (err != 0) {
@@ -383,9 +371,9 @@ static int gen_onoff_set_unack(struct bt_mesh_model *model,
     return 0;
 }
 
-static int gen_onoff_set(struct bt_mesh_model *model,
-                          struct bt_mesh_msg_ctx *ctx,
-                          struct os_mbuf *buf)
+static int
+gen_onoff_set(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+              struct os_mbuf *buf)
 {
     BT_INFO("");
     int rc;
@@ -402,40 +390,43 @@ static int gen_onoff_set(struct bt_mesh_model *model,
     return 0;
 }
 
-static int gen_onoff_status(struct bt_mesh_model *model,
-                             struct bt_mesh_msg_ctx *ctx,
-                             struct os_mbuf *buf)
+static int
+gen_onoff_status(struct bt_mesh_model *model, struct bt_mesh_msg_ctx *ctx,
+                 struct os_mbuf *buf)
 {
-    uint8_t	state;
+    uint8_t state;
 
     state = net_buf_simple_pull_u8(buf);
 
     BT_INFO("Node 0x%04x OnOff status from 0x%04x with state 0x%02x",
-                bt_mesh_model_elem(model)->addr, ctx->addr, state);
+            bt_mesh_model_elem(model)->addr, ctx->addr, state);
     return 0;
 }
 
-static int output_number(bt_mesh_output_action_t action, uint32_t number)
+static int
+output_number(bt_mesh_output_action_t action, uint32_t number)
 {
     BT_INFO("OOB Number %u", number);
     return 0;
 }
 
-static int output_string(const char *str)
+static int
+output_string(const char *str)
 {
     BT_INFO("OOB String %s", str);
     return 0;
 }
 
-static void prov_complete(uint16_t net_idx, uint16_t addr)
+static void
+prov_complete(uint16_t net_idx, uint16_t addr)
 {
-    BT_INFO("provisioning complete for net_idx 0x%04x addr 0x%04x",
-                net_idx, addr);
+    BT_INFO("provisioning complete for net_idx 0x%04x addr 0x%04x", net_idx, addr);
     primary_addr = addr;
     primary_net_idx = net_idx;
 }
 
-static void prov_reset(void)
+static void
+prov_reset(void)
 {
     bt_mesh_prov_enable(BT_MESH_PROV_ADV | BT_MESH_PROV_GATT);
 }
@@ -449,23 +440,30 @@ static uint8_t dev_uuid[16] = MYNEWT_VAL(BLE_MESH_DEV_UUID);
  * Change to select different GPIO input pins
  */
 
-static uint8_t pin_to_sw(int pin_pos)
+static uint8_t
+pin_to_sw(int pin_pos)
 {
     switch (pin_pos) {
-        case BUTTON_1: return 0;
-        case BUTTON_2: return 1;
-        case BUTTON_3: return 2;
-        case BUTTON_4: return 3;
-        default:break;
+    case BUTTON_1:
+        return 0;
+    case BUTTON_2:
+        return 1;
+    case BUTTON_3:
+        return 2;
+    case BUTTON_4:
+        return 3;
+    default:
+        break;
     }
 
     BT_ERR("No match for GPIO pin 0x%08x", pin_pos);
     return 0;
 }
 
-static void button_pressed(struct os_event *ev)
+static void
+button_pressed(struct os_event *ev)
 {
-    int pin_pos = (int ) ev->ev_arg;
+    int pin_pos = (int)ev->ev_arg;
     /*
      * One button press within a 1 second interval sends an on message
      * More than one button press sends an off message
@@ -498,13 +496,14 @@ static void button_pressed(struct os_event *ev)
  * Button Count Timer Worker
  */
 
-static void button_cnt_timer(struct os_event *work)
+static void
+button_cnt_timer(struct os_event *work)
 {
     struct sw *button_sw = work->ev_arg;
 
     button_sw->onoff_state = button_press_cnt == 1 ? 1 : 0;
-    BT_INFO("button_press_cnt 0x%02x onoff_state 0x%02x",
-                button_press_cnt, button_sw->onoff_state);
+    BT_INFO("button_press_cnt 0x%02x onoff_state 0x%02x", button_press_cnt,
+            button_sw->onoff_state);
     button_press_cnt = 0;
     os_callout_reset(&sw.button_work, 0);
 }
@@ -513,7 +512,8 @@ static void button_cnt_timer(struct os_event *work)
  * Button Pressed Worker Task
  */
 
-static void button_pressed_worker(struct os_event *work)
+static void
+button_pressed_worker(struct os_event *work)
 {
     struct os_mbuf *msg = NET_BUF_SIMPLE(1);
     struct bt_mesh_model *mod_cli, *mod_srv;
@@ -541,12 +541,12 @@ static void button_pressed_worker(struct os_event *work)
 
     if (primary_addr == BT_MESH_ADDR_UNASSIGNED) {
         struct bt_mesh_msg_ctx ctx = {
-                .addr = sw_idx + primary_addr,
+            .addr = sw_idx + primary_addr,
         };
 
         /* This is a dummy message sufficient
-	 * for the led server
-	 */
+         * for the led server
+         */
 
         net_buf_simple_add_u8(msg, sw->onoff_state);
         gen_onoff_set_unack(mod_srv, &ctx, msg);
@@ -557,10 +557,9 @@ static void button_pressed_worker(struct os_event *work)
         goto done;
     }
 
-    BT_INFO("publish to 0x%04x onoff 0x%04x sw_idx 0x%04x",
-                pub_cli->addr, sw->onoff_state, sw_idx);
-    bt_mesh_model_msg_init(pub_cli->msg,
-                           BT_MESH_MODEL_OP_GEN_ONOFF_SET);
+    BT_INFO("publish to 0x%04x onoff 0x%04x sw_idx 0x%04x", pub_cli->addr,
+            sw->onoff_state, sw_idx);
+    bt_mesh_model_msg_init(pub_cli->msg, BT_MESH_MODEL_OP_GEN_ONOFF_SET);
     net_buf_simple_add_u8(pub_cli->msg, sw->onoff_state);
     net_buf_simple_add_u8(pub_cli->msg, trans_id++);
     err = bt_mesh_model_publish(mod_cli);
@@ -575,22 +574,23 @@ done:
 /* Disable OOB security for SILabs Android app */
 
 static const struct bt_mesh_prov prov = {
-        .uuid = dev_uuid,
+    .uuid = dev_uuid,
 #if 1
-        .output_size = 6,
-        .output_actions = (BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
-        .output_number = output_number,
-        .output_string = output_string,
+    .output_size = 6,
+    .output_actions = (BT_MESH_DISPLAY_NUMBER | BT_MESH_DISPLAY_STRING),
+    .output_number = output_number,
+    .output_string = output_string,
 #else
-.output_size = 0,
-	.output_actions = 0,
-	.output_number = 0,
+    .output_size = 0,
+    .output_actions = 0,
+    .output_number = 0,
 #endif
-        .complete = prov_complete,
-        .reset = prov_reset,
+    .complete = prov_complete,
+    .reset = prov_reset,
 };
 
-void init_led(uint8_t dev)
+void
+init_led(uint8_t dev)
 {
     hal_gpio_init_out(onoff_state_arr[dev].led_gpio_pin, 1);
 }
@@ -604,7 +604,8 @@ gpio_irq_handler(void *arg)
     os_eventq_put(os_eventq_dflt_get(), &button_event);
 }
 
-void init_button(int button)
+void
+init_button(int button)
 {
     button_event.ev_cb = button_pressed;
 
@@ -664,12 +665,10 @@ mynewt_main(int argc, char **argv)
     last_time = k_uptime_get_32();
 
     /* Initialize button worker task*/
-    os_callout_init(&sw.button_work, os_eventq_dflt_get(),
-                    button_pressed_worker, &sw);
+    os_callout_init(&sw.button_work, os_eventq_dflt_get(), button_pressed_worker, &sw);
 
     /* Initialize button count timer */
-    os_callout_init(&sw.button_timer, os_eventq_dflt_get(),
-                    button_cnt_timer, &sw);
+    os_callout_init(&sw.button_timer, os_eventq_dflt_get(), button_cnt_timer, &sw);
 
     /* Initialize LED's */
     init_led(0);

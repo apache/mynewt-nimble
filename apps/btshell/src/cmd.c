@@ -52,8 +52,7 @@
 #define BTSHELL_MODULE "btshell"
 
 int
-cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
-                         uint16_t *out_end)
+cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start, uint16_t *out_end)
 {
     int rc;
 
@@ -76,24 +75,24 @@ cmd_parse_conn_start_end(uint16_t *out_conn, uint16_t *out_start,
 }
 
 static const struct parse_arg_kv_pair cmd_own_addr_types[] = {
-    { "public",     BLE_OWN_ADDR_PUBLIC },
-    { "random",     BLE_OWN_ADDR_RANDOM },
-    { "rpa_pub",    BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT },
-    { "rpa_rnd",    BLE_OWN_ADDR_RPA_RANDOM_DEFAULT },
+    { "public", BLE_OWN_ADDR_PUBLIC },
+    { "random", BLE_OWN_ADDR_RANDOM },
+    { "rpa_pub", BLE_OWN_ADDR_RPA_PUBLIC_DEFAULT },
+    { "rpa_rnd", BLE_OWN_ADDR_RPA_RANDOM_DEFAULT },
     { NULL }
 };
 
 static const struct parse_arg_kv_pair cmd_peer_addr_types[] = {
-    { "public",     BLE_ADDR_PUBLIC },
-    { "random",     BLE_ADDR_RANDOM },
-    { "public_id",  BLE_ADDR_PUBLIC_ID },
-    { "random_id",  BLE_ADDR_RANDOM_ID },
+    { "public", BLE_ADDR_PUBLIC },
+    { "random", BLE_ADDR_RANDOM },
+    { "public_id", BLE_ADDR_PUBLIC_ID },
+    { "random_id", BLE_ADDR_RANDOM_ID },
     { NULL }
 };
 
 const struct parse_arg_kv_pair cmd_addr_type[] = {
-    { "public",     BLE_ADDR_PUBLIC },
-    { "random",     BLE_ADDR_RANDOM },
+    { "public", BLE_ADDR_PUBLIC },
+    { "random", BLE_ADDR_RANDOM },
     { NULL }
 };
 
@@ -189,16 +188,16 @@ static const struct parse_arg_kv_pair cmd_adv_filt_types[] = {
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static struct parse_arg_kv_pair cmd_ext_adv_phy_opts[] = {
-    { "1M",          0x01 },
-    { "2M",          0x02 },
-    { "coded",       0x03 },
+    { "1M", 0x01 },
+    { "2M", 0x02 },
+    { "coded", 0x03 },
     { NULL }
 };
 
 static int
 cmd_advertise_configure(int argc, char **argv)
 {
-    struct ble_gap_ext_adv_params params = {0};
+    struct ble_gap_ext_adv_params params = { 0 };
     int8_t selected_tx_power;
     uint8_t instance;
     int rc;
@@ -267,12 +266,11 @@ cmd_advertise_configure(int argc, char **argv)
     if (rc == 0) {
         params.directed = 1;
     } else if (rc == ENOENT) {
-       /* skip, no peer address provided */
+        /* skip, no peer address provided */
     } else {
         console_printf("invalid 'peer_addr' parameter\n");
         return rc;
     }
-
 
     params.directed = parse_arg_bool_dflt("directed", params.directed, &rc);
     if (rc != 0) {
@@ -284,9 +282,9 @@ cmd_advertise_configure(int argc, char **argv)
         params.scannable = 0;
     }
 
-    params.own_addr_type = parse_arg_kv_dflt("own_addr_type",
-                                             cmd_own_addr_types,
-                                             btshell_get_default_own_addr_type(), &rc);
+    params.own_addr_type =
+        parse_arg_kv_dflt("own_addr_type", cmd_own_addr_types,
+                          btshell_get_default_own_addr_type(), &rc);
     if (rc != 0) {
         console_printf("invalid 'own_addr_type' parameter\n");
         return rc;
@@ -317,27 +315,25 @@ cmd_advertise_configure(int argc, char **argv)
         return rc;
     }
 
-    params.tx_power = parse_arg_long_bounds_dflt("tx_power",
-                                             -127, 127, 127, &rc);
+    params.tx_power = parse_arg_long_bounds_dflt("tx_power", -127, 127, 127, &rc);
     if (rc != 0) {
         console_printf("invalid 'tx_power' parameter\n");
         return rc;
     }
 
-    params.primary_phy = parse_arg_kv_dflt("primary_phy", cmd_ext_adv_phy_opts,
-                                           1, &rc);
+    params.primary_phy =
+        parse_arg_kv_dflt("primary_phy", cmd_ext_adv_phy_opts, 1, &rc);
     if (rc != 0) {
         console_printf("invalid 'primary_phy' parameter\n");
         return rc;
     }
 
-    params.secondary_phy = parse_arg_kv_dflt("secondary_phy",
-                                         cmd_ext_adv_phy_opts,
-                                         params.primary_phy, &rc);
+    params.secondary_phy = parse_arg_kv_dflt("secondary_phy", cmd_ext_adv_phy_opts,
+                                             params.primary_phy, &rc);
     if (rc != 0) {
         console_printf("invalid 'secondary_phy' parameter\n");
         return rc;
-   }
+    }
 
     params.sid = parse_arg_uint8_dflt("sid", 0, &rc);
     if (rc != 0) {
@@ -378,7 +374,7 @@ cmd_advertise_set_addr(int argc, char **argv)
     rc = parse_arg_mac_addr("addr", addr.val);
     if (rc != 0) {
         console_printf("invalid 'addr' parameter\n");
-                    return rc;
+        return rc;
     }
 
     addr.type = BLE_ADDR_RANDOM;
@@ -493,27 +489,28 @@ cmd_advertise_remove(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param advertise_configure_params[] = {
-    {"instance", "default: 0"},
-    {"connectable", "connectable advertising, usage: =[0-1], default: 0"},
-    {"scannable", "scannable advertising, usage: =[0-1], default: 0"},
-    {"directed", "directed advertising, usage: =[0-1], default: 0"},
-    {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
-    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
-    {"channel_map", "usage: =[0x00-0xff], default: 0"},
-    {"filter", "usage: =[none|scan|conn|both], default: none"},
-    {"interval_min", "usage: =[0-UINT32_MAX], default: 0"},
-    {"interval_max", "usage: =[0-UINT32_MAX], default: 0"},
-    {"tx_power", "usage: =[-127-127], default: 127"},
-    {"primary_phy", "usage: =[1M|coded], default: 1M"},
-    {"secondary_phy", "usage: =[1M|2M|coded], default: primary_phy"},
-    {"sid", "usage: =[0-UINT8_MAX], default: 0"},
-    {"high_duty", "usage: =[0-1], default: 0"},
-    {"anonymous", "enable anonymous advertising, usage: =[0-1], default: 0"},
-    {"legacy", "use legacy PDUs, usage: =[0-1], default: 0"},
-    {"include_tx_power", "include TX power in PDU, usage: =[0-1], default: 0"},
-    {"scan_req_notif", "enable Scan Request notification usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "instance",         "default: 0"                                                         },
+    { "connectable",      "connectable advertising, usage: =[0-1], default: 0"                 },
+    { "scannable",        "scannable advertising, usage: =[0-1], default: 0"                   },
+    { "directed",         "directed advertising, usage: =[0-1], default: 0"                    },
+    { "peer_addr_type",   "usage: =[public|random|public_id|random_id], default: public"       },
+    { "peer_addr",        "usage: =[XX:XX:XX:XX:XX:XX]"                                        },
+    { "own_addr_type",
+     "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random" },
+    { "channel_map",      "usage: =[0x00-0xff], default: 0"                                    },
+    { "filter",           "usage: =[none|scan|conn|both], default: none"                       },
+    { "interval_min",     "usage: =[0-UINT32_MAX], default: 0"                                 },
+    { "interval_max",     "usage: =[0-UINT32_MAX], default: 0"                                 },
+    { "tx_power",         "usage: =[-127-127], default: 127"                                   },
+    { "primary_phy",      "usage: =[1M|coded], default: 1M"                                    },
+    { "secondary_phy",    "usage: =[1M|2M|coded], default: primary_phy"                        },
+    { "sid",              "usage: =[0-UINT8_MAX], default: 0"                                  },
+    { "high_duty",        "usage: =[0-1], default: 0"                                          },
+    { "anonymous",        "enable anonymous advertising, usage: =[0-1], default: 0"            },
+    { "legacy",           "use legacy PDUs, usage: =[0-1], default: 0"                         },
+    { "include_tx_power", "include TX power in PDU, usage: =[0-1], default: 0"                 },
+    { "scan_req_notif",   "enable Scan Request notification usage: =[0-1], default: 0"         },
+    { NULL,               NULL                                                                 }
 };
 
 static const struct shell_cmd_help advertise_configure_help = {
@@ -523,9 +520,9 @@ static const struct shell_cmd_help advertise_configure_help = {
 };
 
 static const struct shell_param advertise_set_addr_params[] = {
-    {"instance", "default: 0"},
-    {"addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {NULL, NULL}
+    { "instance", "default: 0"                  },
+    { "addr",     "usage: =[XX:XX:XX:XX:XX:XX]" },
+    { NULL,       NULL                          }
 };
 
 static const struct shell_cmd_help advertise_set_addr_help = {
@@ -535,11 +532,11 @@ static const struct shell_cmd_help advertise_set_addr_help = {
 };
 
 static const struct shell_param advertise_start_params[] = {
-    {"instance", "default: 0"},
-    {"duration", "advertising duration in 10ms units, default: 0 (forever)"},
-    {"max_events", "max number of advertising events, default: 0 (no limit)"},
-    {"restart", "restart advertising after disconnect, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "instance",   "default: 0"                                                      },
+    { "duration",   "advertising duration in 10ms units, default: 0 (forever)"        },
+    { "max_events", "max number of advertising events, default: 0 (no limit)"         },
+    { "restart",    "restart advertising after disconnect, usage: =[0-1], default: 0" },
+    { NULL,         NULL                                                              }
 };
 
 static const struct shell_cmd_help advertise_start_help = {
@@ -549,8 +546,8 @@ static const struct shell_cmd_help advertise_start_help = {
 };
 
 static const struct shell_param advertise_stop_params[] = {
-    {"instance", "default: 0"},
-    {NULL, NULL}
+    { "instance", "default: 0" },
+    { NULL,       NULL         }
 };
 
 static const struct shell_cmd_help advertise_stop_help = {
@@ -560,8 +557,8 @@ static const struct shell_cmd_help advertise_stop_help = {
 };
 
 static const struct shell_param advertise_remove_params[] = {
-    {"instance", "default: 0"},
-    {NULL, NULL}
+    { "instance", "default: 0" },
+    { NULL,       NULL         }
 };
 
 static const struct shell_cmd_help advertise_remove_help = {
@@ -612,8 +609,8 @@ cmd_advertise(int argc, char **argv)
         return 0;
     }
 
-    params.conn_mode = parse_arg_kv_dflt("conn", cmd_adv_conn_modes,
-                                         BLE_GAP_CONN_MODE_UND, &rc);
+    params.conn_mode =
+        parse_arg_kv_dflt("conn", cmd_adv_conn_modes, BLE_GAP_CONN_MODE_UND, &rc);
     if (rc != 0) {
         console_printf("invalid 'conn' parameter\n");
         return rc;
@@ -678,8 +675,8 @@ cmd_advertise(int argc, char **argv)
         return rc;
     }
 
-    duration_ms = parse_arg_long_bounds_dflt("duration", 1, INT32_MAX,
-                                             BLE_HS_FOREVER, &rc);
+    duration_ms =
+        parse_arg_long_bounds_dflt("duration", 1, INT32_MAX, BLE_HS_FOREVER, &rc);
     if (rc != 0) {
         console_printf("invalid 'duration' parameter\n");
         return rc;
@@ -697,20 +694,21 @@ cmd_advertise(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param advertise_params[] = {
-    {"stop", "stop advertising procedure"},
-    {"conn", "connectable mode, usage: =[non|und|dir], default: und"},
-    {"discov", "discoverable mode, usage: =[non|ltd|gen], default: gen"},
-    {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
-    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
-    {"channel_map", "usage: =[0x00-0xff], default: 0"},
-    {"filter", "usage: =[none|scan|conn|both], default: none"},
-    {"interval_min", "usage: =[0-UINT16_MAX], default: 0"},
-    {"interval_max", "usage: =[0-UINT16_MAX], default: 0"},
-    {"high_duty", "usage: =[0-1], default: 0"},
-    {"duration", "usage: =[1-INT32_MAX], default: INT32_MAX"},
-    {"restart", "restart advertising after disconnect, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "stop",           "stop advertising procedure"                                           },
+    { "conn",           "connectable mode, usage: =[non|und|dir], default: und"                },
+    { "discov",         "discoverable mode, usage: =[non|ltd|gen], default: gen"               },
+    { "peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"         },
+    { "peer_addr",      "usage: =[XX:XX:XX:XX:XX:XX]"                                          },
+    { "own_addr_type",
+     "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random" },
+    { "channel_map",    "usage: =[0x00-0xff], default: 0"                                      },
+    { "filter",         "usage: =[none|scan|conn|both], default: none"                         },
+    { "interval_min",   "usage: =[0-UINT16_MAX], default: 0"                                   },
+    { "interval_max",   "usage: =[0-UINT16_MAX], default: 0"                                   },
+    { "high_duty",      "usage: =[0-1], default: 0"                                            },
+    { "duration",       "usage: =[1-INT32_MAX], default: INT32_MAX"                            },
+    { "restart",        "restart advertising after disconnect, usage: =[0-1], default: 0"      },
+    { NULL,             NULL                                                                   }
 };
 
 static const struct shell_cmd_help advertise_help = {
@@ -726,20 +724,20 @@ static const struct shell_cmd_help advertise_help = {
  *****************************************************************************/
 
 static struct parse_arg_kv_pair cmd_ext_conn_phy_opts[] = {
-    { "none",        0x00 },
-    { "1M",          0x01 },
-    { "coded",       0x02 },
-    { "both",        0x03 },
-    { "all",         0x04 },
+    { "none", 0x00 },
+    { "1M", 0x01 },
+    { "coded", 0x02 },
+    { "both", 0x03 },
+    { "all", 0x04 },
     { NULL }
 };
 
 static int
 cmd_connect(int argc, char **argv)
 {
-    struct ble_gap_conn_params phy_1M_params = {0};
-    struct ble_gap_conn_params phy_coded_params = {0};
-    struct ble_gap_conn_params phy_2M_params = {0};
+    struct ble_gap_conn_params phy_1M_params = { 0 };
+    struct ble_gap_conn_params phy_coded_params = { 0 };
+    struct ble_gap_conn_params phy_2M_params = { 0 };
     uint8_t ext;
     int32_t duration_ms;
     ble_addr_t peer_addr;
@@ -802,17 +800,15 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_1M_params.itvl_min = parse_arg_time_dflt("interval_min", 1250,
-                                                   BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                                   &rc);
+    phy_1M_params.itvl_min = parse_arg_time_dflt(
+        "interval_min", 1250, BLE_GAP_INITIAL_CONN_ITVL_MIN, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
-    phy_1M_params.itvl_max = parse_arg_time_dflt("interval_max", 1250,
-                                                   BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                                   &rc);
+    phy_1M_params.itvl_max = parse_arg_time_dflt(
+        "interval_max", 1250, BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -824,22 +820,22 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_1M_params.supervision_timeout = parse_arg_time_dflt("timeout", 10000,
-                                                              0x0100, &rc);
+    phy_1M_params.supervision_timeout =
+        parse_arg_time_dflt("timeout", 10000, 0x0100, &rc);
     if (rc != 0) {
         console_printf("invalid 'timeout' parameter\n");
         return rc;
     }
 
-    phy_1M_params.min_ce_len = parse_arg_time_dflt("min_conn_event_len", 625,
-                                                   0x0010, &rc);
+    phy_1M_params.min_ce_len =
+        parse_arg_time_dflt("min_conn_event_len", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'min_conn_event_len' parameter\n");
         return rc;
     }
 
-    phy_1M_params.max_ce_len = parse_arg_time_dflt("max_conn_event_len", 625,
-                                                   0x0300, &rc);
+    phy_1M_params.max_ce_len =
+        parse_arg_time_dflt("max_conn_event_len", 625, 0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_conn_event_len' parameter\n");
         return rc;
@@ -856,8 +852,7 @@ cmd_connect(int argc, char **argv)
 
     if (ext == 0x01) {
         rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param,
-                                       duration_ms, &phy_1M_params,
-                                       NULL, NULL);
+                                       duration_ms, &phy_1M_params, NULL, NULL);
         if (rc) {
             console_printf("error connecting; rc=%d\n", rc);
         }
@@ -865,38 +860,35 @@ cmd_connect(int argc, char **argv)
     }
 
     /* Get coded params */
-    phy_coded_params.scan_itvl = parse_arg_time_dflt("coded_scan_interval",
-                                                     625, 0x0010, &rc);
+    phy_coded_params.scan_itvl =
+        parse_arg_time_dflt("coded_scan_interval", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_scan_interval' parameter\n");
         return rc;
     }
 
-    phy_coded_params.scan_window = parse_arg_time_dflt("coded_scan_window",
-                                                       625, 0x0010, &rc);
+    phy_coded_params.scan_window =
+        parse_arg_time_dflt("coded_scan_window", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_scan_window' parameter\n");
         return rc;
     }
 
-    phy_coded_params.itvl_min = parse_arg_time_dflt("coded_interval_min", 1250,
-                                                    BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                                    &rc);
+    phy_coded_params.itvl_min = parse_arg_time_dflt(
+        "coded_interval_min", 1250, BLE_GAP_INITIAL_CONN_ITVL_MIN, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_interval_min' parameter\n");
         return rc;
     }
 
-    phy_coded_params.itvl_max = parse_arg_time_dflt("coded_interval_max", 1250,
-                                                    BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                                    &rc);
+    phy_coded_params.itvl_max = parse_arg_time_dflt(
+        "coded_interval_max", 1250, BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_interval_max' parameter\n");
         return rc;
     }
 
-    phy_coded_params.latency =
-        parse_arg_uint16_dflt("coded_latency", 0, &rc);
+    phy_coded_params.latency = parse_arg_uint16_dflt("coded_latency", 0, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_latency' parameter\n");
         return rc;
@@ -917,109 +909,105 @@ cmd_connect(int argc, char **argv)
         return rc;
     }
 
-    phy_coded_params.max_ce_len = parse_arg_time_dflt("coded_max_conn_event",
-                                                      625, 0x0300, &rc);
+    phy_coded_params.max_ce_len =
+        parse_arg_time_dflt("coded_max_conn_event", 625, 0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'coded_max_conn_event' parameter\n");
         return rc;
     }
 
     /* Get 2M params */
-    phy_2M_params.itvl_min = parse_arg_time_dflt("2M_interval_min", 1250,
-                                                 BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                                 &rc);
+    phy_2M_params.itvl_min = parse_arg_time_dflt(
+        "2M_interval_min", 1250, BLE_GAP_INITIAL_CONN_ITVL_MIN, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_interval_min' parameter\n");
         return rc;
     }
 
-    phy_2M_params.itvl_max = parse_arg_time_dflt("2M_interval_max", 1250,
-                                                 BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
+    phy_2M_params.itvl_max = parse_arg_time_dflt(
+        "2M_interval_max", 1250, BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_interval_max' parameter\n");
         return rc;
     }
 
-    phy_2M_params.latency =
-        parse_arg_uint16_dflt("2M_latency", 0, &rc);
+    phy_2M_params.latency = parse_arg_uint16_dflt("2M_latency", 0, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_latency' parameter\n");
         return rc;
     }
 
-    phy_2M_params.supervision_timeout = parse_arg_time_dflt("2M_timeout", 10000,
-                                                            0x0100, &rc);
+    phy_2M_params.supervision_timeout =
+        parse_arg_time_dflt("2M_timeout", 10000, 0x0100, &rc);
 
     if (rc != 0) {
         console_printf("invalid '2M_timeout' parameter\n");
         return rc;
     }
 
-    phy_2M_params.min_ce_len = parse_arg_time_dflt("2M_min_conn_event", 625,
-                                                   0x0010, &rc);
+    phy_2M_params.min_ce_len =
+        parse_arg_time_dflt("2M_min_conn_event", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_min_conn_event' parameter\n");
         return rc;
     }
 
-    phy_2M_params.max_ce_len = parse_arg_time_dflt("2M_max_conn_event", 625,
-                                                   0x0300, &rc);
+    phy_2M_params.max_ce_len =
+        parse_arg_time_dflt("2M_max_conn_event", 625, 0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid '2M_max_conn_event' parameter\n");
         return rc;
     }
 
     if (ext == 0x02) {
-        rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param,
-                                       duration_ms, NULL, NULL, &phy_coded_params);
+        rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param, duration_ms,
+                                       NULL, NULL, &phy_coded_params);
         return rc;
     }
 
     if (ext == 0x03) {
-        rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param,
-                                       duration_ms, &phy_1M_params, NULL,
-                                       &phy_coded_params);
+        rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param, duration_ms,
+                                       &phy_1M_params, NULL, &phy_coded_params);
         return rc;
     }
 
-    rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param,
-                                   duration_ms, &phy_1M_params,
-                                   &phy_2M_params,
-                                   &phy_coded_params);
+    rc = btshell_ext_conn_initiate(own_addr_type, peer_addr_param, duration_ms,
+                                   &phy_1M_params, &phy_2M_params, &phy_coded_params);
     return rc;
 }
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param connect_params[] = {
-    {"cancel", "cancel connection procedure"},
-    {"extended", "usage: =[none|1M|coded|both|all], default: none"},
-    {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
-    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
-    {"duration", "usage: =[1-INT32_MAX], default: 0"},
-    {"scan_interval", "usage: =[0-UINT16_MAX], default: 0x0010"},
-    {"scan_window", "usage: =[0-UINT16_MAX], default: 0x0010"},
-    {"interval_min", "usage: =[0-UINT16_MAX], default: 30"},
-    {"interval_max", "usage: =[0-UINT16_MAX], default: 50"},
-    {"latency", "usage: =[UINT16], default: 0"},
-    {"timeout", "usage: =[UINT16], default: 0x0100"},
-    {"min_conn_event_len", "usage: =[UINT16], default: 0x0010"},
-    {"max_conn_event_len", "usage: =[UINT16], default: 0x0300"},
-    {"coded_scan_interval", "usage: =[0-UINT16_MAX], default: 0x0010"},
-    {"coded_scan_window", "usage: =[0-UINT16_MAX], default: 0x0010"},
-    {"coded_interval_min", "usage: =[0-UINT16_MAX], default: 30"},
-    {"coded_interval_max", "usage: =[0-UINT16_MAX], default: 50"},
-    {"coded_latency", "usage: =[UINT16], default: 0"},
-    {"coded_timeout", "usage: =[UINT16], default: 0x0100"},
-    {"coded_min_conn_event_len", "usage: =[UINT16], default: 0x0010"},
-    {"coded_max_conn_event_len", "usage: =[UINT16], default: 0x0300"},
-    {"2M_interval_min", "usage: =[0-UINT16_MAX], default: 30"},
-    {"2M_interval_max", "usage: =[0-UINT16_MAX], default: 50"},
-    {"2M_latency", "usage: =[UINT16], default: 0"},
-    {"2M_timeout", "usage: =[UINT16], default: 0x0100"},
-    {"2M_min_conn_event_len", "usage: =[UINT16], default: 0x0010"},
-    {"2M_max_conn_event_len", "usage: =[UINT16], default: 0x0300"},
-    {NULL, NULL}
+    { "cancel",                   "cancel connection procedure"                                  },
+    { "extended",                 "usage: =[none|1M|coded|both|all], default: none"              },
+    { "peer_addr_type",           "usage: =[public|random|public_id|random_id], default: public" },
+    { "peer_addr",                "usage: =[XX:XX:XX:XX:XX:XX]"                                  },
+    { "own_addr_type",
+     "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"   },
+    { "duration",                 "usage: =[1-INT32_MAX], default: 0"                            },
+    { "scan_interval",            "usage: =[0-UINT16_MAX], default: 0x0010"                      },
+    { "scan_window",              "usage: =[0-UINT16_MAX], default: 0x0010"                      },
+    { "interval_min",             "usage: =[0-UINT16_MAX], default: 30"                          },
+    { "interval_max",             "usage: =[0-UINT16_MAX], default: 50"                          },
+    { "latency",                  "usage: =[UINT16], default: 0"                                 },
+    { "timeout",                  "usage: =[UINT16], default: 0x0100"                            },
+    { "min_conn_event_len",       "usage: =[UINT16], default: 0x0010"                            },
+    { "max_conn_event_len",       "usage: =[UINT16], default: 0x0300"                            },
+    { "coded_scan_interval",      "usage: =[0-UINT16_MAX], default: 0x0010"                      },
+    { "coded_scan_window",        "usage: =[0-UINT16_MAX], default: 0x0010"                      },
+    { "coded_interval_min",       "usage: =[0-UINT16_MAX], default: 30"                          },
+    { "coded_interval_max",       "usage: =[0-UINT16_MAX], default: 50"                          },
+    { "coded_latency",            "usage: =[UINT16], default: 0"                                 },
+    { "coded_timeout",            "usage: =[UINT16], default: 0x0100"                            },
+    { "coded_min_conn_event_len", "usage: =[UINT16], default: 0x0010"                            },
+    { "coded_max_conn_event_len", "usage: =[UINT16], default: 0x0300"                            },
+    { "2M_interval_min",          "usage: =[0-UINT16_MAX], default: 30"                          },
+    { "2M_interval_max",          "usage: =[0-UINT16_MAX], default: 50"                          },
+    { "2M_latency",               "usage: =[UINT16], default: 0"                                 },
+    { "2M_timeout",               "usage: =[UINT16], default: 0x0100"                            },
+    { "2M_min_conn_event_len",    "usage: =[UINT16], default: 0x0010"                            },
+    { "2M_max_conn_event_len",    "usage: =[UINT16], default: 0x0300"                            },
+    { NULL,                       NULL                                                           }
 };
 
 static const struct shell_cmd_help connect_help = {
@@ -1114,9 +1102,9 @@ cmd_show_addr(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param disconnect_params[] = {
-    {"conn", "connection handle parameter, usage: =<UINT16>"},
-    {"reason", "disconnection reason, usage: =[UINT8], default: 19 (remote user terminated connection)"},
-    {NULL, NULL}
+    { "conn",   "connection handle parameter, usage: =<UINT16>"                                          },
+    { "reason", "disconnection reason, usage: =[UINT8], default: 19 (remote user terminated connection)" },
+    { NULL,     NULL                                                                                     }
 };
 
 static const struct shell_cmd_help disconnect_help = {
@@ -1188,12 +1176,12 @@ cmd_set_scan_opts(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param set_scan_opts_params[] = {
-    {"decode_limit", "usage: =[0-UINT16_MAX], default: UINT16_MAX"},
-    {"ignore_legacy", "usage: =[0-1], default: 0"},
-    {"periodic_only", "usage: =[0-1], default: 0"},
-    {"silent", "usage: =[0-1], default: 0"},
-    {"name_filter", "usage: =name, default: {none}"},
-    {NULL, NULL}
+    { "decode_limit",  "usage: =[0-UINT16_MAX], default: UINT16_MAX" },
+    { "ignore_legacy", "usage: =[0-1], default: 0"                   },
+    { "periodic_only", "usage: =[0-1], default: 0"                   },
+    { "silent",        "usage: =[0-1], default: 0"                   },
+    { "name_filter",   "usage: =name, default: {none}"               },
+    { NULL,            NULL                                          }
 };
 
 static const struct shell_cmd_help set_scan_opts_help = {
@@ -1216,10 +1204,10 @@ static const struct parse_arg_kv_pair cmd_scan_filt_policies[] = {
 };
 
 static struct parse_arg_kv_pair cmd_scan_ext_types[] = {
-    { "none",       0x00 },
-    { "1M",         0x01 },
-    { "coded",      0x02 },
-    { "both",       0x03 },
+    { "none", 0x00 },
+    { "1M", 0x01 },
+    { "coded", 0x02 },
+    { "both", 0x03 },
     { NULL }
 };
 
@@ -1228,9 +1216,9 @@ static struct btshell_scan_opts g_scan_opts;
 static int
 cmd_scan(int argc, char **argv)
 {
-    struct ble_gap_disc_params params = {0};
-    struct ble_gap_ext_disc_params uncoded = {0};
-    struct ble_gap_ext_disc_params coded = {0};
+    struct ble_gap_disc_params params = { 0 };
+    struct ble_gap_ext_disc_params uncoded = { 0 };
+    struct ble_gap_ext_disc_params coded = { 0 };
     uint8_t extended;
     int32_t duration_ms;
     uint8_t own_addr_type;
@@ -1357,20 +1345,17 @@ cmd_scan(int argc, char **argv)
     case 0x01:
         rc = btshell_ext_scan(own_addr_type, duration, period,
                               params.filter_duplicates, params.filter_policy,
-                              params.limited, &uncoded, NULL,
-                              &g_scan_opts);
+                              params.limited, &uncoded, NULL, &g_scan_opts);
         break;
     case 0x02:
         rc = btshell_ext_scan(own_addr_type, duration, period,
                               params.filter_duplicates, params.filter_policy,
-                              params.limited, NULL, &coded,
-                              &g_scan_opts);
+                              params.limited, NULL, &coded, &g_scan_opts);
         break;
     case 0x03:
         rc = btshell_ext_scan(own_addr_type, duration, period,
                               params.filter_duplicates, params.filter_policy,
-                              params.limited, &uncoded, &coded,
-                              &g_scan_opts);
+                              params.limited, &uncoded, &coded, &g_scan_opts);
         break;
     default:
         assert(0);
@@ -1386,23 +1371,24 @@ cmd_scan(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param scan_params[] = {
-    {"cancel", "cancel scan procedure"},
-    {"off", "\"cancel\" param substitute"},
-    {"extended", "usage: =[none|1M|coded|both], default: none"},
-    {"duration", "usage: =[1-INT32_MAX], default: INT32_MAX"},
-    {"limited", "usage: =[0-1], default: 0"},
-    {"passive", "usage: =[0-1], default: 0"},
-    {"interval", "usage: =[0-UINT16_MAX], default: 0"},
-    {"window", "usage: =[0-UINT16_MAX], default: 0"},
-    {"filter", "usage: =[no_wl|use_wl|no_wl_inita|use_wl_inita], default: no_wl"},
-    {"nodups", "usage: =[0-1], default: 0"},
-    {"own_addr_type", "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random"},
-    {"extended_duration", "usage: =[0-UINT16_MAX], default: 0"},
-    {"extended_period", "usage: =[0-UINT16_MAX], default: 0"},
-    {"longrange_interval", "usage: =[0-UINT16_MAX], default: 0"},
-    {"longrange_window", "usage: =[0-UINT16_MAX], default: 0"},
-    {"longrange_passive", "usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "cancel",             "cancel scan procedure"                                            },
+    { "off",                "\"cancel\" param substitute"                                      },
+    { "extended",           "usage: =[none|1M|coded|both], default: none"                      },
+    { "duration",           "usage: =[1-INT32_MAX], default: INT32_MAX"                        },
+    { "limited",            "usage: =[0-1], default: 0"                                        },
+    { "passive",            "usage: =[0-1], default: 0"                                        },
+    { "interval",           "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "window",             "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "filter",             "usage: =[no_wl|use_wl|no_wl_inita|use_wl_inita], default: no_wl"  },
+    { "nodups",             "usage: =[0-1], default: 0"                                        },
+    { "own_addr_type",
+     "usage: =[public|random|rpa_pub|rpa_rnd], default: public if available, otherwise random" },
+    { "extended_duration",  "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "extended_period",    "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "longrange_interval", "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "longrange_window",   "usage: =[0-UINT16_MAX], default: 0"                               },
+    { "longrange_passive",  "usage: =[0-1], default: 0"                                        },
+    { NULL,                 NULL                                                               }
 };
 
 static const struct shell_cmd_help scan_help = {
@@ -1506,11 +1492,11 @@ cmd_set(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param set_params[] = {
-    {"addr", "set device address, usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"addr_type", "set device address type, usage: =[public|random], default: public"},
-    {"mtu", "Maximum Transimssion Unit, usage: =[0-UINT16_MAX]"},
-    {"irk", "Identity Resolving Key, usage: =[XX:XX...], len=16 octets"},
-    {NULL, NULL}
+    { "addr",      "set device address, usage: =[XX:XX:XX:XX:XX:XX]"                   },
+    { "addr_type", "set device address type, usage: =[public|random], default: public" },
+    { "mtu",       "Maximum Transimssion Unit, usage: =[0-UINT16_MAX]"                 },
+    { "irk",       "Identity Resolving Key, usage: =[XX:XX...], len=16 octets"         },
+    { NULL,        NULL                                                                }
 };
 
 static const struct shell_cmd_help set_help = {
@@ -1524,15 +1510,15 @@ static const struct shell_cmd_help set_help = {
  * $set-adv-data                                                             *
  *****************************************************************************/
 
-#define CMD_ADV_DATA_MAX_UUIDS16                8
-#define CMD_ADV_DATA_MAX_UUIDS32                8
-#define CMD_ADV_DATA_MAX_UUIDS128               2
-#define CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS       8
-#define CMD_ADV_DATA_SVC_DATA_UUID16_MAX_LEN    BLE_HS_ADV_MAX_FIELD_SZ
-#define CMD_ADV_DATA_SVC_DATA_UUID32_MAX_LEN    BLE_HS_ADV_MAX_FIELD_SZ
-#define CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN   BLE_HS_ADV_MAX_FIELD_SZ
-#define CMD_ADV_DATA_URI_MAX_LEN                BLE_HS_ADV_MAX_FIELD_SZ
-#define CMD_ADV_DATA_MFG_DATA_MAX_LEN           BLE_HS_ADV_MAX_FIELD_SZ
+#define CMD_ADV_DATA_MAX_UUIDS16              8
+#define CMD_ADV_DATA_MAX_UUIDS32              8
+#define CMD_ADV_DATA_MAX_UUIDS128             2
+#define CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS     8
+#define CMD_ADV_DATA_SVC_DATA_UUID16_MAX_LEN  BLE_HS_ADV_MAX_FIELD_SZ
+#define CMD_ADV_DATA_SVC_DATA_UUID32_MAX_LEN  BLE_HS_ADV_MAX_FIELD_SZ
+#define CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN BLE_HS_ADV_MAX_FIELD_SZ
+#define CMD_ADV_DATA_URI_MAX_LEN              BLE_HS_ADV_MAX_FIELD_SZ
+#define CMD_ADV_DATA_MFG_DATA_MAX_LEN         BLE_HS_ADV_MAX_FIELD_SZ
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 static void
@@ -1549,22 +1535,16 @@ update_pattern(uint8_t *buf, int counter)
 #endif
 
 static int
-cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
-                             bool periodic)
+cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp, bool periodic)
 {
     static bssnz_t ble_uuid16_t uuids16[CMD_ADV_DATA_MAX_UUIDS16];
     static bssnz_t ble_uuid32_t uuids32[CMD_ADV_DATA_MAX_UUIDS32];
     static bssnz_t ble_uuid128_t uuids128[CMD_ADV_DATA_MAX_UUIDS128];
-    static bssnz_t uint8_t
-        public_tgt_addrs[CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS]
-                        [BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN];
+    static bssnz_t uint8_t public_tgt_addrs[CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS][BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN];
     static bssnz_t uint8_t slave_itvl_range[BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN];
-    static bssnz_t uint8_t
-        svc_data_uuid16[CMD_ADV_DATA_SVC_DATA_UUID16_MAX_LEN];
-    static bssnz_t uint8_t
-        svc_data_uuid32[CMD_ADV_DATA_SVC_DATA_UUID32_MAX_LEN];
-    static bssnz_t uint8_t
-        svc_data_uuid128[CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN];
+    static bssnz_t uint8_t svc_data_uuid16[CMD_ADV_DATA_SVC_DATA_UUID16_MAX_LEN];
+    static bssnz_t uint8_t svc_data_uuid32[CMD_ADV_DATA_SVC_DATA_UUID32_MAX_LEN];
+    static bssnz_t uint8_t svc_data_uuid128[CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN];
     static bssnz_t uint8_t uri[CMD_ADV_DATA_URI_MAX_LEN];
     static bssnz_t uint8_t mfg_data[CMD_ADV_DATA_MFG_DATA_MAX_LEN];
     struct ble_hs_adv_fields adv_fields;
@@ -1628,7 +1608,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
                 console_printf("invalid 'uuid16' parameter\n");
                 return EINVAL;
             }
-            uuids16[adv_fields.num_uuids16] = (ble_uuid16_t) BLE_UUID16_INIT(uuid16);
+            uuids16[adv_fields.num_uuids16] = (ble_uuid16_t)BLE_UUID16_INIT(uuid16);
             adv_fields.num_uuids16++;
         } else if (rc == ENOENT) {
             break;
@@ -1654,7 +1634,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
                 console_printf("invalid 'uuid32' parameter\n");
                 return EINVAL;
             }
-            uuids32[adv_fields.num_uuids32] = (ble_uuid32_t) BLE_UUID32_INIT(uuid32);
+            uuids32[adv_fields.num_uuids32] = (ble_uuid32_t)BLE_UUID32_INIT(uuid32);
             adv_fields.num_uuids32++;
         } else if (rc == ENOENT) {
             break;
@@ -1680,8 +1660,8 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
                 console_printf("invalid 'uuid128' parameter\n");
                 return EINVAL;
             }
-            ble_uuid_init_from_buf((ble_uuid_any_t *) &uuids128[adv_fields.num_uuids128],
-                                   uuid128, 16);
+            ble_uuid_init_from_buf(
+                (ble_uuid_any_t *)&uuids128[adv_fields.num_uuids128], uuid128, 16);
             adv_fields.num_uuids128++;
         } else if (rc == ENOENT) {
             break;
@@ -1714,8 +1694,7 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
         return rc;
     }
 
-    rc = parse_arg_byte_stream_exact_length("slave_interval_range",
-                                            slave_itvl_range,
+    rc = parse_arg_byte_stream_exact_length("slave_interval_range", slave_itvl_range,
                                             BLE_HS_ADV_SLAVE_ITVL_RANGE_LEN);
     if (rc == 0) {
         adv_fields.slave_itvl_range = slave_itvl_range;
@@ -1736,12 +1715,10 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     }
 
     while (1) {
-        rc = parse_arg_byte_stream_exact_length(
-            "public_target_address", public_tgt_addr,
-            BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN);
+        rc = parse_arg_byte_stream_exact_length("public_target_address", public_tgt_addr,
+                                                BLE_HS_ADV_PUBLIC_TGT_ADDR_ENTRY_LEN);
         if (rc == 0) {
-            if (adv_fields.num_public_tgt_addrs >=
-                CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS) {
+            if (adv_fields.num_public_tgt_addrs >= CMD_ADV_DATA_MAX_PUBLIC_TGT_ADDRS) {
 
                 console_printf("invalid 'public_target_address' parameter\n");
                 return EINVAL;
@@ -1788,8 +1765,8 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     }
 
     rc = parse_arg_byte_stream_custom("service_data_uuid128", ":-",
-                               CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN,
-                               svc_data_uuid128, 0, &svc_data_uuid128_len);
+                                      CMD_ADV_DATA_SVC_DATA_UUID128_MAX_LEN,
+                                      svc_data_uuid128, 0, &svc_data_uuid128_len);
     if (rc == 0) {
         adv_fields.svc_data_uuid128 = svc_data_uuid128;
         adv_fields.svc_data_uuid128_len = svc_data_uuid128_len;
@@ -1828,18 +1805,15 @@ cmd_set_adv_data_or_scan_rsp(int argc, char **argv, bool scan_rsp,
     eddystone_url_full = parse_arg_extract("eddystone_url");
     if (eddystone_url_full != NULL) {
         rc = parse_eddystone_url(eddystone_url_full, &eddystone_url_scheme,
-                                 eddystone_url_body,
-                                 &eddystone_url_body_len,
+                                 eddystone_url_body, &eddystone_url_body_len,
                                  &eddystone_url_suffix);
         if (rc != 0) {
             goto done;
         }
 
-        rc = ble_eddystone_set_adv_data_url(&adv_fields, eddystone_url_scheme,
-                                            eddystone_url_body,
-                                            eddystone_url_body_len,
-                                            eddystone_url_suffix,
-                                            eddystone_measured_power);
+        rc = ble_eddystone_set_adv_data_url(
+            &adv_fields, eddystone_url_scheme, eddystone_url_body,
+            eddystone_url_body_len, eddystone_url_suffix, eddystone_measured_power);
     } else {
 #if MYNEWT_VAL(BLE_EXT_ADV)
         /* Default to legacy PDUs size, mbuf chain will be increased if needed
@@ -1915,31 +1889,31 @@ cmd_set_scan_rsp(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param set_adv_data_params[] = {
-    {"instance", "default: 0"},
-    {"flags", "usage: =[0-UINT8_MAX]"},
-    {"uuid16", "usage: =[UINT16]"},
-    {"uuid16_is_complete", "usage: =[0-1], default=0"},
-    {"uuid32", "usage: =[UINT32]"},
-    {"uuid32_is_complete", "usage: =[0-1], default=0"},
-    {"uuid128", "usage: =[XX:XX...], len=16 octets"},
-    {"uuid128_is_complete", "usage: =[0-1], default=0"},
-    {"tx_power_level", "usage: =[INT8_MIN-INT8_MAX]"},
-    {"slave_interval_range", "usage: =[XX:XX:XX:XX]"},
-    {"public_target_address", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"appearance", "usage: =[UINT16]"},
-    {"name", "usage: =[string]"},
-    {"advertising_interval", "usage: =[UINT16]"},
-    {"service_data_uuid16", "usage: =[XX:XX...]"},
-    {"service_data_uuid32", "usage: =[XX:XX...]"},
-    {"service_data_uuid128", "usage: =[XX:XX...]"},
-    {"uri", "usage: =[XX:XX...]"},
-    {"mfg_data", "usage: =[XX:XX...]"},
-    {"measured_power", "usage: =[-100-20]"},
-    {"eddystone_url", "usage: =[string]"},
+    { "instance",              "default: 0"                        },
+    { "flags",                 "usage: =[0-UINT8_MAX]"             },
+    { "uuid16",                "usage: =[UINT16]"                  },
+    { "uuid16_is_complete",    "usage: =[0-1], default=0"          },
+    { "uuid32",                "usage: =[UINT32]"                  },
+    { "uuid32_is_complete",    "usage: =[0-1], default=0"          },
+    { "uuid128",               "usage: =[XX:XX...], len=16 octets" },
+    { "uuid128_is_complete",   "usage: =[0-1], default=0"          },
+    { "tx_power_level",        "usage: =[INT8_MIN-INT8_MAX]"       },
+    { "slave_interval_range",  "usage: =[XX:XX:XX:XX]"             },
+    { "public_target_address", "usage: =[XX:XX:XX:XX:XX:XX]"       },
+    { "appearance",            "usage: =[UINT16]"                  },
+    { "name",                  "usage: =[string]"                  },
+    { "advertising_interval",  "usage: =[UINT16]"                  },
+    { "service_data_uuid16",   "usage: =[XX:XX...]"                },
+    { "service_data_uuid32",   "usage: =[XX:XX...]"                },
+    { "service_data_uuid128",  "usage: =[XX:XX...]"                },
+    { "uri",                   "usage: =[XX:XX...]"                },
+    { "mfg_data",              "usage: =[XX:XX...]"                },
+    { "measured_power",        "usage: =[-100-20]"                 },
+    { "eddystone_url",         "usage: =[string]"                  },
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    {"extra_data_len", "usage: =[UINT16]"},
+    { "extra_data_len",        "usage: =[UINT16]"                  },
 #endif
-    {NULL, NULL}
+    { NULL,                    NULL                                }
 };
 
 static const struct shell_cmd_help set_adv_data_help = {
@@ -1988,10 +1962,11 @@ cmd_set_priv_mode(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param set_priv_mode_params[] = {
-    {"addr", "set priv mode for device address, usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"addr_type", "set priv mode for device address type, usage: =[public|random], default: public"},
-    {"mode", "set priv mode, usage: =[0-UINT8_MAX]"},
-    {NULL, NULL}
+    { "addr",      "set priv mode for device address, usage: =[XX:XX:XX:XX:XX:XX]"     },
+    { "addr_type",
+     "set priv mode for device address type, usage: =[public|random], default: public" },
+    { "mode",      "set priv mode, usage: =[0-UINT8_MAX]"                              },
+    { NULL,        NULL                                                                }
 };
 
 static const struct shell_cmd_help set_priv_mode_help = {
@@ -2005,7 +1980,7 @@ static const struct shell_cmd_help set_priv_mode_help = {
  * $white-list                                                               *
  *****************************************************************************/
 
-#define CMD_WL_MAX_SZ   8
+#define CMD_WL_MAX_SZ 8
 
 static int
 cmd_white_list(int argc, char **argv)
@@ -2047,9 +2022,9 @@ cmd_white_list(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param white_list_params[] = {
-    {"addr", "white-list device addresses, usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"addr_type", "white-list address types, usage: =[public|random]"},
-    {NULL, NULL}
+    { "addr",      "white-list device addresses, usage: =[XX:XX:XX:XX:XX:XX]" },
+    { "addr_type", "white-list address types, usage: =[public|random]"        },
+    { NULL,        NULL                                                       }
 };
 
 static const struct shell_cmd_help white_list_help = {
@@ -2094,8 +2069,8 @@ cmd_conn_rssi(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param conn_rssi_params[] = {
-    {"conn", "connection handle parameter, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle parameter, usage: =<UINT16>" },
+    { NULL,   NULL                                            }
 };
 
 static const struct shell_cmd_help conn_rssi_help = {
@@ -2128,16 +2103,14 @@ cmd_conn_update_params(int argc, char **argv)
     }
 
     params.itvl_min = parse_arg_time_dflt("interval_min", 1250,
-                                          BLE_GAP_INITIAL_CONN_ITVL_MIN,
-                                          &rc);
+                                          BLE_GAP_INITIAL_CONN_ITVL_MIN, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_min' parameter\n");
         return rc;
     }
 
     params.itvl_max = parse_arg_time_dflt("interval_max", 1250,
-                                          BLE_GAP_INITIAL_CONN_ITVL_MAX,
-                                          &rc);
+                                          BLE_GAP_INITIAL_CONN_ITVL_MAX, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -2149,22 +2122,19 @@ cmd_conn_update_params(int argc, char **argv)
         return rc;
     }
 
-    params.supervision_timeout = parse_arg_time_dflt("timeout", 10000, 0x0100,
-                                                     &rc);
+    params.supervision_timeout = parse_arg_time_dflt("timeout", 10000, 0x0100, &rc);
     if (rc != 0) {
         console_printf("invalid 'timeout' parameter\n");
         return rc;
     }
 
-    params.min_ce_len = parse_arg_time_dflt("min_conn_event_len", 625,
-                                            0x0010, &rc);
+    params.min_ce_len = parse_arg_time_dflt("min_conn_event_len", 625, 0x0010, &rc);
     if (rc != 0) {
         console_printf("invalid 'min_conn_event_len' parameter\n");
         return rc;
     }
 
-    params.max_ce_len = parse_arg_time_dflt("max_conn_event_len", 625,
-                                            0x0300, &rc);
+    params.max_ce_len = parse_arg_time_dflt("max_conn_event_len", 625, 0x0300, &rc);
     if (rc != 0) {
         console_printf("invalid 'max_conn_event_len' parameter\n");
         return rc;
@@ -2181,14 +2151,14 @@ cmd_conn_update_params(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param conn_update_params_params[] = {
-    {"conn", "conn_update_paramsion handle, usage: =<UINT16>"},
-    {"interval_min", "usage: =[0-UINT16_MAX], default: 30"},
-    {"interval_max", "usage: =[0-UINT16_MAX], default: 50"},
-    {"latency", "usage: =[UINT16], default: 0"},
-    {"timeout", "usage: =[UINT16], default: 0x0100"},
-    {"min_conn_event_len", "usage: =[UINT16], default: 0x0010"},
-    {"max_conn_event_len", "usage: =[UINT16], default: 0x0300"},
-    {NULL, NULL}
+    { "conn",               "conn_update_paramsion handle, usage: =<UINT16>" },
+    { "interval_min",       "usage: =[0-UINT16_MAX], default: 30"            },
+    { "interval_max",       "usage: =[0-UINT16_MAX], default: 50"            },
+    { "latency",            "usage: =[UINT16], default: 0"                   },
+    { "timeout",            "usage: =[UINT16], default: 0x0100"              },
+    { "min_conn_event_len", "usage: =[UINT16], default: 0x0010"              },
+    { "max_conn_event_len", "usage: =[UINT16], default: 0x0300"              },
+    { NULL,                 NULL                                             }
 };
 
 static const struct shell_cmd_help conn_update_params_help = {
@@ -2244,12 +2214,12 @@ cmd_conn_datalen(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param conn_datalen_params[] = {
-    {"conn", "Connection handle, usage: =<UINT16>"},
-    {"octets", "Max payload size to include in LL Data PDU, "
-               "range=<27-251>, usage: =<UINT16>"},
-    {"time", "Max number of microseconds the controller should use to tx "
-             "single LL packet, range=<328-17040>, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",   "Connection handle, usage: =<UINT16>"                              },
+    { "octets", "Max payload size to include in LL Data PDU, "
+                "range=<27-251>, usage: =<UINT16>"                  },
+    { "time",   "Max number of microseconds the controller should use to tx "
+              "single LL packet, range=<328-17040>, usage: =<UINT16>" },
+    { NULL,     NULL                                                               }
 };
 
 static const struct shell_cmd_help conn_datalen_help = {
@@ -2264,15 +2234,14 @@ static const struct shell_cmd_help conn_datalen_help = {
  *****************************************************************************/
 
 static const struct parse_arg_kv_pair cmd_keystore_entry_type[] = {
-    { "msec",       BLE_STORE_OBJ_TYPE_PEER_SEC },
-    { "ssec",       BLE_STORE_OBJ_TYPE_OUR_SEC },
-    { "cccd",       BLE_STORE_OBJ_TYPE_CCCD },
+    { "msec", BLE_STORE_OBJ_TYPE_PEER_SEC },
+    { "ssec", BLE_STORE_OBJ_TYPE_OUR_SEC },
+    { "cccd", BLE_STORE_OBJ_TYPE_CCCD },
     { NULL }
 };
 
 static int
-cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out,
-                           int *obj_type)
+cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out, int *obj_type)
 {
     int rc;
 
@@ -2300,47 +2269,45 @@ cmd_keystore_parse_keydata(int argc, char **argv, union ble_store_key *out,
 }
 
 static int
-cmd_keystore_parse_valuedata(int argc, char **argv,
-                             int obj_type,
-                             union ble_store_key *key,
-                             union ble_store_value *out)
+cmd_keystore_parse_valuedata(int argc, char **argv, int obj_type,
+                             union ble_store_key *key, union ble_store_value *out)
 {
     int rc;
     int valcnt = 0;
     memset(out, 0, sizeof(*out));
 
     switch (obj_type) {
-        case BLE_STORE_OBJ_TYPE_PEER_SEC:
-        case BLE_STORE_OBJ_TYPE_OUR_SEC:
-            rc = parse_arg_byte_stream_exact_length("ltk", out->sec.ltk, 16);
-            if (rc == 0) {
-                out->sec.ltk_present = 1;
-                swap_in_place(out->sec.ltk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'ltk' parameter\n");
-                return rc;
-            }
-            rc = parse_arg_byte_stream_exact_length("irk", out->sec.irk, 16);
-            if (rc == 0) {
-                out->sec.irk_present = 1;
-                swap_in_place(out->sec.irk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'irk' parameter\n");
-                return rc;
-            }
-            rc = parse_arg_byte_stream_exact_length("csrk", out->sec.csrk, 16);
-            if (rc == 0) {
-                out->sec.csrk_present = 1;
-                swap_in_place(out->sec.csrk, 16);
-                valcnt++;
-            } else if (rc != ENOENT) {
-                console_printf("invalid 'csrk' parameter\n");
-                return rc;
-            }
-            out->sec.peer_addr = key->sec.peer_addr;
-            break;
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        rc = parse_arg_byte_stream_exact_length("ltk", out->sec.ltk, 16);
+        if (rc == 0) {
+            out->sec.ltk_present = 1;
+            swap_in_place(out->sec.ltk, 16);
+            valcnt++;
+        } else if (rc != ENOENT) {
+            console_printf("invalid 'ltk' parameter\n");
+            return rc;
+        }
+        rc = parse_arg_byte_stream_exact_length("irk", out->sec.irk, 16);
+        if (rc == 0) {
+            out->sec.irk_present = 1;
+            swap_in_place(out->sec.irk, 16);
+            valcnt++;
+        } else if (rc != ENOENT) {
+            console_printf("invalid 'irk' parameter\n");
+            return rc;
+        }
+        rc = parse_arg_byte_stream_exact_length("csrk", out->sec.csrk, 16);
+        if (rc == 0) {
+            out->sec.csrk_present = 1;
+            swap_in_place(out->sec.csrk, 16);
+            valcnt++;
+        } else if (rc != ENOENT) {
+            console_printf("invalid 'csrk' parameter\n");
+            return rc;
+        }
+        out->sec.peer_addr = key->sec.peer_addr;
+        break;
     }
 
     if (valcnt) {
@@ -2378,33 +2345,33 @@ cmd_keystore_add(int argc, char **argv)
         return rc;
     }
 
-    switch(obj_type) {
-        case BLE_STORE_OBJ_TYPE_PEER_SEC:
-            rc = ble_store_write_peer_sec(&value.sec);
-            break;
-        case BLE_STORE_OBJ_TYPE_OUR_SEC:
-            rc = ble_store_write_our_sec(&value.sec);
-            break;
-        case BLE_STORE_OBJ_TYPE_CCCD:
-            rc = ble_store_write_cccd(&value.cccd);
-            break;
-        default:
-            rc = ble_store_write(obj_type, &value);
+    switch (obj_type) {
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+        rc = ble_store_write_peer_sec(&value.sec);
+        break;
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        rc = ble_store_write_our_sec(&value.sec);
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        rc = ble_store_write_cccd(&value.cccd);
+        break;
+    default:
+        rc = ble_store_write(obj_type, &value);
     }
     return rc;
 }
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_add_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
-    {"addr_type", "usage: =<public|random>"},
-    {"addr", "usage: =<XX:XX:XX:XX:XX:XX>"},
-    {"ediv", "usage: =<UINT16>"},
-    {"rand", "usage: =<UINT64>"},
-    {"ltk", "usage: =<XX:XX:...>, len=16 octets"},
-    {"irk", "usage: =<XX:XX:...>, len=16 octets"},
-    {"csrk", "usage: =<XX:XX:...>, len=16 octets"},
-    {NULL, NULL}
+    { "type",      "entry type, usage: =<msec|ssec|cccd>" },
+    { "addr_type", "usage: =<public|random>"              },
+    { "addr",      "usage: =<XX:XX:XX:XX:XX:XX>"          },
+    { "ediv",      "usage: =<UINT16>"                     },
+    { "rand",      "usage: =<UINT64>"                     },
+    { "ltk",       "usage: =<XX:XX:...>, len=16 octets"   },
+    { "irk",       "usage: =<XX:XX:...>, len=16 octets"   },
+    { "csrk",      "usage: =<XX:XX:...>, len=16 octets"   },
+    { NULL,        NULL                                   }
 };
 
 static const struct shell_cmd_help keystore_add_help = {
@@ -2441,12 +2408,12 @@ cmd_keystore_del(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_del_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
-    {"addr_type", "usage: =<public|random>"},
-    {"addr", "usage: =<XX:XX:XX:XX:XX:XX>"},
-    {"ediv", "usage: =<UINT16>"},
-    {"rand", "usage: =<UINT64>"},
-    {NULL, NULL}
+    { "type",      "entry type, usage: =<msec|ssec|cccd>" },
+    { "addr_type", "usage: =<public|random>"              },
+    { "addr",      "usage: =<XX:XX:XX:XX:XX:XX>"          },
+    { "ediv",      "usage: =<UINT16>"                     },
+    { "rand",      "usage: =<UINT64>"                     },
+    { NULL,        NULL                                   }
 };
 
 static const struct shell_cmd_help keystore_del_help = {
@@ -2461,49 +2428,48 @@ static const struct shell_cmd_help keystore_del_help = {
  *****************************************************************************/
 
 static int
-cmd_keystore_iterator(int obj_type,
-                      union ble_store_value *val,
-                      void *cookie) {
+cmd_keystore_iterator(int obj_type, union ble_store_value *val, void *cookie)
+{
 
     switch (obj_type) {
-        case BLE_STORE_OBJ_TYPE_PEER_SEC:
-        case BLE_STORE_OBJ_TYPE_OUR_SEC:
-            console_printf("Key: ");
-            if (ble_addr_cmp(&val->sec.peer_addr, BLE_ADDR_ANY) == 0) {
-                console_printf("ediv=%u ", val->sec.ediv);
-                console_printf("rand=%" PRIu64, val->sec.rand_num);
-            } else {
-                console_printf("addr_type=%u ", val->sec.peer_addr.type);
-                print_addr(val->sec.peer_addr.val);
-            }
-            console_printf("\n");
+    case BLE_STORE_OBJ_TYPE_PEER_SEC:
+    case BLE_STORE_OBJ_TYPE_OUR_SEC:
+        console_printf("Key: ");
+        if (ble_addr_cmp(&val->sec.peer_addr, BLE_ADDR_ANY) == 0) {
+            console_printf("ediv=%u ", val->sec.ediv);
+            console_printf("rand=%" PRIu64, val->sec.rand_num);
+        } else {
+            console_printf("addr_type=%u ", val->sec.peer_addr.type);
+            print_addr(val->sec.peer_addr.val);
+        }
+        console_printf("\n");
 
-            if (val->sec.ltk_present) {
-                console_printf("    LTK: ");
-                print_bytes(val->sec.ltk, 16);
-                console_printf("\n");
-            }
-            if (val->sec.irk_present) {
-                console_printf("    IRK: ");
-                print_bytes(val->sec.irk, 16);
-                console_printf("\n");
-            }
-            if (val->sec.csrk_present) {
-                console_printf("    CSRK: ");
-                print_bytes(val->sec.csrk, 16);
-                console_printf("\n");
-            }
-            break;
-        case BLE_STORE_OBJ_TYPE_CCCD:
-            console_printf("Key: ");
-            console_printf("addr_type=%u ", val->cccd.peer_addr.type);
-            print_addr(val->cccd.peer_addr.val);
+        if (val->sec.ltk_present) {
+            console_printf("    LTK: ");
+            print_bytes(val->sec.ltk, 16);
             console_printf("\n");
+        }
+        if (val->sec.irk_present) {
+            console_printf("    IRK: ");
+            print_bytes(val->sec.irk, 16);
+            console_printf("\n");
+        }
+        if (val->sec.csrk_present) {
+            console_printf("    CSRK: ");
+            print_bytes(val->sec.csrk, 16);
+            console_printf("\n");
+        }
+        break;
+    case BLE_STORE_OBJ_TYPE_CCCD:
+        console_printf("Key: ");
+        console_printf("addr_type=%u ", val->cccd.peer_addr.type);
+        print_addr(val->cccd.peer_addr.val);
+        console_printf("\n");
 
-            console_printf("    char_val_handle: %d\n", val->cccd.chr_val_handle);
-            console_printf("    flags:           0x%02x\n", val->cccd.flags);
-            console_printf("    changed:         %d\n", val->cccd.value_changed);
-            break;
+        console_printf("    char_val_handle: %d\n", val->cccd.chr_val_handle);
+        console_printf("    flags:           0x%02x\n", val->cccd.flags);
+        console_printf("    changed:         %d\n", val->cccd.value_changed);
+        break;
     }
     return 0;
 }
@@ -2531,8 +2497,8 @@ cmd_keystore_show(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param keystore_show_params[] = {
-    {"type", "entry type, usage: =<msec|ssec|cccd>"},
-    {NULL, NULL}
+    { "type", "entry type, usage: =<msec|ssec|cccd>" },
+    { NULL,   NULL                                   }
 };
 
 static const struct shell_cmd_help keystore_show_help = {
@@ -2598,70 +2564,70 @@ cmd_auth_passkey(int argc, char **argv)
     }
 
     switch (pk.action) {
-        case BLE_SM_IOACT_INPUT:
-        case BLE_SM_IOACT_DISP:
-           /* passkey is 6 digit number */
-           pk.passkey = parse_arg_long_bounds("key", 0, 999999, &rc);
-           if (rc != 0) {
-               console_printf("invalid 'key' parameter\n");
-               return rc;
-           }
-           break;
+    case BLE_SM_IOACT_INPUT:
+    case BLE_SM_IOACT_DISP:
+        /* passkey is 6 digit number */
+        pk.passkey = parse_arg_long_bounds("key", 0, 999999, &rc);
+        if (rc != 0) {
+            console_printf("invalid 'key' parameter\n");
+            return rc;
+        }
+        break;
 
-        case BLE_SM_IOACT_OOB:
-            rc = parse_arg_byte_stream_exact_length("oob", pk.oob, 16);
-            if (rc != 0) {
-                console_printf("invalid 'oob' parameter\n");
-                return rc;
-            }
+    case BLE_SM_IOACT_OOB:
+        rc = parse_arg_byte_stream_exact_length("oob", pk.oob, 16);
+        if (rc != 0) {
+            console_printf("invalid 'oob' parameter\n");
+            return rc;
+        }
+        break;
+
+    case BLE_SM_IOACT_NUMCMP:
+        yesno = parse_arg_extract("yesno");
+        if (yesno == NULL) {
+            console_printf("invalid 'yesno' parameter\n");
+            return EINVAL;
+        }
+
+        switch (yesno[0]) {
+        case 'y':
+        case 'Y':
+            pk.numcmp_accept = 1;
             break;
-
-        case BLE_SM_IOACT_NUMCMP:
-            yesno = parse_arg_extract("yesno");
-            if (yesno == NULL) {
-                console_printf("invalid 'yesno' parameter\n");
-                return EINVAL;
-            }
-
-            switch (yesno[0]) {
-            case 'y':
-            case 'Y':
-                pk.numcmp_accept = 1;
-                break;
-            case 'n':
-            case 'N':
-                pk.numcmp_accept = 0;
-                break;
-
-            default:
-                console_printf("invalid 'yesno' parameter\n");
-                return EINVAL;
-            }
-            break;
-
-        case BLE_SM_IOACT_OOB_SC:
-            rc = parse_arg_byte_stream_exact_length("r", oob_data_remote.r, 16);
-            if (rc != 0 && rc != ENOENT) {
-                console_printf("invalid 'r' parameter\n");
-                return rc;
-            }
-
-            rc = parse_arg_byte_stream_exact_length("c", oob_data_remote.c, 16);
-            if (rc != 0 && rc != ENOENT) {
-                console_printf("invalid 'c' parameter\n");
-                return rc;
-            }
-            pk.oob_sc_data.local = &oob_data_local;
-            if (ble_hs_cfg.sm_oob_data_flag) {
-                pk.oob_sc_data.remote = &oob_data_remote;
-            } else {
-                pk.oob_sc_data.remote = NULL;
-            }
+        case 'n':
+        case 'N':
+            pk.numcmp_accept = 0;
             break;
 
         default:
-            console_printf("invalid passkey action action=%d\n", pk.action);
+            console_printf("invalid 'yesno' parameter\n");
             return EINVAL;
+        }
+        break;
+
+    case BLE_SM_IOACT_OOB_SC:
+        rc = parse_arg_byte_stream_exact_length("r", oob_data_remote.r, 16);
+        if (rc != 0 && rc != ENOENT) {
+            console_printf("invalid 'r' parameter\n");
+            return rc;
+        }
+
+        rc = parse_arg_byte_stream_exact_length("c", oob_data_remote.c, 16);
+        if (rc != 0 && rc != ENOENT) {
+            console_printf("invalid 'c' parameter\n");
+            return rc;
+        }
+        pk.oob_sc_data.local = &oob_data_local;
+        if (ble_hs_cfg.sm_oob_data_flag) {
+            pk.oob_sc_data.remote = &oob_data_remote;
+        } else {
+            pk.oob_sc_data.remote = NULL;
+        }
+        break;
+
+    default:
+        console_printf("invalid passkey action action=%d\n", pk.action);
+        return EINVAL;
     }
 
     rc = ble_sm_inject_io(conn_handle, &pk);
@@ -2675,12 +2641,12 @@ cmd_auth_passkey(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param auth_passkey_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"action", "auth action type, usage: =<UINT16>"},
-    {"key", "usage: =[0-999999]"},
-    {"oob", "usage: =[XX:XX...], len=16 octets"},
-    {"yesno", "usage: =[string]"},
-    {NULL, NULL}
+    { "conn",   "connection handle, usage: =<UINT16>" },
+    { "action", "auth action type, usage: =<UINT16>"  },
+    { "key",    "usage: =[0-999999]"                  },
+    { "oob",    "usage: =[XX:XX...], len=16 octets"   },
+    { "yesno",  "usage: =[string]"                    },
+    { NULL,     NULL                                  }
 };
 
 static const struct shell_cmd_help auth_passkey_help = {
@@ -2722,8 +2688,8 @@ cmd_security_pair(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param security_pair_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help security_pair_help = {
@@ -2734,7 +2700,7 @@ static const struct shell_cmd_help security_pair_help = {
 #endif
 
 /*****************************************************************************
- * $security-unpair                                                            *
+ * $security-unpair *
  *****************************************************************************/
 
 static int
@@ -2778,10 +2744,10 @@ cmd_security_unpair(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param security_unpair_params[] = {
-    {"oldest", "usage: =[true|false], default: false"},
-    {"peer_addr_type", "usage: =[public|random|public_id|random_id], default: public"},
-    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {NULL, NULL}
+    { "oldest",         "usage: =[true|false], default: false"                         },
+    { "peer_addr_type", "usage: =[public|random|public_id|random_id], default: public" },
+    { "peer_addr",      "usage: =[XX:XX:XX:XX:XX:XX]"                                  },
+    { NULL,             NULL                                                           }
 };
 
 static const struct shell_cmd_help security_unpair_help = {
@@ -2823,8 +2789,8 @@ cmd_security_start(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param security_start_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help security_start_help = {
@@ -2888,8 +2854,7 @@ cmd_security_encryption(int argc, char **argv)
             return rc;
         }
 
-        rc = btshell_sec_restart(conn_handle, key_size,
-                                 ltk, ediv, rand_val, auth);
+        rc = btshell_sec_restart(conn_handle, key_size, ltk, ediv, rand_val, auth);
     }
 
     if (rc != 0) {
@@ -2902,12 +2867,12 @@ cmd_security_encryption(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param security_encryption_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"ediv", "usage: =[UINT16]"},
-    {"rand", "usage: =[UINT64]"},
-    {"auth", "usage: =[0-1]"},
-    {"ltk", "usage: =[XX:XX...], len=16 octets"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { "ediv", "usage: =[UINT16]"                    },
+    { "rand", "usage: =[UINT64]"                    },
+    { "auth", "usage: =[0-1]"                       },
+    { "ltk",  "usage: =[XX:XX...], len=16 octets"   },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help security_encryption_help = {
@@ -3008,14 +2973,14 @@ cmd_security_set_data(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param security_set_data_params[] = {
-    {"oob_flag", "usage: =[0-1]"},
-    {"mitm_flag", "usage: =[0-1]"},
-    {"io_capabilities", "usage: =[UINT8]"},
-    {"our_key_dist", "usage: =[UINT8]"},
-    {"their_key_dist", "usage: =[UINT8]"},
-    {"bonding", "usage: =[0-1]"},
-    {"sc", "usage: =[0-1]"},
-    {NULL, NULL}
+    { "oob_flag",        "usage: =[0-1]"   },
+    { "mitm_flag",       "usage: =[0-1]"   },
+    { "io_capabilities", "usage: =[UINT8]" },
+    { "our_key_dist",    "usage: =[UINT8]" },
+    { "their_key_dist",  "usage: =[UINT8]" },
+    { "bonding",         "usage: =[0-1]"   },
+    { "sc",              "usage: =[0-1]"   },
+    { NULL,              NULL              }
 };
 
 static const struct shell_cmd_help security_set_data_help = {
@@ -3093,12 +3058,12 @@ cmd_test_tx(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param test_tx_params[] = {
-    {"conn", "handle to tx to, usage: =<UINT16>"},
-    {"length", "size of packet, usage: =<UINT16>"},
-    {"rate", "rate of tx, usage: =<UINT16>, default=1"},
-    {"num", "number of packets, usage: =<UINT16>, default=1"},
-    {"stop", "stop sending, usage: 1 to stop, default 0"},
-    {NULL, NULL}
+    { "conn",   "handle to tx to, usage: =<UINT16>"              },
+    { "length", "size of packet, usage: =<UINT16>"               },
+    { "rate",   "rate of tx, usage: =<UINT16>, default=1"        },
+    { "num",    "number of packets, usage: =<UINT16>, default=1" },
+    { "stop",   "stop sending, usage: 1 to stop, default 0"      },
+    { NULL,     NULL                                             }
 };
 
 static const struct shell_cmd_help test_tx_help = {
@@ -3150,17 +3115,16 @@ cmd_phy_set(int argc, char **argv)
         return rc;
     }
 
-    return ble_gap_set_prefered_le_phy(conn, tx_phys_mask, rx_phys_mask,
-                                       phy_opts);
+    return ble_gap_set_prefered_le_phy(conn, tx_phys_mask, rx_phys_mask, phy_opts);
 }
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param phy_set_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"tx_phys_mask", "usage: =<UINT8>"},
-    {"rx_phys_mask", "usage: =<UINT8>"},
-    {"phy_opts", "usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",         "connection handle, usage: =<UINT16>" },
+    { "tx_phys_mask", "usage: =<UINT8>"                     },
+    { "rx_phys_mask", "usage: =<UINT8>"                     },
+    { "phy_opts",     "usage: =<UINT16>"                    },
+    { NULL,           NULL                                  }
 };
 
 static const struct shell_cmd_help phy_set_help = {
@@ -3203,9 +3167,9 @@ cmd_phy_set_default(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param phy_set_default_params[] = {
-    {"tx_phys_mask", "usage: =<UINT8>"},
-    {"rx_phys_mask", "usage: =<UINT8>"},
-    {NULL, NULL}
+    { "tx_phys_mask", "usage: =<UINT8>" },
+    { "rx_phys_mask", "usage: =<UINT8>" },
+    { NULL,           NULL              }
 };
 
 static const struct shell_cmd_help phy_set_default_help = {
@@ -3252,8 +3216,8 @@ cmd_phy_read(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param phy_read_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help phy_read_help = {
@@ -3330,11 +3294,11 @@ static const struct shell_cmd_help host_disable_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_discover_characteristic_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"uuid", "discover by uuid, usage: =[UUID]"},
-    {"start", "start handle, usage: =<UINT16>"},
-    {"end", "end handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",  "connection handle, usage: =<UINT16>" },
+    { "uuid",  "discover by uuid, usage: =[UUID]"    },
+    { "start", "start handle, usage: =<UINT16>"      },
+    { "end",   "end handle, usage: =<UINT16>"        },
+    { NULL,    NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_discover_characteristic_help = {
@@ -3344,10 +3308,10 @@ static const struct shell_cmd_help gatt_discover_characteristic_help = {
 };
 
 static const struct shell_param gatt_discover_descriptor_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"start", "start handle, usage: =<UINT16>"},
-    {"end", "end handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",  "connection handle, usage: =<UINT16>" },
+    { "start", "start handle, usage: =<UINT16>"      },
+    { "end",   "end handle, usage: =<UINT16>"        },
+    { NULL,    NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_discover_descriptor_help = {
@@ -3357,9 +3321,9 @@ static const struct shell_cmd_help gatt_discover_descriptor_help = {
 };
 
 static const struct shell_param gatt_discover_service_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"uuid", "discover by uuid, usage: =[UUID]"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { "uuid", "discover by uuid, usage: =[UUID]"    },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_discover_service_help = {
@@ -3369,8 +3333,8 @@ static const struct shell_cmd_help gatt_discover_service_help = {
 };
 
 static const struct shell_param gatt_discover_full_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_discover_full_help = {
@@ -3384,8 +3348,8 @@ static const struct shell_cmd_help gatt_discover_full_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_exchange_mtu_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_exchange_mtu_help = {
@@ -3399,10 +3363,10 @@ static const struct shell_cmd_help gatt_exchange_mtu_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_find_included_services_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"start", "start handle, usage: =<UINT16>"},
-    {"end", "end handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",  "connection handle, usage: =<UINT16>" },
+    { "start", "start handle, usage: =<UINT16>"      },
+    { "end",   "end handle, usage: =<UINT16>"        },
+    { NULL,    NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_find_included_services_help = {
@@ -3412,12 +3376,12 @@ static const struct shell_cmd_help gatt_find_included_services_help = {
 };
 
 /*****************************************************************************
- * $gatt-notify                                                                *
+ * $gatt-notify *
  *****************************************************************************/
 
 static const struct shell_param gatt_notify_params[] = {
-    {"attr", "attribute handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "attr", "attribute handle, usage: =<UINT16>" },
+    { NULL,   NULL                                 }
 };
 
 static const struct shell_cmd_help gatt_notify_help = {
@@ -3431,15 +3395,15 @@ static const struct shell_cmd_help gatt_notify_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_read_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"long", "is read long, usage: =[0-1], default=0"},
-    {"attr", "attribute handle, usage: =<UINT16>"},
-    {"offset", "offset value, usage: =<UINT16>"},
-    {"uuid", "read by uuid, usage: =[UUID]"},
-    {"start", "start handle, usage: =<UINT16>"},
-    {"end", "end handle, usage: =<UINT16>"},
-    {"variable", "used in case of multi read, usage: =[0-1], default=0"},
-    {NULL, NULL}
+    { "conn",     "connection handle, usage: =<UINT16>"                  },
+    { "long",     "is read long, usage: =[0-1], default=0"               },
+    { "attr",     "attribute handle, usage: =<UINT16>"                   },
+    { "offset",   "offset value, usage: =<UINT16>"                       },
+    { "uuid",     "read by uuid, usage: =[UUID]"                         },
+    { "start",    "start handle, usage: =<UINT16>"                       },
+    { "end",      "end handle, usage: =<UINT16>"                         },
+    { "variable", "used in case of multi read, usage: =[0-1], default=0" },
+    { NULL,       NULL                                                   }
 };
 
 static const struct shell_cmd_help gatt_read_help = {
@@ -3453,9 +3417,9 @@ static const struct shell_cmd_help gatt_read_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_service_changed_params[] = {
-    {"start", "start handle, usage: =<UINT16>"},
-    {"end", "end handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "start", "start handle, usage: =<UINT16>" },
+    { "end",   "end handle, usage: =<UINT16>"   },
+    { NULL,    NULL                             }
 };
 
 static const struct shell_cmd_help gatt_service_changed_help = {
@@ -3469,9 +3433,9 @@ static const struct shell_cmd_help gatt_service_changed_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_service_visibility_params[] = {
-    {"handle", "usage: =<UINT16>"},
-    {"visibility", "usage: =<0-1>"},
-    {NULL, NULL}
+    { "handle",     "usage: =<UINT16>" },
+    { "visibility", "usage: =<0-1>"    },
+    { NULL,         NULL               }
 };
 
 static const struct shell_cmd_help gatt_service_visibility_help = {
@@ -3485,7 +3449,7 @@ static const struct shell_cmd_help gatt_service_visibility_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_show_params[] = {
-    {NULL, NULL}
+    { NULL, NULL }
 };
 
 static const struct shell_cmd_help gatt_show_help = {
@@ -3517,13 +3481,13 @@ static const struct shell_cmd_help gatt_show_conn_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_write_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"no_rsp", "write without response, usage: =[0-1], default=0"},
-    {"long", "is write long, usage: =[0-1], default=0"},
-    {"attr", "attribute handle, usage: =<UINT16>"},
-    {"offset", "attribute handle, usage: =<UINT16>"},
-    {"value", "usage: =<octets>"},
-    {NULL, NULL}
+    { "conn",   "connection handle, usage: =<UINT16>"              },
+    { "no_rsp", "write without response, usage: =[0-1], default=0" },
+    { "long",   "is write long, usage: =[0-1], default=0"          },
+    { "attr",   "attribute handle, usage: =<UINT16>"               },
+    { "offset", "attribute handle, usage: =<UINT16>"               },
+    { "value",  "usage: =<octets>"                                 },
+    { NULL,     NULL                                               }
 };
 
 static const struct shell_cmd_help gatt_write_help = {
@@ -3537,9 +3501,9 @@ static const struct shell_cmd_help gatt_write_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_enqueue_notif_params[] = {
-    {"handle", "characteristic handle, usage: =<UINT16>"},
-    {"value", "usage: =<octets>"},
-    {NULL, NULL}
+    { "handle", "characteristic handle, usage: =<UINT16>" },
+    { "value",  "usage: =<octets>"                        },
+    { NULL,     NULL                                      }
 };
 
 static const struct shell_cmd_help gatt_enqueue_notif_help = {
@@ -3553,8 +3517,8 @@ static const struct shell_cmd_help gatt_enqueue_notif_help = {
  *****************************************************************************/
 
 static const struct shell_param gatt_send_pending_notif_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help gatt_send_pending_notif_help = {
@@ -3577,12 +3541,12 @@ static const struct shell_cmd_help gatt_clear_pending_notif_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_update_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"interval_min", "usage: =[0-UINT16_MAX], default: 30"},
-    {"interval_max", "usage: =[0-UINT16_MAX], default: 50"},
-    {"latency", "usage: =[UINT16], default: 0"},
-    {"timeout", "usage: =[UINT16], default: 0x0100"},
-    {NULL, NULL}
+    { "conn",         "connection handle, usage: =<UINT16>" },
+    { "interval_min", "usage: =[0-UINT16_MAX], default: 30" },
+    { "interval_max", "usage: =[0-UINT16_MAX], default: 50" },
+    { "latency",      "usage: =[UINT16], default: 0"        },
+    { "timeout",      "usage: =[UINT16], default: 0x0100"   },
+    { NULL,           NULL                                  }
 };
 
 static const struct shell_cmd_help l2cap_update_help = {
@@ -3596,14 +3560,14 @@ static const struct shell_cmd_help l2cap_update_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_create_server_params[] = {
-    {"psm", "usage: =<UINT16>"},
-    {"mtu", "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU"},
-    {"error", "usage: used for PTS testing:"},
-    {"", "0 - always accept"},
-    {"", "1 - reject with insufficient authentication"},
-    {"", "2 - reject with insufficient authorization"},
-    {"", "3 - reject with insufficient key size"},
-    {NULL, NULL}
+    { "psm",   "usage: =<UINT16>"                                                        },
+    { "mtu",   "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU" },
+    { "error", "usage: used for PTS testing:"                                            },
+    { "",      "0 - always accept"                                                       },
+    { "",      "1 - reject with insufficient authentication"                             },
+    { "",      "2 - reject with insufficient authorization"                              },
+    { "",      "3 - reject with insufficient key size"                                   },
+    { NULL,    NULL                                                                      }
 };
 
 static const struct shell_cmd_help l2cap_create_server_help = {
@@ -3617,11 +3581,11 @@ static const struct shell_cmd_help l2cap_create_server_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_connect_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"psm", "usage: =<UINT16>"},
-    {"num", "usage: number of connection created in a row: [1-5]"},
-    {"mtu", "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>"                                     },
+    { "psm",  "usage: =<UINT16>"                                                        },
+    { "num",  "usage: number of connection created in a row: [1-5]"                     },
+    { "mtu",  "usage: =<UINT16> not more than BTSHELL_COC_MTU, default BTSHELL_COC_MTU" },
+    { NULL,   NULL                                                                      }
 };
 
 static const struct shell_cmd_help l2cap_connect_help = {
@@ -3635,9 +3599,9 @@ static const struct shell_cmd_help l2cap_connect_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_disconnect_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"idx", "usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>" },
+    { "idx",  "usage: =<UINT16>"                    },
+    { NULL,   NULL                                  }
 };
 
 static const struct shell_cmd_help l2cap_disconnect_help = {
@@ -3651,10 +3615,10 @@ static const struct shell_cmd_help l2cap_disconnect_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_reconfig_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"mtu", "new mtu, usage: =<UINT16>, default: 0 (no change)"},
-    {"idxs", "list of channel indexes, usage: idxs=1,3"},
-    {NULL, NULL}
+    { "conn", "connection handle, usage: =<UINT16>"               },
+    { "mtu",  "new mtu, usage: =<UINT16>, default: 0 (no change)" },
+    { "idxs", "list of channel indexes, usage: idxs=1,3"          },
+    { NULL,   NULL                                                }
 };
 
 static const struct shell_cmd_help l2cap_reconfig_help = {
@@ -3668,10 +3632,10 @@ static const struct shell_cmd_help l2cap_reconfig_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_send_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"idx", "usage: =<UINT16>"},
-    {"bytes", "number of bytes to send, usage: =<UINT16>"},
-    {NULL, NULL}
+    { "conn",  "connection handle, usage: =<UINT16>"       },
+    { "idx",   "usage: =<UINT16>"                          },
+    { "bytes", "number of bytes to send, usage: =<UINT16>" },
+    { NULL,    NULL                                        }
 };
 
 static const struct shell_cmd_help l2cap_send_help = {
@@ -3685,7 +3649,7 @@ static const struct shell_cmd_help l2cap_send_help = {
  *****************************************************************************/
 
 static const struct shell_param l2cap_show_coc_params[] = {
-    {NULL, NULL}
+    { NULL, NULL }
 };
 
 static const struct shell_cmd_help l2cap_show_coc_help = {
@@ -3701,7 +3665,7 @@ static const struct shell_cmd_help l2cap_show_coc_help = {
 static int
 cmd_periodic_configure(int argc, char **argv)
 {
-    struct ble_gap_periodic_adv_params params = {0};
+    struct ble_gap_periodic_adv_params params = { 0 };
     uint8_t instance;
     int rc;
 
@@ -3730,8 +3694,8 @@ cmd_periodic_configure(int argc, char **argv)
         return rc;
     }
 
-    params.itvl_max = parse_arg_time_dflt("interval_max", 1250, params.itvl_min,
-                                          &rc);
+    params.itvl_max =
+        parse_arg_time_dflt("interval_max", 1250, params.itvl_min, &rc);
     if (rc != 0) {
         console_printf("invalid 'interval_max' parameter\n");
         return rc;
@@ -3743,8 +3707,7 @@ cmd_periodic_configure(int argc, char **argv)
         return rc;
     }
 
-    console_printf("Instance %u configured for periodic advertising\n",
-                   instance);
+    console_printf("Instance %u configured for periodic advertising\n", instance);
 
     return 0;
 }
@@ -3809,11 +3772,11 @@ cmd_periodic_stop(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param periodic_configure_params[] = {
-    {"instance", "default: 0"},
-    {"interval_min", "usage: =[0-UINT32_MAX], default: 0"},
-    {"interval_max", "usage: =[0-UINT32_MAX], default: interval_min"},
-    {"tx_power", "include TX power, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "instance",     "default: 0"                                    },
+    { "interval_min", "usage: =[0-UINT32_MAX], default: 0"            },
+    { "interval_max", "usage: =[0-UINT32_MAX], default: interval_min" },
+    { "tx_power",     "include TX power, usage: =[0-1], default: 0"   },
+    { NULL,           NULL                                            }
 };
 
 static const struct shell_cmd_help periodic_configure_help = {
@@ -3823,8 +3786,8 @@ static const struct shell_cmd_help periodic_configure_help = {
 };
 
 static const struct shell_param periodic_start_params[] = {
-    {"instance", "default: 0"},
-    {NULL, NULL}
+    { "instance", "default: 0" },
+    { NULL,       NULL         }
 };
 
 static const struct shell_cmd_help periodic_start_help = {
@@ -3834,8 +3797,8 @@ static const struct shell_cmd_help periodic_start_help = {
 };
 
 static const struct shell_param periodic_stop_params[] = {
-    {"instance", "default: 0"},
-    {NULL, NULL}
+    { "instance", "default: 0" },
+    { NULL,       NULL         }
 };
 
 static const struct shell_cmd_help periodic_stop_help = {
@@ -3913,14 +3876,14 @@ cmd_sync_create(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_create_params[] = {
-    {"cancel", "cancel periodic sync establishment procedure"},
-    {"peer_addr_type", "usage: =[public|random], default: public"},
-    {"peer_addr", "usage: =[XX:XX:XX:XX:XX:XX]"},
-    {"sid", "usage: =[UINT8], default: 0"},
-    {"skip", "usage: =[0-0x01F3], default: 0x0000"},
-    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x07D0"},
-    {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "cancel",           "cancel periodic sync establishment procedure" },
+    { "peer_addr_type",   "usage: =[public|random], default: public"     },
+    { "peer_addr",        "usage: =[XX:XX:XX:XX:XX:XX]"                  },
+    { "sid",              "usage: =[UINT8], default: 0"                  },
+    { "skip",             "usage: =[0-0x01F3], default: 0x0000"          },
+    { "sync_timeout",     "usage: =[0x000A-0x4000], default: 0x07D0"     },
+    { "reports_disabled", "disable reports, usage: =[0-1], default: 0"   },
+    { NULL,               NULL                                           }
 };
 
 static const struct shell_cmd_help sync_create_help = {
@@ -3962,8 +3925,7 @@ cmd_sync_transfer(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_sync_transfer(sync_handle, conn_handle,
-                                            service_data);
+    rc = ble_gap_periodic_adv_sync_transfer(sync_handle, conn_handle, service_data);
     if (rc) {
         console_printf("Failed to transfer sync (%d)\n", rc);
     }
@@ -4006,10 +3968,10 @@ cmd_sync_reporting(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_transfer_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"sync_handle", "sync handle, usage: =[UINT16], default: 0"},
-    {"service_data", "service data, usage: =[UINT16], default: 0"},
-    {NULL, NULL}
+    { "conn",         "connection handle, usage: =<UINT16>"        },
+    { "sync_handle",  "sync handle, usage: =[UINT16], default: 0"  },
+    { "service_data", "service data, usage: =[UINT16], default: 0" },
+    { NULL,           NULL                                         }
 };
 
 static const struct shell_cmd_help sync_transfer_help = {
@@ -4019,15 +3981,15 @@ static const struct shell_cmd_help sync_transfer_help = {
 };
 
 static const struct shell_param sync_reporting_params[] = {
-    {"sync_handle", "sync handle, usage: =[UINT16], default: 0"},
-    {"enabled", "toggle reporting, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "sync_handle", "sync handle, usage: =[UINT16], default: 0"   },
+    { "enabled",     "toggle reporting, usage: =[0-1], default: 0" },
+    { NULL,          NULL                                          }
 };
 
 static const struct shell_cmd_help sync_reporting_help = {
-   .summary = "configure periodic advertising sync reporting",
-   .usage = NULL,
-   .params = sync_reporting_params,
+    .summary = "configure periodic advertising sync reporting",
+    .usage = NULL,
+    .params = sync_reporting_params,
 };
 #endif
 
@@ -4062,8 +4024,7 @@ cmd_sync_transfer_set_info(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_sync_set_info(instance, conn_handle,
-                                                service_data);
+    rc = ble_gap_periodic_adv_sync_set_info(instance, conn_handle, service_data);
     if (rc) {
         console_printf("Failed to transfer sync (%d)\n", rc);
     }
@@ -4073,10 +4034,10 @@ cmd_sync_transfer_set_info(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_transfer_set_info_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"instance", "advertising instance, usage: =[UINT8], default: 0"},
-    {"service_data", "service data, usage: =[UINT16], default: 0"},
-    {NULL, NULL}
+    { "conn",         "connection handle, usage: =<UINT16>"               },
+    { "instance",     "advertising instance, usage: =[UINT8], default: 0" },
+    { "service_data", "service data, usage: =[UINT16], default: 0"        },
+    { NULL,           NULL                                                }
 };
 
 static const struct shell_cmd_help sync_transfer_set_info_help = {
@@ -4138,8 +4099,8 @@ cmd_sync_transfer_receive(int argc, char **argv)
         return rc;
     }
 
-    rc = ble_gap_periodic_adv_sync_receive(conn_handle, &params, btshell_gap_event,
-                                       NULL);
+    rc = ble_gap_periodic_adv_sync_receive(conn_handle, &params,
+                                           btshell_gap_event, NULL);
     if (rc) {
         console_printf("Failed to enable sync transfer reception (%d)\n", rc);
     }
@@ -4149,12 +4110,12 @@ cmd_sync_transfer_receive(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_transfer_receive_params[] = {
-    {"conn", "connection handle, usage: =<UINT16>"},
-    {"disable", "disable transfer reception, usage: =[0-1], default: 0"},
-    {"skip", "usage: =[0-0x01F3], default: 0x0000"},
-    {"sync_timeout", "usage: =[0x000A-0x4000], default: 0x000A"},
-    {"reports_disabled", "disable reports, usage: =[0-1], default: 0"},
-    {NULL, NULL}
+    { "conn",             "connection handle, usage: =<UINT16>"                   },
+    { "disable",          "disable transfer reception, usage: =[0-1], default: 0" },
+    { "skip",             "usage: =[0-0x01F3], default: 0x0000"                   },
+    { "sync_timeout",     "usage: =[0x000A-0x4000], default: 0x000A"              },
+    { "reports_disabled", "disable reports, usage: =[0-1], default: 0"            },
+    { NULL,               NULL                                                    }
 };
 
 static const struct shell_cmd_help sync_transfer_receive_help = {
@@ -4192,8 +4153,8 @@ cmd_sync_terminate(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_terminate_params[] = {
-    {"sync_handle", "usage: =[UINT16], default: 0"},
-    {NULL, NULL}
+    { "sync_handle", "usage: =[UINT16], default: 0" },
+    { NULL,          NULL                           }
 };
 
 static const struct shell_cmd_help sync_terminate_help = {
@@ -4227,8 +4188,8 @@ cmd_sync_stats(int argc, char **argv)
 
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param sync_stats_params[] = {
-    {"sync_handle", "usage: =[UINT16], default: 0"},
-    {NULL, NULL}
+    { "sync_handle", "usage: =[UINT16], default: 0" },
+    { NULL,          NULL                           }
 };
 
 static const struct shell_cmd_help sync_stats_help = {
@@ -4242,10 +4203,10 @@ static const struct shell_cmd_help sync_stats_help = {
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 static const struct shell_param leaudio_base_add_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
-    { "presentation_delay", "usage: =<UINT32>"  },
+    { "adv_instance",       "Advertising instance, usage: =<UINT8>" },
+    { "presentation_delay", "usage: =<UINT32>"                      },
 
-    { NULL, NULL}
+    { NULL,                 NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_base_add_help = {
@@ -4255,14 +4216,14 @@ static const struct shell_cmd_help leaudio_base_add_help = {
 };
 
 static const struct shell_param leaudio_big_sub_add_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
-    { "codec_fmt", "usage: <UINT8>"  },
-    { "company_id", "usage: =<UINT16>"  },
-    { "vendor_spec", "usage: =<UINT16>"  },
-    { "codec_spec_config", "usage: =[XX:XX...]"  },
-    { "metadata", "usage: =[XX:XX...]"  },
+    { "adv_instance",      "Advertising instance, usage: =<UINT8>" },
+    { "codec_fmt",         "usage: <UINT8>"                        },
+    { "company_id",        "usage: =<UINT16>"                      },
+    { "vendor_spec",       "usage: =<UINT16>"                      },
+    { "codec_spec_config", "usage: =[XX:XX...]"                    },
+    { "metadata",          "usage: =[XX:XX...]"                    },
 
-    { NULL, NULL}
+    { NULL,                NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_big_sub_add_help = {
@@ -4272,10 +4233,10 @@ static const struct shell_cmd_help leaudio_big_sub_add_help = {
 };
 
 static const struct shell_param leaudio_bis_add_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
-    { "codec_spec_config", "usage: =[XX:XX...]"  },
+    { "adv_instance",      "Advertising instance, usage: =<UINT8>" },
+    { "codec_spec_config", "usage: =[XX:XX...]"                    },
 
-    { NULL, NULL}
+    { NULL,                NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_bis_add_help = {
@@ -4286,27 +4247,27 @@ static const struct shell_cmd_help leaudio_bis_add_help = {
 };
 
 static const struct shell_param leaudio_broadcast_create_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
-    {"ext_interval_min", "usage: =[0-UINT16_MAX], default: 0"},
-    {"ext_interval_max", "usage: =[0-UINT16_MAX], default: 0"},
-    {"per_interval_min", "usage: =[0-UINT16_MAX], default: 0"},
-    {"per_interval_max", "usage: =[0-UINT16_MAX], default: 0"},
+    { "adv_instance",     "Advertising instance, usage: =<UINT8>"                   },
+    { "ext_interval_min", "usage: =[0-UINT16_MAX], default: 0"                      },
+    { "ext_interval_max", "usage: =[0-UINT16_MAX], default: 0"                      },
+    { "per_interval_min", "usage: =[0-UINT16_MAX], default: 0"                      },
+    { "per_interval_max", "usage: =[0-UINT16_MAX], default: 0"                      },
 
-    {"name", "usage: =[string]"},
+    { "name",             "usage: =[string]"                                        },
 
-    {"sdu_interval", "SDU interval, in us, usage: =<UINT32>"},
-    {"max_sdu", "max SDU size, in octets, usage: =<UINT16>"},
-    {"max_latency", "max transport latency, in ms, usage: =<UINT16>"},
-    {"rtn", "RTN, usage: =<UINT8>"},
-    {"phy", "PHY, usage: =<UINT8>"},
-    {"packing", "packing, optional, true if not given, usage: =<UINT8>"},
-    {"framing", "framing, optional, false if not given, usage: =<UINT8>"},
-    {"encryption", "optional, encryption, usage: =<UINT8>"},
-    {"broadcast_code", "optional, obligatory if encryption is enabled, "
-     "usage: =<XX:XX:...>, len=16 octets"},
-    {"extra_data", "usage: =[XX:XX...]"},
+    { "sdu_interval",     "SDU interval, in us, usage: =<UINT32>"                   },
+    { "max_sdu",          "max SDU size, in octets, usage: =<UINT16>"               },
+    { "max_latency",      "max transport latency, in ms, usage: =<UINT16>"          },
+    { "rtn",              "RTN, usage: =<UINT8>"                                    },
+    { "phy",              "PHY, usage: =<UINT8>"                                    },
+    { "packing",          "packing, optional, true if not given, usage: =<UINT8>"   },
+    { "framing",          "framing, optional, false if not given, usage: =<UINT8>"  },
+    { "encryption",       "optional, encryption, usage: =<UINT8>"                   },
+    { "broadcast_code",   "optional, obligatory if encryption is enabled, "
+                        "usage: =<XX:XX:...>, len=16 octets" },
+    { "extra_data",       "usage: =[XX:XX...]"                                      },
 
-    { NULL, NULL}
+    { NULL,               NULL                                                      }
 };
 
 static const struct shell_cmd_help leaudio_broadcast_create_help = {
@@ -4317,9 +4278,9 @@ static const struct shell_cmd_help leaudio_broadcast_create_help = {
 };
 
 static const struct shell_param leaudio_broadcast_destroy_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "adv_instance", "Advertising instance, usage: =<UINT8>" },
 
-    { NULL, NULL}
+    { NULL,           NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_broadcast_destroy_help = {
@@ -4330,12 +4291,12 @@ static const struct shell_cmd_help leaudio_broadcast_destroy_help = {
 };
 
 static const struct shell_param leaudio_broadcast_update_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
-    {"name", "usage: =[string]"},
-    {"extra_data_len", "usage: =<UINT8>"},
-    {"extra_data", "usage: =[XX:XX...]"},
+    { "adv_instance",   "Advertising instance, usage: =<UINT8>" },
+    { "name",           "usage: =[string]"                      },
+    { "extra_data_len", "usage: =<UINT8>"                       },
+    { "extra_data",     "usage: =[XX:XX...]"                    },
 
-    { NULL, NULL}
+    { NULL,             NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_broadcast_update_help = {
@@ -4346,9 +4307,9 @@ static const struct shell_cmd_help leaudio_broadcast_update_help = {
 };
 
 static const struct shell_param leaudio_broadcast_start_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "adv_instance", "Advertising instance, usage: =<UINT8>" },
 
-    { NULL, NULL}
+    { NULL,           NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_broadcast_start_help = {
@@ -4359,9 +4320,9 @@ static const struct shell_cmd_help leaudio_broadcast_start_help = {
 };
 
 static const struct shell_param leaudio_broadcast_stop_params[] = {
-    {"adv_instance", "Advertising instance, usage: =<UINT8>"},
+    { "adv_instance", "Advertising instance, usage: =<UINT8>" },
 
-    { NULL, NULL}
+    { NULL,           NULL                                    }
 };
 
 static const struct shell_cmd_help leaudio_broadcast_stop_help = {
@@ -4376,54 +4337,54 @@ static const struct shell_cmd_help leaudio_broadcast_stop_help = {
 static const struct shell_cmd btshell_commands[] = {
 #if MYNEWT_VAL(BLE_EXT_ADV)
     {
-        .sc_cmd = "advertise-configure",
-        .sc_cmd_func = cmd_advertise_configure,
+                               .sc_cmd = "advertise-configure",
+                               .sc_cmd_func = cmd_advertise_configure,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_configure_help,
+                               .help = &advertise_configure_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-set-addr",
-        .sc_cmd_func = cmd_advertise_set_addr,
+                               .sc_cmd = "advertise-set-addr",
+                               .sc_cmd_func = cmd_advertise_set_addr,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_set_addr_help,
+                               .help = &advertise_set_addr_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-set-adv-data",
-        .sc_cmd_func = cmd_set_adv_data,
+                               .sc_cmd = "advertise-set-adv-data",
+                               .sc_cmd_func = cmd_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+                               .help = &set_adv_data_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-set-scan-rsp",
-        .sc_cmd_func = cmd_set_scan_rsp,
+                               .sc_cmd = "advertise-set-scan-rsp",
+                               .sc_cmd_func = cmd_set_scan_rsp,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_rsp_help,
+                               .help = &set_scan_rsp_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-start",
-        .sc_cmd_func = cmd_advertise_start,
+                               .sc_cmd = "advertise-start",
+                               .sc_cmd_func = cmd_advertise_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_start_help,
+                               .help = &advertise_start_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-stop",
-        .sc_cmd_func = cmd_advertise_stop,
+                               .sc_cmd = "advertise-stop",
+                               .sc_cmd_func = cmd_advertise_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_stop_help,
+                               .help = &advertise_stop_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "advertise-remove",
-        .sc_cmd_func = cmd_advertise_remove,
+                               .sc_cmd = "advertise-remove",
+                               .sc_cmd_func = cmd_advertise_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &advertise_remove_help,
+                               .help = &advertise_remove_help,
 #endif
-    },
+                               },
 #else
     {
         .sc_cmd = "advertise",
@@ -4434,639 +4395,638 @@ static const struct shell_cmd btshell_commands[] = {
     },
 #endif
     {
-        .sc_cmd = "connect",
-        .sc_cmd_func = cmd_connect,
+                               .sc_cmd = "connect",
+                               .sc_cmd_func = cmd_connect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &connect_help,
+                               .help = &connect_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "disconnect",
-        .sc_cmd_func = cmd_disconnect,
+                               .sc_cmd = "disconnect",
+                               .sc_cmd_func = cmd_disconnect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &disconnect_help,
+                               .help = &disconnect_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "show-addr",
-        .sc_cmd_func = cmd_show_addr,
+                               .sc_cmd = "show-addr",
+                               .sc_cmd_func = cmd_show_addr,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_addr_help,
+                               .help = &gatt_show_addr_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "show-conn",
-        .sc_cmd_func = cmd_show_conn,
+                               .sc_cmd = "show-conn",
+                               .sc_cmd_func = cmd_show_conn,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_conn_help,
+                               .help = &gatt_show_conn_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "set-scan-opts",
-        .sc_cmd_func = cmd_set_scan_opts,
+                               .sc_cmd = "set-scan-opts",
+                               .sc_cmd_func = cmd_set_scan_opts,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_opts_help,
+                               .help = &set_scan_opts_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "scan",
-        .sc_cmd_func = cmd_scan,
+                               .sc_cmd = "scan",
+                               .sc_cmd_func = cmd_scan,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &scan_help,
+                               .help = &scan_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "set",
-        .sc_cmd_func = cmd_set,
+                               .sc_cmd = "set",
+                               .sc_cmd_func = cmd_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_help,
+                               .help = &set_help,
 #endif
-    },
+                               },
 #if !MYNEWT_VAL(BLE_EXT_ADV)
     {
-        .sc_cmd = "set-adv-data",
-        .sc_cmd_func = cmd_set_adv_data,
+                               .sc_cmd = "set-adv-data",
+                               .sc_cmd_func = cmd_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+                               .help = &set_adv_data_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "set-scan-rsp",
-        .sc_cmd_func = cmd_set_scan_rsp,
+                               .sc_cmd = "set-scan-rsp",
+                               .sc_cmd_func = cmd_set_scan_rsp,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_scan_rsp_help,
+                               .help = &set_scan_rsp_help,
 #endif
-    },
+                               },
 #endif
     {
-        .sc_cmd = "set-priv-mode",
-        .sc_cmd_func = cmd_set_priv_mode,
+                               .sc_cmd = "set-priv-mode",
+                               .sc_cmd_func = cmd_set_priv_mode,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_priv_mode_help,
+                               .help = &set_priv_mode_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "white-list",
-        .sc_cmd_func = cmd_white_list,
+                               .sc_cmd = "white-list",
+                               .sc_cmd_func = cmd_white_list,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &white_list_help,
+                               .help = &white_list_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "conn-rssi",
-        .sc_cmd_func = cmd_conn_rssi,
+                               .sc_cmd = "conn-rssi",
+                               .sc_cmd_func = cmd_conn_rssi,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_rssi_help,
+                               .help = &conn_rssi_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "conn-update-params",
-        .sc_cmd_func = cmd_conn_update_params,
+                               .sc_cmd = "conn-update-params",
+                               .sc_cmd_func = cmd_conn_update_params,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_update_params_help,
+                               .help = &conn_update_params_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "conn-datalen",
-        .sc_cmd_func = cmd_conn_datalen,
+                               .sc_cmd = "conn-datalen",
+                               .sc_cmd_func = cmd_conn_datalen,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &conn_datalen_help,
+                               .help = &conn_datalen_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-discover-characteristic",
-        .sc_cmd_func = cmd_gatt_discover_characteristic,
+                               .sc_cmd = "gatt-discover-characteristic",
+                               .sc_cmd_func = cmd_gatt_discover_characteristic,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_characteristic_help,
+                               .help = &gatt_discover_characteristic_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-discover-descriptor",
-        .sc_cmd_func = cmd_gatt_discover_descriptor,
+                               .sc_cmd = "gatt-discover-descriptor",
+                               .sc_cmd_func = cmd_gatt_discover_descriptor,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_descriptor_help,
+                               .help = &gatt_discover_descriptor_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-discover-service",
-        .sc_cmd_func = cmd_gatt_discover_service,
+                               .sc_cmd = "gatt-discover-service",
+                               .sc_cmd_func = cmd_gatt_discover_service,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_service_help,
+                               .help = &gatt_discover_service_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-discover-full",
-        .sc_cmd_func = cmd_gatt_discover_full,
+                               .sc_cmd = "gatt-discover-full",
+                               .sc_cmd_func = cmd_gatt_discover_full,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_discover_full_help,
+                               .help = &gatt_discover_full_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-find-included-services",
-        .sc_cmd_func = cmd_gatt_find_included_services,
+                               .sc_cmd = "gatt-find-included-services",
+                               .sc_cmd_func = cmd_gatt_find_included_services,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_find_included_services_help,
+                               .help = &gatt_find_included_services_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-exchange-mtu",
-        .sc_cmd_func = cmd_gatt_exchange_mtu,
+                               .sc_cmd = "gatt-exchange-mtu",
+                               .sc_cmd_func = cmd_gatt_exchange_mtu,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_exchange_mtu_help,
+                               .help = &gatt_exchange_mtu_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-read",
-        .sc_cmd_func = cmd_gatt_read,
+                               .sc_cmd = "gatt-read",
+                               .sc_cmd_func = cmd_gatt_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_read_help,
+                               .help = &gatt_read_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-notify",
-        .sc_cmd_func = cmd_gatt_notify,
+                               .sc_cmd = "gatt-notify",
+                               .sc_cmd_func = cmd_gatt_notify,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_notify_help,
+                               .help = &gatt_notify_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-service-changed",
-        .sc_cmd_func = cmd_gatt_service_changed,
+                               .sc_cmd = "gatt-service-changed",
+                               .sc_cmd_func = cmd_gatt_service_changed,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_service_changed_help,
+                               .help = &gatt_service_changed_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-service-visibility",
-        .sc_cmd_func = cmd_gatt_service_visibility,
+                               .sc_cmd = "gatt-service-visibility",
+                               .sc_cmd_func = cmd_gatt_service_visibility,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_service_visibility_help,
+                               .help = &gatt_service_visibility_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-show",
-        .sc_cmd_func = cmd_gatt_show,
+                               .sc_cmd = "gatt-show",
+                               .sc_cmd_func = cmd_gatt_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_help,
+                               .help = &gatt_show_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-show-local",
-        .sc_cmd_func = cmd_gatt_show_local,
+                               .sc_cmd = "gatt-show-local",
+                               .sc_cmd_func = cmd_gatt_show_local,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_show_local_help,
+                               .help = &gatt_show_local_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-write",
-        .sc_cmd_func = cmd_gatt_write,
+                               .sc_cmd = "gatt-write",
+                               .sc_cmd_func = cmd_gatt_write,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_write_help,
+                               .help = &gatt_write_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-enqueue-notif",
-        .sc_cmd_func = cmd_gatt_enqueue_notif,
+                               .sc_cmd = "gatt-enqueue-notif",
+                               .sc_cmd_func = cmd_gatt_enqueue_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_enqueue_notif_help,
+                               .help = &gatt_enqueue_notif_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-send-queued-notif",
-        .sc_cmd_func = cmd_gatt_send_pending_notif,
+                               .sc_cmd = "gatt-send-queued-notif",
+                               .sc_cmd_func = cmd_gatt_send_pending_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_send_pending_notif_help,
+                               .help = &gatt_send_pending_notif_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "gatt-clear-queued-notif",
-        .sc_cmd_func = cmd_gatt_clear_pending_notif,
+                               .sc_cmd = "gatt-clear-queued-notif",
+                               .sc_cmd_func = cmd_gatt_clear_pending_notif,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &gatt_clear_pending_notif_help,
+                               .help = &gatt_clear_pending_notif_help,
 #endif
-    },
+                               },
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     {
-        .sc_cmd = "l2cap-update",
-        .sc_cmd_func = cmd_l2cap_update,
+                               .sc_cmd = "l2cap-update",
+                               .sc_cmd_func = cmd_l2cap_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_update_help,
+                               .help = &l2cap_update_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-create-server",
-        .sc_cmd_func = cmd_l2cap_create_server,
+                               .sc_cmd = "l2cap-create-server",
+                               .sc_cmd_func = cmd_l2cap_create_server,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_create_server_help,
+                               .help = &l2cap_create_server_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-connect",
-        .sc_cmd_func = cmd_l2cap_connect,
+                               .sc_cmd = "l2cap-connect",
+                               .sc_cmd_func = cmd_l2cap_connect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_connect_help,
+                               .help = &l2cap_connect_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-reconfig",
-        .sc_cmd_func = cmd_l2cap_reconfig,
+                               .sc_cmd = "l2cap-reconfig",
+                               .sc_cmd_func = cmd_l2cap_reconfig,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_reconfig_help,
+                               .help = &l2cap_reconfig_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-disconnect",
-        .sc_cmd_func = cmd_l2cap_disconnect,
+                               .sc_cmd = "l2cap-disconnect",
+                               .sc_cmd_func = cmd_l2cap_disconnect,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_disconnect_help,
+                               .help = &l2cap_disconnect_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-send",
-        .sc_cmd_func = cmd_l2cap_send,
+                               .sc_cmd = "l2cap-send",
+                               .sc_cmd_func = cmd_l2cap_send,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_send_help,
+                               .help = &l2cap_send_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "l2cap-show-coc",
-        .sc_cmd_func = cmd_l2cap_show_coc,
+                               .sc_cmd = "l2cap-show-coc",
+                               .sc_cmd_func = cmd_l2cap_show_coc,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &l2cap_show_coc_help,
+                               .help = &l2cap_show_coc_help,
 #endif
-    },
+                               },
 #endif
     {
-        .sc_cmd = "keystore-add",
-        .sc_cmd_func = cmd_keystore_add,
+                               .sc_cmd = "keystore-add",
+                               .sc_cmd_func = cmd_keystore_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_add_help,
+                               .help = &keystore_add_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "keystore-del",
-        .sc_cmd_func = cmd_keystore_del,
+                               .sc_cmd = "keystore-del",
+                               .sc_cmd_func = cmd_keystore_del,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_del_help,
+                               .help = &keystore_del_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "keystore-show",
-        .sc_cmd_func = cmd_keystore_show,
+                               .sc_cmd = "keystore-show",
+                               .sc_cmd_func = cmd_keystore_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &keystore_show_help,
+                               .help = &keystore_show_help,
 #endif
-    },
+                               },
 #if NIMBLE_BLE_SM
     {
-        .sc_cmd = "show-oob-sc",
-        .sc_cmd_func = cmd_show_oob_sc,
+                               .sc_cmd = "show-oob-sc",
+                               .sc_cmd_func = cmd_show_oob_sc,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = NULL,
+                               .help = NULL,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "auth-passkey",
-        .sc_cmd_func = cmd_auth_passkey,
+                               .sc_cmd = "auth-passkey",
+                               .sc_cmd_func = cmd_auth_passkey,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &auth_passkey_help,
+                               .help = &auth_passkey_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "security-pair",
-        .sc_cmd_func = cmd_security_pair,
+                               .sc_cmd = "security-pair",
+                               .sc_cmd_func = cmd_security_pair,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_pair_help,
+                               .help = &security_pair_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "security-unpair",
-        .sc_cmd_func = cmd_security_unpair,
+                               .sc_cmd = "security-unpair",
+                               .sc_cmd_func = cmd_security_unpair,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_unpair_help,
+                               .help = &security_unpair_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "security-start",
-        .sc_cmd_func = cmd_security_start,
+                               .sc_cmd = "security-start",
+                               .sc_cmd_func = cmd_security_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_start_help,
+                               .help = &security_start_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "security-encryption",
-        .sc_cmd_func = cmd_security_encryption,
+                               .sc_cmd = "security-encryption",
+                               .sc_cmd_func = cmd_security_encryption,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_encryption_help,
+                               .help = &security_encryption_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "security-set-data",
-        .sc_cmd_func = cmd_security_set_data,
+                               .sc_cmd = "security-set-data",
+                               .sc_cmd_func = cmd_security_set_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &security_set_data_help,
+                               .help = &security_set_data_help,
 #endif
-    },
+                               },
 #endif
     {
-        .sc_cmd = "test-tx",
-        .sc_cmd_func = cmd_test_tx,
+                               .sc_cmd = "test-tx",
+                               .sc_cmd_func = cmd_test_tx,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &test_tx_help,
+                               .help = &test_tx_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "phy-set",
-        .sc_cmd_func = cmd_phy_set,
+                               .sc_cmd = "phy-set",
+                               .sc_cmd_func = cmd_phy_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_set_help,
+                               .help = &phy_set_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "phy-set-default",
-        .sc_cmd_func = cmd_phy_set_default,
+                               .sc_cmd = "phy-set-default",
+                               .sc_cmd_func = cmd_phy_set_default,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_set_default_help,
+                               .help = &phy_set_default_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "phy-read",
-        .sc_cmd_func = cmd_phy_read,
+                               .sc_cmd = "phy-read",
+                               .sc_cmd_func = cmd_phy_read,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &phy_read_help,
+                               .help = &phy_read_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "host-enable",
-        .sc_cmd_func = cmd_host_enable,
+                               .sc_cmd = "host-enable",
+                               .sc_cmd_func = cmd_host_enable,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &host_enable_help,
+                               .help = &host_enable_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "host-disable",
-        .sc_cmd_func = cmd_host_disable,
+                               .sc_cmd = "host-disable",
+                               .sc_cmd_func = cmd_host_disable,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &host_disable_help,
+                               .help = &host_disable_help,
 #endif
-    },
+                               },
 #if MYNEWT_VAL(BLE_PERIODIC_ADV)
     {
-        .sc_cmd = "periodic-configure",
-        .sc_cmd_func = cmd_periodic_configure,
+                               .sc_cmd = "periodic-configure",
+                               .sc_cmd_func = cmd_periodic_configure,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_configure_help,
+                               .help = &periodic_configure_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "periodic-set-adv-data",
-        .sc_cmd_func = cmd_periodic_set_adv_data,
+                               .sc_cmd = "periodic-set-adv-data",
+                               .sc_cmd_func = cmd_periodic_set_adv_data,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &set_adv_data_help,
+                               .help = &set_adv_data_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "periodic-start",
-        .sc_cmd_func = cmd_periodic_start,
+                               .sc_cmd = "periodic-start",
+                               .sc_cmd_func = cmd_periodic_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_start_help,
+                               .help = &periodic_start_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "periodic-stop",
-        .sc_cmd_func = cmd_periodic_stop,
+                               .sc_cmd = "periodic-stop",
+                               .sc_cmd_func = cmd_periodic_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &periodic_stop_help,
+                               .help = &periodic_stop_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "sync-create",
-        .sc_cmd_func = cmd_sync_create,
+                               .sc_cmd = "sync-create",
+                               .sc_cmd_func = cmd_sync_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_create_help,
+                               .help = &sync_create_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "sync-terminate",
-        .sc_cmd_func = cmd_sync_terminate,
+                               .sc_cmd = "sync-terminate",
+                               .sc_cmd_func = cmd_sync_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_terminate_help,
+                               .help = &sync_terminate_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "sync-stats",
-        .sc_cmd_func = cmd_sync_stats,
+                               .sc_cmd = "sync-stats",
+                               .sc_cmd_func = cmd_sync_stats,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_stats_help,
+                               .help = &sync_stats_help,
 #endif
-    },
+                               },
 #if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
     {
-        .sc_cmd = "sync-transfer",
-        .sc_cmd_func = cmd_sync_transfer,
+                               .sc_cmd = "sync-transfer",
+                               .sc_cmd_func = cmd_sync_transfer,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_help,
+                               .help = &sync_transfer_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "sync-transfer-set-info",
-        .sc_cmd_func = cmd_sync_transfer_set_info,
+                               .sc_cmd = "sync-transfer-set-info",
+                               .sc_cmd_func = cmd_sync_transfer_set_info,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_set_info_help,
+                               .help = &sync_transfer_set_info_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "sync-transfer-receive",
-        .sc_cmd_func = cmd_sync_transfer_receive,
+                               .sc_cmd = "sync-transfer-receive",
+                               .sc_cmd_func = cmd_sync_transfer_receive,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &sync_transfer_receive_help,
+                               .help = &sync_transfer_receive_help,
 #endif
-    },
+                               },
     {
-       .sc_cmd = "sync-reporting",
-       .sc_cmd_func = cmd_sync_reporting,
+                               .sc_cmd = "sync-reporting",
+                               .sc_cmd_func = cmd_sync_reporting,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-       .help = &sync_reporting_help,
+                               .help = &sync_reporting_help,
 #endif
-    },
+                               },
 #endif
 #endif
 #if MYNEWT_VAL(BLE_AUDIO) && MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
-        .sc_cmd = "base_add",
-        .sc_cmd_func = cmd_leaudio_base_add,
+                               .sc_cmd = "base_add",
+                               .sc_cmd_func = cmd_leaudio_base_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_base_add_help,
+                               .help = &leaudio_base_add_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "big_sub_add",
-        .sc_cmd_func = cmd_leaudio_big_sub_add,
+                               .sc_cmd = "big_sub_add",
+                               .sc_cmd_func = cmd_leaudio_big_sub_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_big_sub_add_help,
+                               .help = &leaudio_big_sub_add_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "bis_add",
-        .sc_cmd_func = cmd_leaudio_bis_add,
+                               .sc_cmd = "bis_add",
+                               .sc_cmd_func = cmd_leaudio_bis_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_bis_add_help,
+                               .help = &leaudio_bis_add_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast_create",
-        .sc_cmd_func = cmd_leaudio_broadcast_create,
+                               .sc_cmd = "broadcast_create",
+                               .sc_cmd_func = cmd_leaudio_broadcast_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_create_help,
+                               .help = &leaudio_broadcast_create_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast_destroy",
-        .sc_cmd_func = cmd_leaudio_broadcast_destroy,
+                               .sc_cmd = "broadcast_destroy",
+                               .sc_cmd_func = cmd_leaudio_broadcast_destroy,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_destroy_help,
+                               .help = &leaudio_broadcast_destroy_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast_update",
-        .sc_cmd_func = cmd_leaudio_broadcast_update,
+                               .sc_cmd = "broadcast_update",
+                               .sc_cmd_func = cmd_leaudio_broadcast_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_update_help,
+                               .help = &leaudio_broadcast_update_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast_start",
-        .sc_cmd_func = cmd_leaudio_broadcast_start,
+                               .sc_cmd = "broadcast_start",
+                               .sc_cmd_func = cmd_leaudio_broadcast_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_start_help,
+                               .help = &leaudio_broadcast_start_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast_stop",
-        .sc_cmd_func = cmd_leaudio_broadcast_stop,
+                               .sc_cmd = "broadcast_stop",
+                               .sc_cmd_func = cmd_leaudio_broadcast_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &leaudio_broadcast_stop_help,
+                               .help = &leaudio_broadcast_stop_help,
 #endif
-    },
-#endif /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
+                               },
+#endif  /* BLE_AUDIO && BLE_ISO_BROADCAST_SOURCE */
 #if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
     {
-        .sc_cmd = "broadcast-sink-start",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_start,
+                               .sc_cmd = "broadcast-sink-start",
+                               .sc_cmd_func = cmd_leaudio_broadcast_sink_start,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_start_help,
+                               .help = &cmd_leaudio_broadcast_sink_start_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast-sink-stop",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_stop,
+                               .sc_cmd = "broadcast-sink-stop",
+                               .sc_cmd_func = cmd_leaudio_broadcast_sink_stop,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_stop_help,
+                               .help = &cmd_leaudio_broadcast_sink_stop_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast-sink-metadata",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_metadata_update,
+                               .sc_cmd = "broadcast-sink-metadata",
+                               .sc_cmd_func = cmd_leaudio_broadcast_sink_metadata_update,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
+                               .help = &cmd_leaudio_broadcast_sink_metadata_update_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "broadcast-sink-set-sync-params",
-        .sc_cmd_func = cmd_leaudio_broadcast_sink_sync_params_set,
+                               .sc_cmd = "broadcast-sink-set-sync-params",
+                               .sc_cmd_func = cmd_leaudio_broadcast_sink_sync_params_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_broadcast_sink_sync_params_set_help,
+                               .help = &cmd_leaudio_broadcast_sink_sync_params_set_help,
 #endif
-    },
-#endif /* BLE_AUDIO_BROADCAST_SINK */
+                               },
+#endif  /* BLE_AUDIO_BROADCAST_SINK */
 #if MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR)
     {
-        .sc_cmd = "scan-delegator-add",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_add,
+                               .sc_cmd = "scan-delegator-add",
+                               .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_add,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_add_help,
+                               .help = &cmd_leaudio_scan_delegator_receive_state_add_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "scan-delegator-remove",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_remove,
+                               .sc_cmd = "scan-delegator-remove",
+                               .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_remove_help,
+                               .help = &cmd_leaudio_scan_delegator_receive_state_remove_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "scan-delegator-set",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_set,
+                               .sc_cmd = "scan-delegator-set",
+                               .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_set,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_set_help,
+                               .help = &cmd_leaudio_scan_delegator_receive_state_set_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "scan-delegator-get",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_get,
+                               .sc_cmd = "scan-delegator-get",
+                               .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_get,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_get_help,
+                               .help = &cmd_leaudio_scan_delegator_receive_state_get_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "scan-delegator-show",
-        .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_show,
+                               .sc_cmd = "scan-delegator-show",
+                               .sc_cmd_func = cmd_leaudio_scan_delegator_receive_state_show,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_leaudio_scan_delegator_receive_state_show_help,
+                               .help = &cmd_leaudio_scan_delegator_receive_state_show_help,
 #endif
-    },
-#endif /* BLE_AUDIO_SCAN_DELEGATOR */
+                               },
+#endif  /* BLE_AUDIO_SCAN_DELEGATOR */
 #if MYNEWT_VAL(BLE_ISO)
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
     {
-        .sc_cmd = "big-create",
-        .sc_cmd_func = cmd_iso_big_create,
+                               .sc_cmd = "big-create",
+                               .sc_cmd_func = cmd_iso_big_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_create_help,
+                               .help = &cmd_iso_big_create_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "big-terminate",
-        .sc_cmd_func = cmd_iso_big_terminate,
+                               .sc_cmd = "big-terminate",
+                               .sc_cmd_func = cmd_iso_big_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_terminate_help,
+                               .help = &cmd_iso_big_terminate_help,
 #endif
-    },
-#endif /* BLE_ISO_BROADCAST_SOURCE */
+                               },
+#endif  /* BLE_ISO_BROADCAST_SOURCE */
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
     {
-        .sc_cmd = "big-sync-create",
-        .sc_cmd_func = cmd_iso_big_sync_create,
+                               .sc_cmd = "big-sync-create",
+                               .sc_cmd_func = cmd_iso_big_sync_create,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_sync_create_help,
+                               .help = &cmd_iso_big_sync_create_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "big-sync-terminate",
-        .sc_cmd_func = cmd_iso_big_sync_terminate,
+                               .sc_cmd = "big-sync-terminate",
+                               .sc_cmd_func = cmd_iso_big_sync_terminate,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_big_sync_terminate_help,
+                               .help = &cmd_iso_big_sync_terminate_help,
 #endif
-    },
-#endif /* BLE_ISO_BROADCAST_SINK */
+                               },
+#endif  /* BLE_ISO_BROADCAST_SINK */
     {
-        .sc_cmd = "iso-data-path-setup",
-        .sc_cmd_func = cmd_iso_data_path_setup,
+                               .sc_cmd = "iso-data-path-setup",
+                               .sc_cmd_func = cmd_iso_data_path_setup,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_data_path_setup_help,
+                               .help = &cmd_iso_data_path_setup_help,
 #endif
-    },
+                               },
     {
-        .sc_cmd = "iso-data-path-remove",
-        .sc_cmd_func = cmd_iso_data_path_remove,
+                               .sc_cmd = "iso-data-path-remove",
+                               .sc_cmd_func = cmd_iso_data_path_remove,
 #if MYNEWT_VAL(SHELL_CMD_HELP)
-        .help = &cmd_iso_data_path_remove_help,
+                               .help = &cmd_iso_data_path_remove_help,
 #endif
-    },
-#endif /* BLE_ISO */
+                               },
+#endif  /* BLE_ISO */
     { 0 },
 };
-
 
 void
 cmd_init(void)

@@ -29,7 +29,7 @@
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 
-#include"patterns.h"
+#include "patterns.h"
 
 static uint8_t id_addr_type;
 
@@ -62,8 +62,8 @@ start_ext_max_events_gap_event(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
-/* Starts advertising instance with 100 max events and changing adv data pattern
- * and SID.
+/* Starts advertising instance with 100 max events and changing adv data
+ * pattern and SID.
  */
 static void
 start_ext_max_events(uint8_t pattern, bool configure)
@@ -78,7 +78,7 @@ start_ext_max_events(uint8_t pattern, bool configure)
 
     if (configure) {
         /* use defaults for non-set params */
-        memset (&params, 0, sizeof(params));
+        memset(&params, 0, sizeof(params));
 
         /* advertise using random addr */
         params.own_addr_type = BLE_OWN_ADDR_RANDOM;
@@ -96,15 +96,15 @@ start_ext_max_events(uint8_t pattern, bool configure)
 
         /* configure instance 4 */
         rc = ble_gap_ext_adv_configure(instance, &params, NULL,
-                                        start_ext_max_events_gap_event, NULL);
-        assert (rc == 0);
+                                       start_ext_max_events_gap_event, NULL);
+        assert(rc == 0);
 
         /* set random (NRPA) address for instance */
         rc = ble_hs_id_gen_rnd(1, &addr);
-        assert (rc == 0);
+        assert(rc == 0);
 
-        rc = ble_gap_ext_adv_set_addr(instance, &addr );
-        assert (rc == 0);
+        rc = ble_gap_ext_adv_set_addr(instance, &addr);
+        assert(rc == 0);
     }
 
     /* in this case both advertising data and scan response is allowed, but
@@ -121,15 +121,14 @@ start_ext_max_events(uint8_t pattern, bool configure)
     rc = os_mbuf_append(data, adv_data, 600);
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_set_data(instance, data);
+    assert(rc == 0);
 
-   /* start advertising */
+    /* start advertising */
     rc = ble_gap_ext_adv_start(instance, 0, events);
-    assert (rc == 0);
+    assert(rc == 0);
 
-    console_printf("instance %u started (PDUs with max events %d)\n",
-                                                            instance, events);
+    console_printf("instance %u started (PDUs with max events %d)\n", instance, events);
 }
 
 static int
@@ -173,7 +172,7 @@ start_legacy_duration(uint8_t pattern, bool configure)
 
     if (configure) {
         /* use defaults for non-set params */
-        memset (&params, 0, sizeof(params));
+        memset(&params, 0, sizeof(params));
 
         /* enable advertising using legacy PDUs */
         params.legacy_pdu = 1;
@@ -188,15 +187,15 @@ start_legacy_duration(uint8_t pattern, bool configure)
 
         /* configure instance 3 */
         rc = ble_gap_ext_adv_configure(instance, &params, NULL,
-                                        start_legacy_duration_gap_event, NULL);
-        assert (rc == 0);
+                                       start_legacy_duration_gap_event, NULL);
+        assert(rc == 0);
 
         /* set random (NRPA) address for instance */
         rc = ble_hs_id_gen_rnd(1, &addr);
-        assert (rc == 0);
+        assert(rc == 0);
 
-        rc = ble_gap_ext_adv_set_addr(instance, &addr );
-        assert (rc == 0);
+        rc = ble_gap_ext_adv_set_addr(instance, &addr);
+        assert(rc == 0);
     }
 
     /* in this case both advertising data and scan response is allowed, but
@@ -213,15 +212,15 @@ start_legacy_duration(uint8_t pattern, bool configure)
     rc = os_mbuf_append(data, adv_data, 31);
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_set_data(instance, data);
+    assert(rc == 0);
 
-   /* start advertising */
+    /* start advertising */
     rc = ble_gap_ext_adv_start(instance, duration, 0);
-    assert (rc == 0);
+    assert(rc == 0);
 
     console_printf("instance %u started (legacy PDUs with duration %d)\n",
-                                                            instance, duration);
+                   instance, duration);
 }
 
 /* this is simple non-connectable scannable instance using legacy PUDs that
@@ -237,7 +236,7 @@ start_scannable_legacy_ext(void)
     int rc;
 
     /* use defaults for non-set params */
-    memset (&params, 0, sizeof(params));
+    memset(&params, 0, sizeof(params));
 
     /* enable scannable advertising using legacy PDUs */
     params.scannable = 1;
@@ -253,14 +252,14 @@ start_scannable_legacy_ext(void)
 
     /* configure instance 2 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* set random (NRPA) address for instance */
     rc = ble_hs_id_gen_rnd(1, &addr);
-    assert (rc == 0);
+    assert(rc == 0);
 
-    rc = ble_gap_ext_adv_set_addr(instance, &addr );
-    assert (rc == 0);
+    rc = ble_gap_ext_adv_set_addr(instance, &addr);
+    assert(rc == 0);
 
     /* in this case both advertising data and scan response is allowed, but
      * both are limited to 31 bytes each
@@ -274,8 +273,8 @@ start_scannable_legacy_ext(void)
     rc = os_mbuf_append(data, ext_adv_pattern_1, 31);
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_set_data(instance, data);
+    assert(rc == 0);
 
     /* get mbuf for scan rsp data */
     data = os_msys_get_pkthdr(31, 0);
@@ -285,12 +284,12 @@ start_scannable_legacy_ext(void)
     rc = os_mbuf_append(data, ext_adv_pattern_1 + 31, 31);
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_rsp_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_rsp_set_data(instance, data);
+    assert(rc == 0);
 
-   /* start advertising */
+    /* start advertising */
     rc = ble_gap_ext_adv_start(instance, 0, 0);
-    assert (rc == 0);
+    assert(rc == 0);
 
     console_printf("instance %u started (scannable legacy PDUs)\n", instance);
 }
@@ -319,7 +318,7 @@ start_scannable_ext(void)
     int rc;
 
     /* use defaults for non-set params */
-    memset (&params, 0, sizeof(params));
+    memset(&params, 0, sizeof(params));
 
     /* enable scannable advertising */
     params.scannable = 1;
@@ -338,14 +337,14 @@ start_scannable_ext(void)
     /* configure instance 1 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL,
                                    scannable_ext_gap_event, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* set random (NRPA) address for instance */
     rc = ble_hs_id_gen_rnd(1, &addr);
-    assert (rc == 0);
+    assert(rc == 0);
 
-    rc = ble_gap_ext_adv_set_addr(instance, &addr );
-    assert (rc == 0);
+    rc = ble_gap_ext_adv_set_addr(instance, &addr);
+    assert(rc == 0);
 
     /* in this case only scan response is allowed */
 
@@ -357,12 +356,12 @@ start_scannable_ext(void)
     rc = os_mbuf_append(data, ext_adv_pattern_1, sizeof(ext_adv_pattern_1));
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_rsp_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_rsp_set_data(instance, data);
+    assert(rc == 0);
 
-   /* start advertising */
+    /* start advertising */
     rc = ble_gap_ext_adv_start(instance, 0, 0);
-    assert (rc == 0);
+    assert(rc == 0);
 
     console_printf("instance %u started (scannable)\n", instance);
 }
@@ -377,7 +376,7 @@ start_non_connectable_ext(void)
     int rc;
 
     /* use defaults for non-set params */
-    memset (&params, 0, sizeof(params));
+    memset(&params, 0, sizeof(params));
 
     /* advertise using ID addr */
     params.own_addr_type = id_addr_type;
@@ -389,7 +388,7 @@ start_non_connectable_ext(void)
 
     /* configure instance 0 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* in this case only advertisign data is allowed */
 
@@ -401,17 +400,18 @@ start_non_connectable_ext(void)
     rc = os_mbuf_append(data, ext_adv_pattern_1, sizeof(ext_adv_pattern_1));
     assert(rc == 0);
 
-   rc = ble_gap_ext_adv_set_data(instance, data);
-   assert (rc == 0);
+    rc = ble_gap_ext_adv_set_data(instance, data);
+    assert(rc == 0);
 
-   /* start advertising */
+    /* start advertising */
     rc = ble_gap_ext_adv_start(instance, 0, 0);
-    assert (rc == 0);
+    assert(rc == 0);
 
     console_printf("instance %u started (non-con non-scan)\n", instance);
 }
 
-static void start_periodic(void)
+static void
+start_periodic(void)
 {
     struct ble_gap_periodic_adv_params pparams;
     struct ble_gap_ext_adv_params params;
@@ -422,7 +422,7 @@ static void start_periodic(void)
     int rc;
 
     /* For periodic we use instance with non-connectable advertising */
-    memset (&params, 0, sizeof(params));
+    memset(&params, 0, sizeof(params));
 
     /* advertise using random addr */
     params.own_addr_type = BLE_OWN_ADDR_RANDOM;
@@ -434,14 +434,14 @@ static void start_periodic(void)
 
     /* configure instance 5 */
     rc = ble_gap_ext_adv_configure(instance, &params, NULL, NULL, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* set random (NRPA) address for instance */
     rc = ble_hs_id_gen_rnd(1, &addr);
-    assert (rc == 0);
+    assert(rc == 0);
 
-    rc = ble_gap_ext_adv_set_addr(instance, &addr );
-    assert (rc == 0);
+    rc = ble_gap_ext_adv_set_addr(instance, &addr);
+    assert(rc == 0);
 
     memset(&adv_fields, 0, sizeof(adv_fields));
     adv_fields.name = (const uint8_t *)"nimble with periodic";
@@ -476,17 +476,17 @@ static void start_periodic(void)
     assert(rc == 0);
 
     rc = ble_gap_periodic_adv_set_data(instance, data, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* start periodic advertising */
     rc = ble_gap_periodic_adv_start(instance, NULL);
-    assert (rc == 0);
+    assert(rc == 0);
 
     /* start advertising */
-     rc = ble_gap_ext_adv_start(instance, 0, 0);
-     assert (rc == 0);
+    rc = ble_gap_ext_adv_start(instance, 0, 0);
+    assert(rc == 0);
 
-     console_printf("instance %u started (periodic)\n", instance);
+    console_printf("instance %u started (periodic)\n", instance);
 }
 
 static void

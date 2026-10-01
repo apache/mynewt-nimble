@@ -30,9 +30,8 @@
 #include "mesh/model_srv.h"
 #include "light_model.h"
 
-
-static void model_bound_cb(uint16_t addr, struct bt_mesh_model *model,
-                           uint16_t key_idx)
+static void
+model_bound_cb(uint16_t addr, struct bt_mesh_model *model, uint16_t key_idx)
 {
     int rc;
 
@@ -74,10 +73,8 @@ blemesh_on_sync(void)
     bt_test_cb_register(&bt_test_cb);
 
     light_model_init();
-    bt_mesh_set_gen_onoff_srv_cb(light_model_gen_onoff_get,
-                                 light_model_gen_onoff_set);
-    bt_mesh_set_gen_level_srv_cb(light_model_gen_level_get,
-                                 light_model_gen_level_set);
+    bt_mesh_set_gen_onoff_srv_cb(light_model_gen_onoff_get, light_model_gen_onoff_set);
+    bt_mesh_set_gen_level_srv_cb(light_model_gen_level_get, light_model_gen_level_set);
     bt_mesh_set_light_lightness_srv_cb(light_model_light_lightness_get,
                                        light_model_light_lightness_set);
 

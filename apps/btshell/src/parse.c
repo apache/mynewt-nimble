@@ -31,30 +31,30 @@ parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,
         char *s;
         uint8_t scheme;
     } schemes[] = {
-        { "http://www.", BLE_EDDYSTONE_URL_SCHEME_HTTP_WWW },
+        { "http://www.",  BLE_EDDYSTONE_URL_SCHEME_HTTP_WWW  },
         { "https://www.", BLE_EDDYSTONE_URL_SCHEME_HTTPS_WWW },
-        { "http://", BLE_EDDYSTONE_URL_SCHEME_HTTP },
-        { "https://", BLE_EDDYSTONE_URL_SCHEME_HTTPS },
+        { "http://",      BLE_EDDYSTONE_URL_SCHEME_HTTP      },
+        { "https://",     BLE_EDDYSTONE_URL_SCHEME_HTTPS     },
     };
 
     static const struct {
         char *s;
         uint8_t code;
     } suffixes[] = {
-        { ".com/", BLE_EDDYSTONE_URL_SUFFIX_COM_SLASH },
-        { ".org/", BLE_EDDYSTONE_URL_SUFFIX_ORG_SLASH },
-        { ".edu/", BLE_EDDYSTONE_URL_SUFFIX_EDU_SLASH },
-        { ".net/", BLE_EDDYSTONE_URL_SUFFIX_NET_SLASH },
+        { ".com/",  BLE_EDDYSTONE_URL_SUFFIX_COM_SLASH  },
+        { ".org/",  BLE_EDDYSTONE_URL_SUFFIX_ORG_SLASH  },
+        { ".edu/",  BLE_EDDYSTONE_URL_SUFFIX_EDU_SLASH  },
+        { ".net/",  BLE_EDDYSTONE_URL_SUFFIX_NET_SLASH  },
         { ".info/", BLE_EDDYSTONE_URL_SUFFIX_INFO_SLASH },
-        { ".biz/", BLE_EDDYSTONE_URL_SUFFIX_BIZ_SLASH },
-        { ".gov/", BLE_EDDYSTONE_URL_SUFFIX_GOV_SLASH },
-        { ".com", BLE_EDDYSTONE_URL_SUFFIX_COM },
-        { ".org", BLE_EDDYSTONE_URL_SUFFIX_ORG },
-        { ".edu", BLE_EDDYSTONE_URL_SUFFIX_EDU },
-        { ".net", BLE_EDDYSTONE_URL_SUFFIX_NET },
-        { ".info", BLE_EDDYSTONE_URL_SUFFIX_INFO },
-        { ".biz", BLE_EDDYSTONE_URL_SUFFIX_BIZ },
-        { ".gov", BLE_EDDYSTONE_URL_SUFFIX_GOV },
+        { ".biz/",  BLE_EDDYSTONE_URL_SUFFIX_BIZ_SLASH  },
+        { ".gov/",  BLE_EDDYSTONE_URL_SUFFIX_GOV_SLASH  },
+        { ".com",   BLE_EDDYSTONE_URL_SUFFIX_COM        },
+        { ".org",   BLE_EDDYSTONE_URL_SUFFIX_ORG        },
+        { ".edu",   BLE_EDDYSTONE_URL_SUFFIX_EDU        },
+        { ".net",   BLE_EDDYSTONE_URL_SUFFIX_NET        },
+        { ".info",  BLE_EDDYSTONE_URL_SUFFIX_INFO       },
+        { ".biz",   BLE_EDDYSTONE_URL_SUFFIX_BIZ        },
+        { ".gov",   BLE_EDDYSTONE_URL_SUFFIX_GOV        },
     };
 
     char *prefix;
@@ -73,8 +73,7 @@ parse_eddystone_url(char *full_url, uint8_t *out_scheme, char *out_body,
         prefix = schemes[i].s;
         prefix_len = strlen(schemes[i].s);
 
-        if (full_url_len >= prefix_len &&
-            memcmp(full_url, prefix, prefix_len) == 0) {
+        if (full_url_len >= prefix_len && memcmp(full_url, prefix, prefix_len) == 0) {
 
             *out_scheme = i;
             rc = 0;
