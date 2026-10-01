@@ -36,24 +36,24 @@
 
 TEST_CASE_SELF(ble_sm_test_case_f4)
 {
-	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
-			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
-			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
-			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
-	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
-			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
-			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
-			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
-	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t z = 0x00;
-	uint8_t exp[16] = { 0x2d, 0x87, 0x74, 0xa9, 0xbe, 0xa1, 0xed, 0xf1,
-			    0x1c, 0xbd, 0xa9, 0x07, 0xf1, 0x16, 0xc9, 0xf2 };
-	uint8_t res[16];
-	int err;
+    uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+                      0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+                      0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+                      0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
+    uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
+                      0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
+                      0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
+                      0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
+    uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+                      0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+    uint8_t z = 0x00;
+    uint8_t exp[16] = { 0x2d, 0x87, 0x74, 0xa9, 0xbe, 0xa1, 0xed, 0xf1,
+                        0x1c, 0xbd, 0xa9, 0x07, 0xf1, 0x16, 0xc9, 0xf2 };
+    uint8_t res[16];
+    int err;
 
-	err = ble_sm_alg_f4(u, v, x, z, res);
-	TEST_ASSERT_FATAL(err == 0);
+    err = ble_sm_alg_f4(u, v, x, z, res);
+    TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -61,29 +61,27 @@ TEST_CASE_SELF(ble_sm_test_case_f4)
 
 TEST_CASE_SELF(ble_sm_test_case_f5)
 {
-	uint8_t w[32] = { 0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
-			  0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
-			  0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
-			  0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec };
-	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+    uint8_t w[32] = { 0x98, 0xa6, 0xbf, 0x73, 0xf3, 0x34, 0x8d, 0x86,
+                      0xf1, 0x66, 0xf8, 0xb4, 0x13, 0x6b, 0x79, 0x99,
+                      0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
+                      0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec };
+    uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+                       0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+    uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+                       0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
     uint8_t a1t = 0x00;
-	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
+    uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
     uint8_t a2t = 0x00;
     uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
-	uint8_t exp_ltk[16] = { 0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05,
-				0x98, 0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79,
-				0x86, 0x69 };
-	uint8_t exp_mackey[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f,
-				   0xfd, 0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1,
-				   0x65, 0x29 };
-	uint8_t mackey[16], ltk[16];
-	int err;
+    uint8_t exp_ltk[16] = { 0x38, 0x0a, 0x75, 0x94, 0xb5, 0x22, 0x05, 0x98,
+                            0x23, 0xcd, 0xd7, 0x69, 0x11, 0x79, 0x86, 0x69 };
+    uint8_t exp_mackey[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
+                               0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
+    uint8_t mackey[16], ltk[16];
+    int err;
 
-	err = ble_sm_alg_f5(w, n1, n2, a1t, a1, a2t, a2, mackey, ltk);
-	TEST_ASSERT_FATAL(err == 0);
+    err = ble_sm_alg_f5(w, n1, n2, a1t, a1, a2t, a2, mackey, ltk);
+    TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(mackey, exp_mackey, 16) == 0);
     TEST_ASSERT(memcmp(ltk, exp_ltk, 16) == 0);
 
@@ -92,26 +90,26 @@ TEST_CASE_SELF(ble_sm_test_case_f5)
 
 TEST_CASE_SELF(ble_sm_test_case_f6)
 {
-	uint8_t w[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
-			  0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
-	uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			   0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			   0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
-	uint8_t r[16] = { 0xc8, 0x0f, 0x2d, 0x0c, 0xd2, 0x42, 0xda, 0x08,
-			  0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12 };
-	uint8_t io_cap[3] = { 0x02, 0x01, 0x01 };
+    uint8_t w[16] = { 0x20, 0x6e, 0x63, 0xce, 0x20, 0x6a, 0x3f, 0xfd,
+                      0x02, 0x4a, 0x08, 0xa1, 0x76, 0xf1, 0x65, 0x29 };
+    uint8_t n1[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+                       0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+    uint8_t n2[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+                       0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+    uint8_t r[16] = { 0xc8, 0x0f, 0x2d, 0x0c, 0xd2, 0x42, 0xda, 0x08,
+                      0x54, 0xbb, 0x53, 0xb4, 0x3b, 0x34, 0xa3, 0x12 };
+    uint8_t io_cap[3] = { 0x02, 0x01, 0x01 };
     uint8_t a1t = 0x00;
-	uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
+    uint8_t a1[6] = { 0xce, 0xbf, 0x37, 0x37, 0x12, 0x56 };
     uint8_t a2t = 0x00;
     uint8_t a2[6] = { 0xc1, 0xcf, 0x2d, 0x70, 0x13, 0xa7 };
-	uint8_t exp[16] = { 0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
-			    0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3 };
-	uint8_t res[16];
-	int err;
+    uint8_t exp[16] = { 0x61, 0x8f, 0x95, 0xda, 0x09, 0x0b, 0x6c, 0xd2,
+                        0xc5, 0xe8, 0xd0, 0x9c, 0x98, 0x73, 0xc4, 0xe3 };
+    uint8_t res[16];
+    int err;
 
-	err = ble_sm_alg_f6(w, n1, n2, r, io_cap, a1t, a1, a2t, a2, res);
-	TEST_ASSERT_FATAL(err == 0);
+    err = ble_sm_alg_f6(w, n1, n2, r, io_cap, a1t, a1, a2t, a2, res);
+    TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(res, exp, 16) == 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -119,25 +117,25 @@ TEST_CASE_SELF(ble_sm_test_case_f6)
 
 TEST_CASE_SELF(ble_sm_test_case_g2)
 {
-	uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
-			  0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
-			  0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
-			  0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
-	uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
-			  0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
-			  0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
-			  0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
-	uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
-			  0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
-	uint8_t y[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
-			  0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
-	uint32_t exp_val = 0x2f9ed5ba % 1000000;
-	uint32_t val;
-	int err;
+    uint8_t u[32] = { 0xe6, 0x9d, 0x35, 0x0e, 0x48, 0x01, 0x03, 0xcc,
+                      0xdb, 0xfd, 0xf4, 0xac, 0x11, 0x91, 0xf4, 0xef,
+                      0xb9, 0xa5, 0xf9, 0xe9, 0xa7, 0x83, 0x2c, 0x5e,
+                      0x2c, 0xbe, 0x97, 0xf2, 0xd2, 0x03, 0xb0, 0x20 };
+    uint8_t v[32] = { 0xfd, 0xc5, 0x7f, 0xf4, 0x49, 0xdd, 0x4f, 0x6b,
+                      0xfb, 0x7c, 0x9d, 0xf1, 0xc2, 0x9a, 0xcb, 0x59,
+                      0x2a, 0xe7, 0xd4, 0xee, 0xfb, 0xfc, 0x0a, 0x90,
+                      0x9a, 0xbb, 0xf6, 0x32, 0x3d, 0x8b, 0x18, 0x55 };
+    uint8_t x[16] = { 0xab, 0xae, 0x2b, 0x71, 0xec, 0xb2, 0xff, 0xff,
+                      0x3e, 0x73, 0x77, 0xd1, 0x54, 0x84, 0xcb, 0xd5 };
+    uint8_t y[16] = { 0xcf, 0xc4, 0x3d, 0xff, 0xf7, 0x83, 0x65, 0x21,
+                      0x6e, 0x5f, 0xa7, 0x25, 0xcc, 0xe7, 0xe8, 0xa6 };
+    uint32_t exp_val = 0x2f9ed5ba % 1000000;
+    uint32_t val;
+    int err;
 
-	err = ble_sm_alg_g2(u, v, x, y, &val);
-	TEST_ASSERT_FATAL(err == 0);
-	TEST_ASSERT(val == exp_val);
+    err = ble_sm_alg_g2(u, v, x, y, &val);
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(val == exp_val);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -164,8 +162,9 @@ TEST_CASE_SELF(ble_sm_test_case_csis_sef)
                          0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
     uint8_t k[16] = { 0xd9, 0xce, 0xe5, 0x3c, 0x22, 0xc6, 0x1e, 0x06,
                       0x6f, 0x69, 0x48, 0xd4, 0x9b, 0x1b, 0x6e, 0x67 };
-    const uint8_t sef_expected[16] = { 0x46, 0xd3, 0x5f, 0xf2, 0xd5, 0x62, 0x25, 0x7e,
-                                       0xa0, 0x24, 0x35, 0xe1, 0x35, 0x38, 0x0a, 0x17 };
+    const uint8_t sef_expected[16] = { 0x46, 0xd3, 0x5f, 0xf2, 0xd5, 0x62,
+                                       0x25, 0x7e, 0xa0, 0x24, 0x35, 0xe1,
+                                       0x35, 0x38, 0x0a, 0x17 };
     uint8_t sef_out[16];
     int err;
 
@@ -178,12 +177,13 @@ TEST_CASE_SELF(ble_sm_test_case_csis_sef)
 
 TEST_CASE_SELF(ble_sm_test_case_csis_s1_sirkenc)
 {
-    const uint8_t s1_expected[16] = { 0x72, 0x45, 0x77, 0x7d, 0x3a, 0x13, 0x7d, 0x3c,
-                                      0x82, 0x9e, 0x14, 0x18, 0x3f, 0x98, 0x01, 0x69 };
+    const uint8_t s1_expected[16] = { 0x72, 0x45, 0x77, 0x7d, 0x3a, 0x13,
+                                      0x7d, 0x3c, 0x82, 0x9e, 0x14, 0x18,
+                                      0x3f, 0x98, 0x01, 0x69 };
     uint8_t s1_out[16];
     int err;
 
-    err = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, s1_out);
+    err = ble_sm_alg_csis_s1((const uint8_t *)"SIRKenc", 7, s1_out);
 
     TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(s1_out, s1_expected, 16) == 0);
@@ -201,10 +201,10 @@ TEST_CASE_SELF(ble_sm_test_case_csis_k1_csis)
     uint8_t s1_out[16];
     int err;
 
-    err = ble_sm_alg_csis_s1((const uint8_t *) "SIRKenc", 7, s1_out);
+    err = ble_sm_alg_csis_s1((const uint8_t *)"SIRKenc", 7, s1_out);
     TEST_ASSERT_FATAL(err == 0);
 
-    err = ble_sm_alg_csis_k1(k, 16, s1_out, (const uint8_t *) "csis", 4, k1_out);
+    err = ble_sm_alg_csis_k1(k, 16, s1_out, (const uint8_t *)"csis", 4, k1_out);
 
     TEST_ASSERT_FATAL(err == 0);
     TEST_ASSERT(memcmp(k1_out, k1_expected, 16) == 0);
@@ -214,13 +214,14 @@ TEST_CASE_SELF(ble_sm_test_case_csis_k1_csis)
 
 TEST_CASE_SELF(ble_sm_test_case_csis_enc_dec_sirk)
 {
-    uint8_t plaintext_sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c, 0xcd, 0xce,
-                                   0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
+    uint8_t plaintext_sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c,
+                                   0xcd, 0xce, 0x22, 0xfd, 0xa1, 0x21,
+                                   0x09, 0x7d, 0x7d, 0x45 };
     uint8_t k[16] = { 0xd9, 0xce, 0xe5, 0x3c, 0x22, 0xc6, 0x1e, 0x06,
                       0x6f, 0x69, 0x48, 0xd4, 0x9b, 0x1b, 0x6e, 0x67 };
-    uint8_t enc_sirk[16] = {0};
-    uint8_t dec_sirk[16] = {0};
-    uint8_t rsi[6] = {0x0, 0x0, 0x0, 0xab, 0x34, 0xef};
+    uint8_t enc_sirk[16] = { 0 };
+    uint8_t dec_sirk[16] = { 0 };
+    uint8_t rsi[6] = { 0x0, 0x0, 0x0, 0xab, 0x34, 0xef };
     int err;
 
     /* Generate only hash part of rsi, as random part is already hard-coded */
@@ -242,9 +243,9 @@ TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 
     ble_sm_test_util_init();
 
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){ 0 }));
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){ 1, 2, 3, 5, 6, 7 }),
                                  ble_sm_test_util_conn_cb, NULL);
 
     /* Initiate the pairing procedure. */
@@ -274,58 +275,58 @@ TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 TEST_CASE_SELF(ble_sm_test_case_peer_fail_inval)
 {
     /* Invalid role detected before other arguments. */
-    ble_sm_test_util_peer_fail_inval(
-        1,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x14,
-            .oob_data_flag = 0,
-            .authreq = 0x12,
-            .max_enc_key_size = 20,
-            .init_key_dist = 0x0b,
-            .resp_key_dist = 0x11,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_CMD_NOT_SUPP,
-        } })
-    );
+    ble_sm_test_util_peer_fail_inval(1,
+                                     ((uint8_t[]){
+                                         0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c
+    }),
+                                     ((uint8_t[]){ 0x03, 0x02, 0x01, 0x50, 0x13, 0x00 }),
+                                     ((struct ble_sm_pair_cmd[1]){ {
+                                         .io_cap = 0x14,
+                                         .oob_data_flag = 0,
+                                         .authreq = 0x12,
+                                         .max_enc_key_size = 20,
+                                         .init_key_dist = 0x0b,
+                                         .resp_key_dist = 0x11,
+                                     } }),
+                                     ((struct ble_sm_pair_fail[1]){ {
+                                         .reason = BLE_SM_ERR_CMD_NOT_SUPP,
+                                     } }));
 
     /* Invalid key size - too small. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 6,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_ENC_KEY_SZ,
-        } })
-    );
+    ble_sm_test_util_peer_fail_inval(0,
+                                     ((uint8_t[]){
+                                         0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c
+    }),
+                                     ((uint8_t[]){ 0x03, 0x02, 0x01, 0x50, 0x13, 0x00 }),
+                                     ((struct ble_sm_pair_cmd[1]){ {
+                                         .io_cap = 0x04,
+                                         .oob_data_flag = 0,
+                                         .authreq = 0x5,
+                                         .max_enc_key_size = 6,
+                                         .init_key_dist = 0x07,
+                                         .resp_key_dist = 0x07,
+                                     } }),
+                                     ((struct ble_sm_pair_fail[1]){ {
+                                         .reason = BLE_SM_ERR_ENC_KEY_SZ,
+                                     } }));
 
     /* Invalid key size - too large. */
-    ble_sm_test_util_peer_fail_inval(
-        0,
-        ((uint8_t[]){0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c}),
-        ((uint8_t[]){0x03, 0x02, 0x01, 0x50, 0x13, 0x00}),
-        ((struct ble_sm_pair_cmd[1]) { {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x5,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        } }),
-        ((struct ble_sm_pair_fail[1]) { {
-            .reason = BLE_SM_ERR_INVAL,
-        } })
-    );
+    ble_sm_test_util_peer_fail_inval(0,
+                                     ((uint8_t[]){
+                                         0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c
+    }),
+                                     ((uint8_t[]){ 0x03, 0x02, 0x01, 0x50, 0x13, 0x00 }),
+                                     ((struct ble_sm_pair_cmd[1]){ {
+                                         .io_cap = 0x04,
+                                         .oob_data_flag = 0,
+                                         .authreq = 0x5,
+                                         .max_enc_key_size = 17,
+                                         .init_key_dist = 0x07,
+                                         .resp_key_dist = 0x07,
+                                     } }),
+                                     ((struct ble_sm_pair_fail[1]){ {
+                                         .reason = BLE_SM_ERR_INVAL,
+                                     } }));
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -399,18 +400,17 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
 
     ble_sm_test_util_init();
 
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){0}));
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){ 0 }));
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]){1,2,3,5,6,7}),
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){ 1, 2, 3, 5, 6, 7 }),
+                                 ble_sm_test_util_conn_cb, NULL);
 
     /*** We are the slave; reject the security request. */
     ble_hs_atomic_conn_set_flags(2, BLE_HS_CONN_F_MASTER, 0);
 
     sec_req.authreq = 0;
-    ble_sm_test_util_rx_sec_req(
-        2, &sec_req, BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP));
+    ble_sm_test_util_rx_sec_req(2, &sec_req,
+                                BLE_HS_SM_US_ERR(BLE_SM_ERR_CMD_NOT_SUPP));
 
     fail.reason = BLE_SM_ERR_CMD_NOT_SUPP;
     ble_sm_test_util_verify_tx_pair_fail(&fail);
@@ -433,15 +433,14 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_reject)
     struct ble_sm_sec_req sec_req;
     int rc;
 
-    struct ble_sm_pair_cmd pair_rsp = {0x04, 0, 0x0D, 10, 0x02, 0x02};
+    struct ble_sm_pair_cmd pair_rsp = { 0x04, 0, 0x0D, 10, 0x02, 0x02 };
 
     ble_sm_test_util_init();
 
-    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]) {0}));
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){ 0 }));
 
-    ble_hs_test_util_create_conn(2, ((uint8_t[6]) {1,2,3,5,6,7}),
-                                 ble_sm_test_util_conn_cb,
-                                 NULL);
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){ 1, 2, 3, 5, 6, 7 }),
+                                 ble_sm_test_util_conn_cb, NULL);
 
     /*** Pairing already in progress; reject security request after pairing
      * response was received. */
@@ -467,54 +466,60 @@ TEST_CASE_SELF(ble_sm_test_case_us_fail_inval)
     struct ble_sm_test_params params;
 
     /* Invalid key size - too small. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 6,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_ENC_KEY_SZ,
-        },
+    params = (struct ble_sm_test_params){
+        .init_id_addr = { 0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c },
+        .resp_id_addr = { 0x03, 0x02, 0x01, 0x50, 0x13, 0x00 },
+        .pair_req =
+            (struct ble_sm_pair_cmd){
+                         .io_cap = 3,
+                         .oob_data_flag = 0,
+                         .authreq = 0,
+                         .max_enc_key_size = 16,
+                         .init_key_dist = 0,
+                         .resp_key_dist = 0,
+                         },
+        .pair_rsp =
+            (struct ble_sm_pair_cmd){
+                         .io_cap = 0x04,
+                         .oob_data_flag = 0,
+                         .authreq = 0x05,
+                         .max_enc_key_size = 6,
+                         .init_key_dist = 0x07,
+                         .resp_key_dist = 0x07,
+                         },
+        .pair_fail =
+            (struct ble_sm_pair_fail){
+                         .reason = BLE_SM_ERR_ENC_KEY_SZ,
+                         },
     };
     ble_sm_test_util_us_fail_inval(&params);
 
     /* Invalid key size - too large. */
-    params = (struct ble_sm_test_params) {
-        .init_id_addr = {0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c},
-        .resp_id_addr = {0x03, 0x02, 0x01, 0x50, 0x13, 0x00},
-        .pair_req = (struct ble_sm_pair_cmd) {
-            .io_cap = 3,
-            .oob_data_flag = 0,
-            .authreq = 0,
-            .max_enc_key_size = 16,
-            .init_key_dist = 0,
-            .resp_key_dist = 0,
-        },
-        .pair_rsp = (struct ble_sm_pair_cmd) {
-            .io_cap = 0x04,
-            .oob_data_flag = 0,
-            .authreq = 0x05,
-            .max_enc_key_size = 17,
-            .init_key_dist = 0x07,
-            .resp_key_dist = 0x07,
-        },
-        .pair_fail = (struct ble_sm_pair_fail) {
-            .reason = BLE_SM_ERR_INVAL,
-        },
+    params = (struct ble_sm_test_params){
+        .init_id_addr = { 0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c },
+        .resp_id_addr = { 0x03, 0x02, 0x01, 0x50, 0x13, 0x00 },
+        .pair_req =
+            (struct ble_sm_pair_cmd){
+                         .io_cap = 3,
+                         .oob_data_flag = 0,
+                         .authreq = 0,
+                         .max_enc_key_size = 16,
+                         .init_key_dist = 0,
+                         .resp_key_dist = 0,
+                         },
+        .pair_rsp =
+            (struct ble_sm_pair_cmd){
+                         .io_cap = 0x04,
+                         .oob_data_flag = 0,
+                         .authreq = 0x05,
+                         .max_enc_key_size = 17,
+                         .init_key_dist = 0x07,
+                         .resp_key_dist = 0x07,
+                         },
+        .pair_fail =
+            (struct ble_sm_pair_fail){
+                         .reason = BLE_SM_ERR_INVAL,
+                         },
     };
     ble_sm_test_util_us_fail_inval(&params);
 

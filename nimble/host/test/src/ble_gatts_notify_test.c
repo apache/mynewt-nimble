@@ -25,41 +25,39 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID    0x1111
-#define BLE_GATTS_NOTIFY_TEST_CHR_2_UUID    0x2222
+#define BLE_GATTS_NOTIFY_TEST_CHR_1_UUID 0x1111
+#define BLE_GATTS_NOTIFY_TEST_CHR_2_UUID 0x2222
 
-#define BLE_GATTS_NOTIFY_TEST_MAX_EVENTS    16
+#define BLE_GATTS_NOTIFY_TEST_MAX_EVENTS 16
 
-static uint8_t ble_gatts_notify_test_peer_addr[6] = {2,3,4,5,6,7};
+static uint8_t ble_gatts_notify_test_peer_addr[6] = { 2, 3, 4, 5, 6, 7 };
 
-static int
-ble_gatts_notify_test_misc_access(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg);
-static void
-ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
-                                  void *arg);
+static int ble_gatts_notify_test_misc_access(uint16_t conn_handle, uint16_t attr_handle,
+                                             struct ble_gatt_access_ctxt *ctxt,
+                                             void *arg);
+static void ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
+                                              void *arg);
 
-static const struct ble_gatt_svc_def ble_gatts_notify_test_svcs[] = { {
-    .type = BLE_GATT_SVC_TYPE_PRIMARY,
-    .uuid = BLE_UUID16_DECLARE(0x1234),
-    .characteristics = (struct ble_gatt_chr_def[]) { {
-        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_1_UUID),
-        .access_cb = ble_gatts_notify_test_misc_access,
-        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
-                 BLE_GATT_CHR_F_INDICATE,
-    }, {
-        .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_2_UUID),
-        .access_cb = ble_gatts_notify_test_misc_access,
-        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
-                 BLE_GATT_CHR_F_INDICATE,
-    }, {
-        0
-    } },
-}, {
-    0
-} };
+static const struct ble_gatt_svc_def ble_gatts_notify_test_svcs[] = {
+    {
+     .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = BLE_UUID16_DECLARE(0x1234),
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_1_UUID),
+                    .access_cb = ble_gatts_notify_test_misc_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE,
+                },
+                {
+                    .uuid = BLE_UUID16_DECLARE(BLE_GATTS_NOTIFY_TEST_CHR_2_UUID),
+                    .access_cb = ble_gatts_notify_test_misc_access,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE,
+                },
+                { 0 } },
+     },
+    { 0 }
+};
 
 static uint16_t ble_gatts_notify_test_chr_1_def_handle;
 static uint8_t ble_gatts_notify_test_chr_1_val[1024];
@@ -68,8 +66,7 @@ static uint16_t ble_gatts_notify_test_chr_2_def_handle;
 static uint8_t ble_gatts_notify_test_chr_2_val[1024];
 static int ble_gatts_notify_test_chr_2_len;
 
-static struct ble_gap_event
-ble_gatts_notify_test_events[BLE_GATTS_NOTIFY_TEST_MAX_EVENTS];
+static struct ble_gap_event ble_gatts_notify_test_events[BLE_GATTS_NOTIFY_TEST_MAX_EVENTS];
 
 static int ble_gatts_notify_test_num_events;
 
@@ -86,8 +83,7 @@ ble_gatts_notify_test_util_gap_event(struct ble_gap_event *event, void *arg)
         TEST_ASSERT_FATAL(ble_gatts_notify_test_num_events <
                           BLE_GATTS_NOTIFY_TEST_MAX_EVENTS);
 
-        ble_gatts_notify_test_events[ble_gatts_notify_test_num_events++] =
-            *event;
+        ble_gatts_notify_test_events[ble_gatts_notify_test_num_events++] = *event;
 
     default:
         break;
@@ -97,8 +93,7 @@ ble_gatts_notify_test_util_gap_event(struct ble_gap_event *event, void *arg)
 }
 
 static uint16_t
-ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle,
-                                       uint16_t chr_def_handle)
+ble_gatts_notify_test_misc_read_notify(uint16_t conn_handle, uint16_t chr_def_handle)
 {
     struct ble_att_read_req req;
     struct os_mbuf *om;
@@ -139,8 +134,7 @@ ble_gatts_notify_test_misc_try_enable_notify(uint16_t conn_handle,
                                                 buf, sizeof buf);
     if (fail) {
         TEST_ASSERT_FATAL(rc != 0);
-        ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ,
-                                           req.bawq_handle,
+        ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_WRITE_REQ, req.bawq_handle,
                                            BLE_ATT_ERR_REQ_NOT_SUPPORTED);
     } else {
         TEST_ASSERT_FATAL(rc == 0);
@@ -150,11 +144,9 @@ ble_gatts_notify_test_misc_try_enable_notify(uint16_t conn_handle,
 
 static void
 ble_gatts_notify_test_misc_enable_notify(uint16_t conn_handle,
-                                         uint16_t chr_def_handle,
-                                         uint16_t flags)
+                                         uint16_t chr_def_handle, uint16_t flags)
 {
-    ble_gatts_notify_test_misc_try_enable_notify(conn_handle,
-                                                 chr_def_handle,
+    ble_gatts_notify_test_misc_try_enable_notify(conn_handle, chr_def_handle,
                                                  flags, 0);
 }
 
@@ -167,16 +159,14 @@ ble_gatts_notify_test_util_next_event(struct ble_gap_event *event)
 
     ble_gatts_notify_test_num_events--;
     if (ble_gatts_notify_test_num_events > 0) {
-        memmove(ble_gatts_notify_test_events + 0,
-                ble_gatts_notify_test_events + 1,
+        memmove(ble_gatts_notify_test_events + 0, ble_gatts_notify_test_events + 1,
                 ble_gatts_notify_test_num_events * sizeof *event);
     }
 }
 
 static void
 ble_gatts_notify_test_util_verify_sub_event(uint16_t conn_handle,
-                                            uint8_t attr_handle,
-                                            uint8_t reason,
+                                            uint8_t attr_handle, uint8_t reason,
                                             uint8_t prevn, uint8_t curn,
                                             uint8_t previ, uint8_t curi)
 {
@@ -195,10 +185,8 @@ ble_gatts_notify_test_util_verify_sub_event(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_util_verify_tx_event(uint16_t conn_handle,
-                                           uint8_t attr_handle,
-                                           int status,
-                                           int indication)
+ble_gatts_notify_test_util_verify_tx_event(uint16_t conn_handle, uint8_t attr_handle,
+                                           int status, int indication)
 {
     struct ble_gap_event event;
 
@@ -212,8 +200,7 @@ ble_gatts_notify_test_util_verify_tx_event(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_util_verify_ack_event(uint16_t conn_handle,
-                                            uint8_t attr_handle)
+ble_gatts_notify_test_util_verify_ack_event(uint16_t conn_handle, uint8_t attr_handle)
 {
     ble_gatts_notify_test_util_verify_tx_event(conn_handle, attr_handle,
                                                BLE_HS_EDONE, 1);
@@ -231,8 +218,7 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
     ble_gatts_notify_test_num_events = 0;
 
     ble_hs_test_util_reg_svcs(ble_gatts_notify_test_svcs,
-                              ble_gatts_notify_test_misc_reg_cb,
-                              NULL);
+                              ble_gatts_notify_test_misc_reg_cb, NULL);
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_1_def_handle != 0);
     TEST_ASSERT_FATAL(ble_gatts_notify_test_chr_2_def_handle != 0);
 
@@ -266,10 +252,8 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
             2, ble_gatts_notify_test_chr_1_def_handle, chr1_flags);
 
         ble_gatts_notify_test_util_verify_sub_event(
-            *out_conn_handle,
-            ble_gatts_notify_test_chr_1_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_WRITE,
-            0, chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
+            *out_conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_WRITE, 0, chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
             0, chr1_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
     }
     if (chr2_flags != 0) {
@@ -277,10 +261,8 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
             2, ble_gatts_notify_test_chr_2_def_handle, chr2_flags);
 
         ble_gatts_notify_test_util_verify_sub_event(
-            *out_conn_handle,
-            ble_gatts_notify_test_chr_2_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_WRITE,
-            0, chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
+            *out_conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_WRITE, 0, chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
             0, chr2_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
     }
 
@@ -308,20 +290,16 @@ ble_gatts_notify_test_misc_init(uint16_t *out_conn_handle, int bonding,
 }
 
 static void
-ble_gatts_notify_test_disconnect(uint16_t conn_handle,
-                                 uint8_t chr1_flags,
+ble_gatts_notify_test_disconnect(uint16_t conn_handle, uint8_t chr1_flags,
                                  uint8_t chr1_indicate_in_progress,
-                                 uint8_t chr2_flags,
-                                 uint8_t chr2_indicate_in_progress)
+                                 uint8_t chr2_flags, uint8_t chr2_indicate_in_progress)
 {
     ble_hs_test_util_conn_disconnect(conn_handle);
 
     if (chr1_indicate_in_progress) {
         ble_gatts_notify_test_util_verify_tx_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_1_def_handle + 1,
-            BLE_HS_ENOTCONN,
-            1);
+            conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+            BLE_HS_ENOTCONN, 1);
     }
 
     /* Verify subscription callback executed for each subscribed
@@ -329,34 +307,27 @@ ble_gatts_notify_test_disconnect(uint16_t conn_handle,
      */
     if (chr1_flags != 0) {
         ble_gatts_notify_test_util_verify_sub_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_1_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_TERM,
-            chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
-            chr1_flags == BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+            conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_TERM, chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
+            0, chr1_flags == BLE_GATTS_CLT_CFG_F_INDICATE, 0);
     }
 
     if (chr2_indicate_in_progress) {
         ble_gatts_notify_test_util_verify_tx_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_2_def_handle + 1,
-            BLE_HS_ENOTCONN,
-            1);
+            conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+            BLE_HS_ENOTCONN, 1);
     }
 
     if (chr2_flags != 0) {
         ble_gatts_notify_test_util_verify_sub_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_2_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_TERM,
-            chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
-            chr2_flags == BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+            conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_TERM, chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
+            0, chr2_flags == BLE_GATTS_CLT_CFG_F_INDICATE, 0);
     }
 }
 
 static void
-ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
-                                  void *arg)
+ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
 
@@ -379,10 +350,8 @@ ble_gatts_notify_test_misc_reg_cb(struct ble_gatt_register_ctxt *ctxt,
 }
 
 static int
-ble_gatts_notify_test_misc_access(uint16_t conn_handle,
-                                  uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg)
+ble_gatts_notify_test_misc_access(uint16_t conn_handle, uint16_t attr_handle,
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     int rc;
 
@@ -390,14 +359,12 @@ ble_gatts_notify_test_misc_access(uint16_t conn_handle,
     TEST_ASSERT(conn_handle == 0xffff);
 
     if (attr_handle == ble_gatts_notify_test_chr_1_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr ==
-                    &ble_gatts_notify_test_svcs[0].characteristics[0]);
+        TEST_ASSERT(ctxt->chr == &ble_gatts_notify_test_svcs[0].characteristics[0]);
         rc = os_mbuf_copyinto(ctxt->om, 0, ble_gatts_notify_test_chr_1_val,
                               ble_gatts_notify_test_chr_1_len);
         TEST_ASSERT_FATAL(rc == 0);
     } else if (attr_handle == ble_gatts_notify_test_chr_2_def_handle + 1) {
-        TEST_ASSERT(ctxt->chr ==
-                    &ble_gatts_notify_test_svcs[0].characteristics[1]);
+        TEST_ASSERT(ctxt->chr == &ble_gatts_notify_test_svcs[0].characteristics[1]);
         rc = os_mbuf_copyinto(ctxt->om, 0, ble_gatts_notify_test_chr_2_val,
                               ble_gatts_notify_test_chr_2_len);
         TEST_ASSERT_FATAL(rc == 0);
@@ -409,8 +376,7 @@ ble_gatts_notify_test_misc_access(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle,
-                                           uint16_t attr_handle)
+ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle, uint16_t attr_handle)
 {
     uint8_t buf[BLE_ATT_INDICATE_RSP_SZ];
     int rc;
@@ -425,8 +391,7 @@ ble_gatts_notify_test_misc_rx_indicate_rsp(uint16_t conn_handle,
 }
 
 static void
-ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
-                                       uint16_t attr_handle,
+ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle, uint16_t attr_handle,
                                        const uint8_t *attr_data, int attr_len)
 {
     struct ble_att_notify_req req;
@@ -440,16 +405,14 @@ ble_gatts_notify_test_misc_verify_tx_n(uint16_t conn_handle,
     TEST_ASSERT(req.banq_handle == attr_handle);
 
     for (i = 0; i < attr_len; i++) {
-        TEST_ASSERT(om->om_data[BLE_ATT_NOTIFY_REQ_BASE_SZ + i] ==
-                    attr_data[i]);
+        TEST_ASSERT(om->om_data[BLE_ATT_NOTIFY_REQ_BASE_SZ + i] == attr_data[i]);
     }
 
     ble_gatts_notify_test_util_verify_tx_event(conn_handle, attr_handle, 0, 0);
 }
 
 static void
-ble_gatts_notify_test_misc_verify_tx_i(uint16_t conn_handle,
-                                       uint16_t attr_handle,
+ble_gatts_notify_test_misc_verify_tx_i(uint16_t conn_handle, uint16_t attr_handle,
                                        const uint8_t *attr_data, int attr_len)
 {
     struct ble_att_indicate_req req;
@@ -463,8 +426,7 @@ ble_gatts_notify_test_misc_verify_tx_i(uint16_t conn_handle,
     TEST_ASSERT(req.baiq_handle == attr_handle);
 
     for (i = 0; i < attr_len; i++) {
-        TEST_ASSERT(om->om_data[BLE_ATT_INDICATE_REQ_BASE_SZ + i] ==
-                    attr_data[i]);
+        TEST_ASSERT(om->om_data[BLE_ATT_INDICATE_REQ_BASE_SZ + i] == attr_data[i]);
     }
 
     ble_gatts_notify_test_util_verify_tx_event(conn_handle, attr_handle, 0, 1);
@@ -517,9 +479,9 @@ ble_gatts_notify_test_misc_verify_tx_gen(uint16_t conn_handle, int attr_idx,
 }
 
 static void
-ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
-                                      uint8_t chr1_flags, uint8_t chr1_tx,
-                                      uint8_t chr2_flags, uint8_t chr2_tx)
+ble_gatts_notify_test_restore_bonding(uint16_t conn_handle, uint8_t chr1_flags,
+                                      uint8_t chr1_tx, uint8_t chr2_flags,
+                                      uint8_t chr2_tx)
 {
     struct ble_hs_conn *conn;
 
@@ -538,12 +500,10 @@ ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
      */
     if (chr1_flags != 0) {
         ble_gatts_notify_test_util_verify_sub_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_1_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_RESTORE,
-            0, chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
-            0, chr1_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
-
+            conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_RESTORE, 0,
+            chr1_flags == BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
+            chr1_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
     }
     if (chr1_tx) {
         ble_gatts_notify_test_misc_verify_tx_gen(conn_handle, 1, chr1_flags);
@@ -551,11 +511,10 @@ ble_gatts_notify_test_restore_bonding(uint16_t conn_handle,
 
     if (chr2_flags != 0) {
         ble_gatts_notify_test_util_verify_sub_event(
-            conn_handle,
-            ble_gatts_notify_test_chr_2_def_handle + 1,
-            BLE_GAP_SUBSCRIBE_REASON_RESTORE,
-            0, chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY,
-            0, chr2_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
+            conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+            BLE_GAP_SUBSCRIBE_REASON_RESTORE, 0,
+            chr2_flags == BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
+            chr2_flags == BLE_GATTS_CLT_CFG_F_INDICATE);
     }
     if (chr2_tx) {
         ble_gatts_notify_test_misc_verify_tx_gen(conn_handle, 2, chr2_flags);
@@ -570,8 +529,7 @@ TEST_CASE_SELF(ble_gatts_notify_test_n)
     uint16_t flags;
     int rc;
 
-    ble_gatts_notify_test_misc_init(&conn_handle, 0,
-                                    BLE_GATTS_CLT_CFG_F_NOTIFY,
+    ble_gatts_notify_test_misc_init(&conn_handle, 0, BLE_GATTS_CLT_CFG_F_NOTIFY,
                                     BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Ensure notifications read back as enabled. */
@@ -587,14 +545,11 @@ TEST_CASE_SELF(ble_gatts_notify_test_n)
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_gatts_notify_custom(conn_handle,
-                                 ble_gatts_notify_test_chr_1_def_handle + 1,
-                                 om);
+                                 ble_gatts_notify_test_chr_1_def_handle + 1, om);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_gatts_notify_test_misc_verify_tx_n(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1,
-        fourbytes,
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1, fourbytes,
         sizeof fourbytes);
 
     /* Update characteristic 1's value. */
@@ -604,32 +559,27 @@ TEST_CASE_SELF(ble_gatts_notify_test_n)
 
     /* Verify notification sent properly. */
     ble_gatts_notify_test_misc_verify_tx_n(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1,
-        ble_gatts_notify_test_chr_1_val,
-        ble_gatts_notify_test_chr_1_len);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+        ble_gatts_notify_test_chr_1_val, ble_gatts_notify_test_chr_1_len);
 
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
+           ((uint8_t[]){ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), 16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify notification sent properly. */
     ble_gatts_notify_test_misc_verify_tx_n(
-        conn_handle,
-        ble_gatts_notify_test_chr_2_def_handle + 1,
-        ble_gatts_notify_test_chr_2_val,
-        ble_gatts_notify_test_chr_2_len);
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+        ble_gatts_notify_test_chr_2_val, ble_gatts_notify_test_chr_2_len);
 
     /***
      * Disconnect, modify characteristic values, and reconnect.  Ensure
      * notifications are not sent and are no longer enabled.
      */
 
-    ble_gatts_notify_test_disconnect(conn_handle,
-                                     BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
-                                     BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+    ble_gatts_notify_test_disconnect(conn_handle, BLE_GATTS_CLT_CFG_F_NOTIFY,
+                                     0, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -639,10 +589,12 @@ TEST_CASE_SELF(ble_gatts_notify_test_n)
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}), 16);
+           ((uint8_t[]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }),
+           16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
-    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(conn_handle,
+                                 ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     /* Ensure no notifications sent. */
@@ -667,8 +619,7 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
     uint16_t flags;
     int rc;
 
-    ble_gatts_notify_test_misc_init(&conn_handle, 0,
-                                    BLE_GATTS_CLT_CFG_F_INDICATE,
+    ble_gatts_notify_test_misc_init(&conn_handle, 0, BLE_GATTS_CLT_CFG_F_INDICATE,
                                     BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Verify custom indication data. */
@@ -676,20 +627,16 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
     TEST_ASSERT_FATAL(om != NULL);
 
     rc = ble_gatts_indicate_custom(conn_handle,
-                                   ble_gatts_notify_test_chr_1_def_handle + 1,
-                                   om);
+                                   ble_gatts_notify_test_chr_1_def_handle + 1, om);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_gatts_notify_test_misc_verify_tx_i(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1,
-        fourbytes,
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1, fourbytes,
         sizeof fourbytes);
 
     /* Receive the confirmation for the indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -698,15 +645,13 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1,
-        ble_gatts_notify_test_chr_1_val,
-        ble_gatts_notify_test_chr_1_len);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+        ble_gatts_notify_test_chr_1_val, ble_gatts_notify_test_chr_1_len);
 
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
+           ((uint8_t[]){ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), 16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify the second indication doesn't get sent until the first is
@@ -716,20 +661,16 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
 
     /* Receive the confirmation for the first indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(
-        conn_handle,
-        ble_gatts_notify_test_chr_2_def_handle + 1,
-        ble_gatts_notify_test_chr_2_val,
-        ble_gatts_notify_test_chr_2_len);
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+        ble_gatts_notify_test_chr_2_val, ble_gatts_notify_test_chr_2_len);
 
     /* Receive the confirmation for the second indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_2_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify no pending GATT jobs. */
     TEST_ASSERT(!ble_gattc_any_jobs());
@@ -739,9 +680,8 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
      * indications are not sent and are no longer enabled.
      */
 
-    ble_gatts_notify_test_disconnect(conn_handle,
-                                     BLE_GATTS_CLT_CFG_F_INDICATE, 0,
-                                     BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_disconnect(conn_handle, BLE_GATTS_CLT_CFG_F_INDICATE,
+                                     0, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -751,10 +691,12 @@ TEST_CASE_SELF(ble_gatts_notify_test_i)
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}), 16);
+           ((uint8_t[]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }),
+           16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
-    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(conn_handle,
+                                 ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     /* Ensure no indications sent. */
@@ -776,14 +718,12 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_n)
     uint16_t conn_handle;
     uint16_t flags;
 
-    ble_gatts_notify_test_misc_init(&conn_handle, 1,
-                                    BLE_GATTS_CLT_CFG_F_NOTIFY,
+    ble_gatts_notify_test_misc_init(&conn_handle, 1, BLE_GATTS_CLT_CFG_F_NOTIFY,
                                     BLE_GATTS_CLT_CFG_F_NOTIFY);
 
     /* Disconnect. */
-    ble_gatts_notify_test_disconnect(conn_handle,
-                                     BLE_GATTS_CLT_CFG_F_NOTIFY, 0,
-                                     BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+    ble_gatts_notify_test_disconnect(conn_handle, BLE_GATTS_CLT_CFG_F_NOTIFY,
+                                     0, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
 
     /* Ensure both CCCDs still persisted. */
     TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
@@ -796,14 +736,16 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_n)
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16}), 16);
+           ((uint8_t[]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }),
+           16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Reconnect; ensure notifications don't get sent while unbonded and that
      * notifications appear disabled.
      */
 
-    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(conn_handle,
+                                 ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     ble_gatts_notify_test_num_events = 0;
@@ -819,9 +761,8 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_n)
     TEST_ASSERT(flags == 0);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
-    ble_gatts_notify_test_restore_bonding(conn_handle,
-                                          BLE_GATTS_CLT_CFG_F_NOTIFY, 1,
-                                          BLE_GATTS_CLT_CFG_F_NOTIFY, 1);
+    ble_gatts_notify_test_restore_bonding(conn_handle, BLE_GATTS_CLT_CFG_F_NOTIFY,
+                                          1, BLE_GATTS_CLT_CFG_F_NOTIFY, 1);
 
     /* Ensure notifications enabled. */
     flags = ble_gatts_notify_test_misc_read_notify(
@@ -842,14 +783,12 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i)
     uint16_t conn_handle;
     uint16_t flags;
 
-    ble_gatts_notify_test_misc_init(&conn_handle, 1,
-                                    BLE_GATTS_CLT_CFG_F_INDICATE,
+    ble_gatts_notify_test_misc_init(&conn_handle, 1, BLE_GATTS_CLT_CFG_F_INDICATE,
                                     BLE_GATTS_CLT_CFG_F_INDICATE);
 
     /* Disconnect. */
-    ble_gatts_notify_test_disconnect(conn_handle,
-                                     BLE_GATTS_CLT_CFG_F_INDICATE, 0,
-                                     BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_disconnect(conn_handle, BLE_GATTS_CLT_CFG_F_INDICATE,
+                                     0, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Ensure both CCCDs still persisted. */
     TEST_ASSERT(ble_hs_test_util_num_cccds() == 2);
@@ -862,14 +801,15 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i)
     /* Update characteristic 2's value. */
     ble_gatts_notify_test_chr_2_len = 16;
     memcpy(ble_gatts_notify_test_chr_2_val,
-           ((uint8_t[]){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15}), 16);
+           ((uint8_t[]){ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }), 16);
     ble_gatts_chr_updated(ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Reconnect; ensure notifications don't get sent while unbonded and that
      * notifications appear disabled.
      */
 
-    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(conn_handle,
+                                 ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     /* Ensure no indications sent. */
@@ -884,9 +824,8 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i)
     TEST_ASSERT(flags == 0);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
-    ble_gatts_notify_test_restore_bonding(conn_handle,
-                                          BLE_GATTS_CLT_CFG_F_INDICATE, 1,
-                                          BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_restore_bonding(conn_handle, BLE_GATTS_CLT_CFG_F_INDICATE,
+                                          1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Verify the second indication doesn't get sent until the first is
      * confirmed.
@@ -895,20 +834,16 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i)
 
     /* Receive the confirmation for the first indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(
-        conn_handle,
-        ble_gatts_notify_test_chr_2_def_handle + 1,
-        ble_gatts_notify_test_chr_2_val,
-        ble_gatts_notify_test_chr_2_len);
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1,
+        ble_gatts_notify_test_chr_2_val, ble_gatts_notify_test_chr_2_len);
 
     /* Receive the confirmation for the second indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_2_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_2_def_handle + 1);
 
     /* Verify no pending GATT jobs. */
     TEST_ASSERT(!ble_gattc_any_jobs());
@@ -935,8 +870,7 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i_no_ack)
     uint16_t flags;
     int rc;
 
-    ble_gatts_notify_test_misc_init(&conn_handle, 1,
-                                    BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_misc_init(&conn_handle, 1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Update characteristic 1's value. */
     ble_gatts_notify_test_chr_1_len = 1;
@@ -945,10 +879,8 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i_no_ack)
 
     /* Verify indication sent properly. */
     ble_gatts_notify_test_misc_verify_tx_i(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1,
-        ble_gatts_notify_test_chr_1_val,
-        ble_gatts_notify_test_chr_1_len);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1,
+        ble_gatts_notify_test_chr_1_val, ble_gatts_notify_test_chr_1_len);
 
     /* Verify 'updated' state is still persisted. */
     key_cccd.peer_addr = *BLE_ADDR_ANY;
@@ -960,25 +892,24 @@ TEST_CASE_SELF(ble_gatts_notify_test_bonded_i_no_ack)
     TEST_ASSERT(value_cccd.value_changed);
 
     /* Disconnect. */
-    ble_gatts_notify_test_disconnect(conn_handle,
-                                     BLE_GATTS_CLT_CFG_F_INDICATE, 1, 0, 0);
+    ble_gatts_notify_test_disconnect(conn_handle, BLE_GATTS_CLT_CFG_F_INDICATE,
+                                     1, 0, 0);
 
     /* Ensure CCCD still persisted. */
     TEST_ASSERT(ble_hs_test_util_num_cccds() == 1);
 
     /* Reconnect. */
-    ble_hs_test_util_create_conn(conn_handle, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(conn_handle,
+                                 ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     /* Simulate a successful encryption procedure (bonding restoration). */
     ble_gatts_notify_test_restore_bonding(conn_handle,
-                                          BLE_GATTS_CLT_CFG_F_INDICATE, 1,
-                                          0, 0);
+                                          BLE_GATTS_CLT_CFG_F_INDICATE, 1, 0, 0);
 
     /* Receive the confirmation for the indication. */
     ble_gatts_notify_test_misc_rx_indicate_rsp(
-        conn_handle,
-        ble_gatts_notify_test_chr_1_def_handle + 1);
+        conn_handle, ble_gatts_notify_test_chr_1_def_handle + 1);
 
     /* Verify no pending GATT jobs. */
     TEST_ASSERT(!ble_gattc_any_jobs());
@@ -1008,31 +939,34 @@ TEST_CASE_SELF(ble_gatts_notify_test_disallowed)
     uint16_t chr2_val_handle;
     uint16_t chr3_val_handle;
 
-    const struct ble_gatt_svc_def svcs[] = { {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(0x1234),
-        .characteristics = (struct ble_gatt_chr_def[]) { {
-            .uuid = BLE_UUID16_DECLARE(1),
-            .access_cb = ble_gatts_notify_test_misc_access,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
-            .val_handle = &chr1_val_handle,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(2),
-            .access_cb = ble_gatts_notify_test_misc_access,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE,
-            .val_handle = &chr2_val_handle,
-        }, {
-            .uuid = BLE_UUID16_DECLARE(3),
-            .access_cb = ble_gatts_notify_test_misc_access,
-            .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY |
-                     BLE_GATT_CHR_F_INDICATE,
-            .val_handle = &chr3_val_handle,
-        }, {
-            0
-        } },
-    }, {
-        0
-    } };
+    const struct ble_gatt_svc_def svcs[] = {
+        {
+         .type = BLE_GATT_SVC_TYPE_PRIMARY,
+         .uuid = BLE_UUID16_DECLARE(0x1234),
+         .characteristics =
+                (struct ble_gatt_chr_def[]){
+                    {
+                        .uuid = BLE_UUID16_DECLARE(1),
+                        .access_cb = ble_gatts_notify_test_misc_access,
+                        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
+                        .val_handle = &chr1_val_handle,
+                    },
+                    {
+                        .uuid = BLE_UUID16_DECLARE(2),
+                        .access_cb = ble_gatts_notify_test_misc_access,
+                        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_INDICATE,
+                        .val_handle = &chr2_val_handle,
+                    },
+                    {
+                        .uuid = BLE_UUID16_DECLARE(3),
+                        .access_cb = ble_gatts_notify_test_misc_access,
+                        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE,
+                        .val_handle = &chr3_val_handle,
+                    },
+                    { 0 } },
+         },
+        { 0 }
+    };
 
     ble_hs_test_util_init();
 
@@ -1045,28 +979,28 @@ TEST_CASE_SELF(ble_gatts_notify_test_disallowed)
                                  ble_gatts_notify_test_util_gap_event, NULL);
 
     /* Attempt to enable notifications on chr1 should succeed. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr1_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr1_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
 
     /* Attempt to enable indications on chr1 should fail. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr1_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 1);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr1_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_INDICATE, 1);
 
     /* Attempt to enable notifications on chr2 should fail. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr2_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 1);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr2_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_NOTIFY, 1);
 
     /* Attempt to enable indications on chr2 should succeed. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr2_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr2_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     /* Attempt to enable notifications on chr3 should succeed. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr3_val_handle - 1, BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr3_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_NOTIFY, 0);
 
     /* Attempt to enable indications on chr3 should succeed. */
-    ble_gatts_notify_test_misc_try_enable_notify(
-        2, chr3_val_handle - 1, BLE_GATTS_CLT_CFG_F_INDICATE, 0);
+    ble_gatts_notify_test_misc_try_enable_notify(2, chr3_val_handle - 1,
+                                                 BLE_GATTS_CLT_CFG_F_INDICATE, 0);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }

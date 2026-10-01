@@ -25,7 +25,7 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#define BHST_MAX_EVENTS     32
+#define BHST_MAX_EVENTS 32
 
 static struct ble_gap_event bhst_events[BHST_MAX_EVENTS];
 static int bhst_num_events;
@@ -57,8 +57,7 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
     static const struct ble_gap_adv_params adv_params;
 
     static const ble_addr_t peer_addr = {
-        BLE_ADDR_PUBLIC,
-        { 1, 2, 3, 4, 5, 6 }
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
     };
 
     int rc;
@@ -79,8 +78,7 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
 
     /* Advertise. */
     rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, &adv_params,
-                                    BLE_HS_FOREVER, bhst_gap_event, NULL,
-                                    0, 0);
+                                    BLE_HS_FOREVER, bhst_gap_event, NULL, 0, 0);
     TEST_ASSERT(rc == BLE_HS_EDISABLED);
 
     /* Discover. */
@@ -90,8 +88,7 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
 
     /* Connect. */
     rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr,
-                                  BLE_HS_FOREVER, NULL,
-                                  bhst_gap_event, NULL, 0);
+                                  BLE_HS_FOREVER, NULL, bhst_gap_event, NULL, 0);
     TEST_ASSERT(rc == BLE_HS_EDISABLED);
 
     /*** Restart stack; ensure GAP procedures succeed. */
@@ -101,8 +98,7 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
 
     /* Advertise. */
     rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, &adv_params,
-                                    BLE_HS_FOREVER, bhst_gap_event, NULL,
-                                    0, 0);
+                                    BLE_HS_FOREVER, bhst_gap_event, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_adv_stop(0);
@@ -118,8 +114,7 @@ TEST_CASE_TASK(ble_hs_stop_test_new_procs)
 
     /* Connect. */
     rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &peer_addr,
-                                  BLE_HS_FOREVER, NULL,
-                                  bhst_gap_event, NULL, 0);
+                                  BLE_HS_FOREVER, NULL, bhst_gap_event, NULL, 0);
     TEST_ASSERT(rc == 0);
 
     rc = ble_hs_test_util_conn_cancel(0);
@@ -140,8 +135,7 @@ TEST_CASE_TASK(ble_hs_stop_test_cur_procs)
 
     /* Advertise. */
     rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL, &adv_params,
-                                    BLE_HS_FOREVER, bhst_gap_event, NULL,
-                                    0, 0);
+                                    BLE_HS_FOREVER, bhst_gap_event, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
     /* Discover. */
@@ -153,12 +147,9 @@ TEST_CASE_TASK(ble_hs_stop_test_cur_procs)
      * automatically when the host stops.
      */
     ble_hs_test_util_hci_ack_set(
-        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE),
-        0);
+        BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_ADV_ENABLE), 0);
     ble_hs_test_util_hci_ack_append(
-        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                                    BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-        0);
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_SCAN_ENABLE), 0);
 
     /* Stop the host and wait for the stop procedure to complete. */
     bhst_num_events = 0;

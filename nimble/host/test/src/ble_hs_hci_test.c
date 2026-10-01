@@ -26,7 +26,7 @@
 #include "testutil/testutil.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN     (3)  /* No status byte. */
+#define BLE_HCI_READ_RSSI_ACK_PARAM_LEN (3) /* No status byte. */
 
 TEST_CASE_SELF(ble_hs_hci_test_event_bad)
 {
@@ -39,7 +39,7 @@ TEST_CASE_SELF(ble_hs_hci_test_event_bad)
 
     buf[0] = 0xff;
     buf[1] = 0;
-    rc = ble_hs_hci_evt_process((void*)buf);
+    rc = ble_hs_hci_evt_process((void *)buf);
     TEST_ASSERT(rc == BLE_HS_ENOTSUP);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -52,8 +52,7 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi)
     int8_t rssi;
     int rc;
 
-    opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_STATUS_PARAMS,
-                                  BLE_HCI_OCF_RD_RSSI);
+    opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI);
 
     /*** Success. */
     /* Connection handle. */

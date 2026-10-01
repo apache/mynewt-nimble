@@ -25,8 +25,7 @@
 #include "ble_hs_test_util.h"
 
 #define BLE_HS_PVCY_TEST_MAX_GAP_EVENTS 256
-static struct ble_gap_event
-ble_hs_pvcy_test_gap_events[BLE_HS_PVCY_TEST_MAX_GAP_EVENTS];
+static struct ble_gap_event ble_hs_pvcy_test_gap_events[BLE_HS_PVCY_TEST_MAX_GAP_EVENTS];
 static int ble_hs_pvcy_test_num_gap_events;
 
 static void
@@ -39,28 +38,23 @@ ble_hs_pvcy_test_util_init(void)
 static int
 ble_hs_pvcy_test_util_gap_event(struct ble_gap_event *event, void *arg)
 {
-    TEST_ASSERT_FATAL(ble_hs_pvcy_test_num_gap_events <
-                      BLE_HS_PVCY_TEST_MAX_GAP_EVENTS);
+    TEST_ASSERT_FATAL(ble_hs_pvcy_test_num_gap_events < BLE_HS_PVCY_TEST_MAX_GAP_EVENTS);
     ble_hs_pvcy_test_gap_events[ble_hs_pvcy_test_num_gap_events++] = *event;
 
     return 0;
 }
 
 static void
-ble_hs_pvcy_test_util_all_gap_procs(int adv_status,
-                                    int conn_status,
-                                    int disc_status)
+ble_hs_pvcy_test_util_all_gap_procs(int adv_status, int conn_status, int disc_status)
 {
     struct ble_gap_disc_params disc_params;
     ble_addr_t peer_addr;
     int rc;
 
     /* Advertise. */
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    NULL, &ble_hs_test_util_adv_params,
-                                    BLE_HS_FOREVER,
-                                    ble_hs_pvcy_test_util_gap_event,
-                                    NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL,
+                                    &ble_hs_test_util_adv_params, BLE_HS_FOREVER,
+                                    ble_hs_pvcy_test_util_gap_event, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == adv_status);
 
     if (rc == 0) {
@@ -69,10 +63,11 @@ ble_hs_pvcy_test_util_all_gap_procs(int adv_status,
     }
 
     /* Connect. */
-    peer_addr = (ble_addr_t){ BLE_ADDR_PUBLIC, {1,2,3,4,5,6} };
-    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr,
-                                  BLE_HS_FOREVER, NULL,
-                                  ble_hs_pvcy_test_util_gap_event, NULL, 0);
+    peer_addr = (ble_addr_t){
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
+    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
+                                  NULL, ble_hs_pvcy_test_util_gap_event, NULL, 0);
     TEST_ASSERT_FATAL(rc == conn_status);
 
     if (rc == 0) {
@@ -81,9 +76,8 @@ ble_hs_pvcy_test_util_all_gap_procs(int adv_status,
 
     /* Discover. */
     disc_params = (struct ble_gap_disc_params){ 0 };
-    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
-                               &disc_params, ble_hs_pvcy_test_util_gap_event,
-                               NULL, -1, 0);
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_hs_pvcy_test_util_gap_event, NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == disc_status);
 
     if (rc == 0) {
@@ -100,14 +94,12 @@ ble_hs_pvcy_test_util_add_irk_set_acks(bool scanning, bool connecting)
 
     if (connecting) {
         ble_hs_test_util_hci_ack_append(
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN_CANCEL),
-            0);
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_CREATE_CONN_CANCEL), 0);
     }
 
     if (scanning) {
         ble_hs_test_util_hci_ack_append(
-            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE),
-            0);
+            BLE_HS_TEST_UTIL_LE_OPCODE(BLE_HCI_OCF_LE_SET_SCAN_ENABLE), 0);
     }
 
     ble_hs_test_util_hci_ack_append(
@@ -128,7 +120,7 @@ ble_hs_pvcy_test_util_start_host(int num_expected_irks)
      * setting the default IRK, takes place.  We need this so that we can plan
      * which HCI acks to fake.
      */
-    rc = ble_hs_test_util_set_our_irk((uint8_t[16]){0}, -1, 0);
+    rc = ble_hs_test_util_set_our_irk((uint8_t[16]){ 0 }, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
     ble_hs_test_util_hci_out_clear();
 
@@ -150,26 +142,21 @@ static void
 ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
                                         const uint8_t *peer_irk,
                                         const uint8_t *local_irk,
-                                        bool scanning,
-                                        bool connecting)
+                                        bool scanning, bool connecting)
 {
     uint8_t param_len;
     uint8_t *param;
 
-    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                   BLE_HCI_OCF_LE_SET_ADV_ENABLE,
-                                   NULL);
+    ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE, NULL);
 
     if (connecting) {
         ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                       BLE_HCI_OCF_LE_CREATE_CONN_CANCEL,
-                                       NULL);
+                                       BLE_HCI_OCF_LE_CREATE_CONN_CANCEL, NULL);
     }
 
     if (scanning) {
         ble_hs_test_util_hci_verify_tx(BLE_HCI_OGF_LE,
-                                       BLE_HCI_OCF_LE_SET_SCAN_ENABLE,
-                                       NULL);
+                                       BLE_HCI_OCF_LE_SET_SCAN_ENABLE, NULL);
     }
 
     param = ble_hs_test_util_hci_verify_tx(
@@ -178,22 +165,17 @@ ble_hs_pvcy_test_util_add_irk_verify_tx(const ble_addr_t *peer_addr,
     TEST_ASSERT(param[0] == peer_addr->type);
     TEST_ASSERT(memcmp(param + 1, peer_addr->val, 6) == 0);
 
-    ble_hs_test_util_hci_verify_tx_add_irk(peer_addr->type,
-                                           peer_addr->val,
-                                           peer_irk,
-                                           local_irk);
+    ble_hs_test_util_hci_verify_tx_add_irk(peer_addr->type, peer_addr->val,
+                                           peer_irk, local_irk);
 
-    ble_hs_test_util_hci_verify_tx_set_priv_mode(peer_addr->type,
-                                                 peer_addr->val,
+    ble_hs_test_util_hci_verify_tx_set_priv_mode(peer_addr->type, peer_addr->val,
                                                  BLE_GAP_PRIVATE_MODE_DEVICE);
 }
 
 static void
 ble_hs_pvcy_test_util_add_irk(const ble_addr_t *peer_addr,
-                              const uint8_t *peer_irk,
-                              const uint8_t *local_irk,
-                              bool scanning,
-                              bool connecting)
+                              const uint8_t *peer_irk, const uint8_t *local_irk,
+                              bool scanning, bool connecting)
 {
     int num_acks;
     int rc;
@@ -220,22 +202,19 @@ ble_hs_pvcy_test_util_add_arbitrary_irk(bool scanning, bool connecting)
 {
     ble_addr_t peer_addr;
 
-    peer_addr = (ble_addr_t) {
+    peer_addr = (ble_addr_t){
         .type = BLE_ADDR_PUBLIC,
-        .val = {1,2,3,4,5,6},
+        .val = { 1, 2, 3, 4, 5, 6 },
     };
     ble_hs_pvcy_test_util_add_irk(
         &peer_addr,
-        (uint8_t[16]){1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16},
-        ble_hs_pvcy_default_irk,
-        scanning,
-        connecting);
+        (uint8_t[16]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 },
+        ble_hs_pvcy_default_irk, scanning, connecting);
 }
 
 static void
 ble_hs_pvcy_test_util_restore_irk(const struct ble_store_value_sec *value_sec,
-                                  bool scanning,
-                                  bool connecting)
+                                  bool scanning, bool connecting)
 {
     int rc;
 
@@ -244,10 +223,8 @@ ble_hs_pvcy_test_util_restore_irk(const struct ble_store_value_sec *value_sec,
     rc = ble_store_write_peer_sec(value_sec);
     TEST_ASSERT_FATAL(rc == 0);
 
-    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec->peer_addr,
-                                            value_sec->irk,
-                                            ble_hs_pvcy_default_irk,
-                                            scanning,
+    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec->peer_addr, value_sec->irk,
+                                            ble_hs_pvcy_default_irk, scanning,
                                             connecting);
 }
 
@@ -264,7 +241,7 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_restore_irks)
     /*** One persisted IRK. */
 
     /* Persist IRK; ensure it automatically gets added to the list. */
-    value_sec1 = (struct ble_store_value_sec) {
+    value_sec1 = (struct ble_store_value_sec){
         .peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
         .key_size = 16,
         .ediv = 1,
@@ -276,13 +253,11 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_restore_irks)
 
     /* Ensure it gets added to list on startup. */
     ble_hs_pvcy_test_util_start_host(1);
-    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr,
-                                            value_sec1.irk,
-                                            ble_hs_pvcy_default_irk,
-                                            false, false);
+    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr, value_sec1.irk,
+                                            ble_hs_pvcy_default_irk, false, false);
 
     /* Two persisted IRKs. */
-    value_sec2 = (struct ble_store_value_sec) {
+    value_sec2 = (struct ble_store_value_sec){
         .peer_addr = { BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 } },
         .key_size = 16,
         .ediv = 12,
@@ -294,14 +269,10 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_restore_irks)
 
     /* Ensure both get added to list on startup. */
     ble_hs_pvcy_test_util_start_host(2);
-    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr,
-                                            value_sec1.irk,
-                                            ble_hs_pvcy_default_irk,
-                                            false, false);
-    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec2.peer_addr,
-                                            value_sec2.irk,
-                                            ble_hs_pvcy_default_irk,
-                                            false, false);
+    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec1.peer_addr, value_sec1.irk,
+                                            ble_hs_pvcy_default_irk, false, false);
+    ble_hs_pvcy_test_util_add_irk_verify_tx(&value_sec2.peer_addr, value_sec2.irk,
+                                            ble_hs_pvcy_default_irk, false, false);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
@@ -325,20 +296,16 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv)
     ble_hs_pvcy_test_util_init();
 
     /* Start an advertising procedure. */
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    NULL, &ble_hs_test_util_adv_params,
-                                    BLE_HS_FOREVER,
-                                    ble_hs_pvcy_test_util_gap_event,
-                                    NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL,
+                                    &ble_hs_test_util_adv_params, BLE_HS_FOREVER,
+                                    ble_hs_pvcy_test_util_gap_event, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(false, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
-                BLE_GAP_EVENT_ADV_COMPLETE);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type == BLE_GAP_EVENT_ADV_COMPLETE);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason == BLE_HS_EPREEMPTED);
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
@@ -356,18 +323,15 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_disc)
 
     /* Start an advertising procedure. */
     disc_params = (struct ble_gap_disc_params){ 0 };
-    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
-                               &disc_params, ble_hs_pvcy_test_util_gap_event,
-                               NULL, -1, 0);
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_hs_pvcy_test_util_gap_event, NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(true, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
-                BLE_GAP_EVENT_DISC_COMPLETE);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].disc_complete.reason ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type == BLE_GAP_EVENT_DISC_COMPLETE);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].disc_complete.reason == BLE_HS_EPREEMPTED);
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
@@ -384,10 +348,11 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_conn)
     ble_hs_pvcy_test_util_init();
 
     /* Start a connect procedure. */
-    peer_addr = (ble_addr_t){ BLE_ADDR_PUBLIC, {1,2,3,4,5,6} };
-    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr,
-                                  BLE_HS_FOREVER, NULL,
-                                  ble_hs_pvcy_test_util_gap_event, NULL, 0);
+    peer_addr = (ble_addr_t){
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
+    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
+                                  NULL, ble_hs_pvcy_test_util_gap_event, NULL, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(false, true);
@@ -396,18 +361,15 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_conn)
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 0);
 
     /* Ensure no GAP procedures are allowed. */
-    ble_hs_pvcy_test_util_all_gap_procs(BLE_HS_EPREEMPTED,
-                                        BLE_HS_EALREADY,
+    ble_hs_pvcy_test_util_all_gap_procs(BLE_HS_EPREEMPTED, BLE_HS_EALREADY,
                                         BLE_HS_EBUSY);
 
     /* Receive cancel event. */
     ble_hs_test_util_rx_conn_cancel_evt();
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
-                BLE_GAP_EVENT_CONNECT);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].connect.status ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].connect.status == BLE_HS_EPREEMPTED);
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
@@ -424,31 +386,24 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv_disc)
     ble_hs_pvcy_test_util_init();
 
     /* Start an advertising procedure. */
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    NULL, &ble_hs_test_util_adv_params,
-                                    BLE_HS_FOREVER,
-                                    ble_hs_pvcy_test_util_gap_event,
-                                    NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL,
+                                    &ble_hs_test_util_adv_params, BLE_HS_FOREVER,
+                                    ble_hs_pvcy_test_util_gap_event, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Start a discovery procedure. */
     disc_params = (struct ble_gap_disc_params){ 0 };
-    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER,
-                               &disc_params, ble_hs_pvcy_test_util_gap_event,
-                               NULL, -1, 0);
+    rc = ble_hs_test_util_disc(BLE_OWN_ADDR_PUBLIC, BLE_HS_FOREVER, &disc_params,
+                               ble_hs_pvcy_test_util_gap_event, NULL, -1, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(true, false);
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 2);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
-                BLE_GAP_EVENT_ADV_COMPLETE);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason ==
-                BLE_HS_EPREEMPTED);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].type ==
-                BLE_GAP_EVENT_DISC_COMPLETE);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].disc_complete.reason ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type == BLE_GAP_EVENT_ADV_COMPLETE);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason == BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].type == BLE_GAP_EVENT_DISC_COMPLETE);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].disc_complete.reason == BLE_HS_EPREEMPTED);
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);
@@ -465,42 +420,36 @@ TEST_CASE_SELF(ble_hs_pvcy_test_case_add_irk_adv_conn)
     ble_hs_pvcy_test_util_init();
 
     /* Start an advertising procedure. */
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    NULL, &ble_hs_test_util_adv_params,
-                                    BLE_HS_FOREVER,
-                                    ble_hs_pvcy_test_util_gap_event,
-                                    NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, NULL,
+                                    &ble_hs_test_util_adv_params, BLE_HS_FOREVER,
+                                    ble_hs_pvcy_test_util_gap_event, NULL, 0, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     /* Start a connect procedure. */
-    peer_addr = (ble_addr_t){ BLE_ADDR_PUBLIC, {1,2,3,4,5,6} };
-    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr,
-                                  BLE_HS_FOREVER, NULL,
-                                  ble_hs_pvcy_test_util_gap_event, NULL, 0);
+    peer_addr = (ble_addr_t){
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
+    rc = ble_hs_test_util_connect(BLE_ADDR_PUBLIC, &peer_addr, BLE_HS_FOREVER,
+                                  NULL, ble_hs_pvcy_test_util_gap_event, NULL, 0);
     TEST_ASSERT_FATAL(rc == 0);
 
     ble_hs_pvcy_test_util_add_arbitrary_irk(false, true);
 
     /* Cancel is now in progress. */
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 1);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type ==
-                BLE_GAP_EVENT_ADV_COMPLETE);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].type == BLE_GAP_EVENT_ADV_COMPLETE);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[0].adv_complete.reason == BLE_HS_EPREEMPTED);
 
     /* Ensure no GAP procedures are allowed. */
-    ble_hs_pvcy_test_util_all_gap_procs(BLE_HS_EPREEMPTED,
-                                        BLE_HS_EALREADY,
+    ble_hs_pvcy_test_util_all_gap_procs(BLE_HS_EPREEMPTED, BLE_HS_EALREADY,
                                         BLE_HS_EBUSY);
 
     /* Receive cancel event. */
     ble_hs_test_util_rx_conn_cancel_evt();
 
     TEST_ASSERT(ble_hs_pvcy_test_num_gap_events == 2);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].type ==
-                BLE_GAP_EVENT_CONNECT);
-    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].connect.status ==
-                BLE_HS_EPREEMPTED);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].type == BLE_GAP_EVENT_CONNECT);
+    TEST_ASSERT(ble_hs_pvcy_test_gap_events[1].connect.status == BLE_HS_EPREEMPTED);
 
     /* Ensure GAP procedures are no longer preempted. */
     ble_hs_pvcy_test_util_all_gap_procs(0, 0, 0);

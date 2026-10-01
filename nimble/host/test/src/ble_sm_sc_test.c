@@ -2298,7 +2298,8 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5)
  * Responder key distribution: 5
  * Peer responds with same public key
  */
-TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk) {
+TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk)
+{
     struct ble_sm_test_params params;
 
     params = (struct ble_sm_test_params) {

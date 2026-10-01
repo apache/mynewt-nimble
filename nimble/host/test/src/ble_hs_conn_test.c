@@ -44,7 +44,9 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
     struct ble_gap_conn_complete evt;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int rc;
 
     ble_hs_test_util_init();
@@ -54,15 +56,14 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connect_success)
     TEST_ASSERT(!ble_hs_conn_test_util_any());
 
     /* Initiate connection. */
-    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC,
-                                        &addr, 0, NULL, NULL, NULL, 0);
+    rc = ble_hs_test_util_connect(BLE_OWN_ADDR_PUBLIC, &addr, 0, NULL, NULL, NULL, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(ble_gap_master_in_progress());
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -97,7 +98,9 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int rc;
 
     ble_hs_test_util_init();
@@ -110,17 +113,16 @@ TEST_CASE_SELF(ble_hs_conn_test_direct_connectable_success)
     /* Initiate advertising. */
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_DIR;
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &addr, &adv_params, BLE_HS_FOREVER,
-                                    NULL, NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &addr, &adv_params,
+                                    BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_adv_active());
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);
@@ -157,7 +159,9 @@ TEST_CASE_SELF(ble_hs_conn_test_undirect_connectable_success)
     struct ble_gap_adv_params adv_params;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
-    ble_addr_t addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }};
+    ble_addr_t addr = {
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     int rc;
 
     ble_hs_test_util_init();
@@ -175,18 +179,16 @@ TEST_CASE_SELF(ble_hs_conn_test_undirect_connectable_success)
 
     adv_params = ble_hs_test_util_adv_params;
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC,
-                                    &addr, &adv_params,
-                                    BLE_HS_FOREVER,
-                                    NULL, NULL, 0, 0);
+    rc = ble_hs_test_util_adv_start(BLE_OWN_ADDR_PUBLIC, &addr, &adv_params,
+                                    BLE_HS_FOREVER, NULL, NULL, 0, 0);
     TEST_ASSERT(rc == 0);
 
     TEST_ASSERT(!ble_gap_master_in_progress());
     TEST_ASSERT(ble_gap_adv_active());
 
     /* ble_gap_rx_conn_complete() will send extra HCI command, need phony ack */
-    ble_hs_test_util_hci_ack_set(ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE,
-                             BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
+    ble_hs_test_util_hci_ack_set(
+        ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RD_REM_FEAT), 0);
 
     /* Receive successful connection complete event. */
     memset(&evt, 0, sizeof evt);

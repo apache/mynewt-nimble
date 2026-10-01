@@ -24,8 +24,8 @@
 #include "ble_hs_test.h"
 #include "ble_hs_test_util.h"
 
-#define BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE        0x9383
-#define BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE       0x1234
+#define BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE  0x9383
+#define BLE_GATT_BREAK_TEST_WRITE_ATTR_HANDLE 0x1234
 
 static uint8_t ble_gatt_conn_test_write_value[] = { 1, 3, 64, 21, 6 };
 
@@ -41,16 +41,14 @@ static void
 ble_gatt_conn_test_util_init(void)
 {
     ble_hs_test_util_init();
-    memset(&ble_gatt_conn_test_gap_event, -1,
-           sizeof ble_gatt_conn_test_gap_event);
+    memset(&ble_gatt_conn_test_gap_event, -1, sizeof ble_gatt_conn_test_gap_event);
 }
 
 static int
 ble_gatt_conn_test_indicate_cb(struct ble_gap_event *event, void *arg)
 {
     /* Only record indication failures. */
-    if (event->type == BLE_GAP_EVENT_NOTIFY_TX &&
-        event->notify_tx.status != 0) {
+    if (event->type == BLE_GAP_EVENT_NOTIFY_TX && event->notify_tx.status != 0) {
 
         ble_gatt_conn_test_gap_event = *event;
     }
@@ -58,9 +56,8 @@ ble_gatt_conn_test_indicate_cb(struct ble_gap_event *event, void *arg)
 }
 
 static int
-ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
-                           uint8_t op, uint16_t offset, struct os_mbuf **om,
-                           void *arg)
+ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle, uint8_t op,
+                           uint16_t offset, struct os_mbuf **om, void *arg)
 {
     uint8_t *buf;
 
@@ -77,8 +74,7 @@ ble_gatt_conn_test_attr_cb(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static int
-ble_gatt_conn_test_mtu_cb(uint16_t conn_handle,
-                          const struct ble_gatt_error *error,
+ble_gatt_conn_test_mtu_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
                           uint16_t mtu, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
@@ -99,8 +95,7 @@ ble_gatt_conn_test_mtu_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
-                                    const struct ble_gatt_svc *service,
-                                    void *arg)
+                                    const struct ble_gatt_svc *service, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
 
@@ -120,8 +115,7 @@ ble_gatt_conn_test_disc_all_svcs_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
-                                    const struct ble_gatt_svc *service,
-                                    void *arg)
+                                    const struct ble_gatt_svc *service, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
 
@@ -141,8 +135,7 @@ ble_gatt_conn_test_disc_svc_uuid_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_find_inc_svcs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
-                                    const struct ble_gatt_svc *service,
-                                    void *arg)
+                                    const struct ble_gatt_svc *service, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
 
@@ -203,8 +196,7 @@ static int
 ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
                                     const struct ble_gatt_error *error,
                                     uint16_t chr_val_handle,
-                                    const struct ble_gatt_dsc *dsc,
-                                    void *arg)
+                                    const struct ble_gatt_dsc *dsc, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
 
@@ -222,8 +214,7 @@ ble_gatt_conn_test_disc_all_dscs_cb(uint16_t conn_handle,
 }
 
 static int
-ble_gatt_conn_test_read_cb(uint16_t conn_handle,
-                           const struct ble_gatt_error *error,
+ble_gatt_conn_test_read_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
                            struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
@@ -301,10 +292,8 @@ ble_gatt_conn_test_read_mult_cb(uint16_t conn_handle,
 }
 
 static int
-ble_gatt_conn_test_write_cb(uint16_t conn_handle,
-                            const struct ble_gatt_error *error,
-                            struct ble_gatt_attr *attr,
-                            void *arg)
+ble_gatt_conn_test_write_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
+                            struct ble_gatt_attr *attr, void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
 
@@ -346,8 +335,7 @@ ble_gatt_conn_test_write_long_cb(uint16_t conn_handle,
 static int
 ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
                                 const struct ble_gatt_error *error,
-                                struct ble_gatt_attr *attrs,
-                                uint8_t num_attrs,
+                                struct ble_gatt_attr *attrs, uint8_t num_attrs,
                                 void *arg)
 {
     struct ble_gatt_conn_test_arg *cb_arg;
@@ -367,20 +355,20 @@ ble_gatt_conn_test_write_rel_cb(uint16_t conn_handle,
 
 TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 {
-    struct ble_gatt_conn_test_arg mtu_arg            = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg disc_all_svcs_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg disc_svc_uuid_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg find_inc_svcs_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg disc_all_chrs_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg disc_chr_uuid_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg disc_all_dscs_arg  = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg read_arg           = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg read_uuid_arg      = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg read_long_arg      = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg read_mult_arg      = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg write_arg          = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg write_long_arg     = { 0, BLE_HS_ENOTCONN };
-    struct ble_gatt_conn_test_arg write_rel_arg      = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg mtu_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_svcs_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_svc_uuid_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg find_inc_svcs_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_chrs_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_chr_uuid_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg disc_all_dscs_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_uuid_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_long_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg read_mult_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_long_arg = { 0, BLE_HS_ENOTCONN };
+    struct ble_gatt_conn_test_arg write_rel_arg = { 0, BLE_HS_ENOTCONN };
     struct ble_gatt_attr attr;
     uint16_t attr_handle;
     uint16_t offset = 0;
@@ -391,16 +379,15 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 
     /*** Register an attribute to allow indicatations to be sent. */
     rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x1212), BLE_ATT_F_READ, 0,
-                              &attr_handle,
-                              ble_gatt_conn_test_attr_cb, NULL);
+                              &attr_handle, ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     /* Create three connections. */
-    ble_hs_test_util_create_conn(1, ((uint8_t[]){1,2,3,4,5,6,7,8}),
+    ble_hs_test_util_create_conn(1, ((uint8_t[]){ 1, 2, 3, 4, 5, 6, 7, 8 }),
                                  ble_gatt_conn_test_indicate_cb, NULL);
-    ble_hs_test_util_create_conn(2, ((uint8_t[]){2,3,4,5,6,7,8,9}),
+    ble_hs_test_util_create_conn(2, ((uint8_t[]){ 2, 3, 4, 5, 6, 7, 8, 9 }),
                                  ble_gatt_conn_test_indicate_cb, NULL);
-    ble_hs_test_util_create_conn(3, ((uint8_t[]){3,4,5,6,7,8,9,10}),
+    ble_hs_test_util_create_conn(3, ((uint8_t[]){ 3, 4, 5, 6, 7, 8, 9, 10 }),
                                  ble_gatt_conn_test_indicate_cb, NULL);
 
     /*** Schedule some GATT procedures. */
@@ -431,15 +418,13 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 
     find_inc_svcs_arg.exp_conn_handle = 1;
     conn->client_att_busy = false;
-    rc = ble_gattc_find_inc_svcs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_find_inc_svcs_cb,
+    rc = ble_gattc_find_inc_svcs(1, 1, 0xffff, ble_gatt_conn_test_find_inc_svcs_cb,
                                  &find_inc_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     disc_all_chrs_arg.exp_conn_handle = 1;
     conn->client_att_busy = false;
-    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_disc_all_chrs_cb,
+    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff, ble_gatt_conn_test_disc_all_chrs_cb,
                                  &disc_all_chrs_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -450,8 +435,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 
     disc_all_dscs_arg.exp_conn_handle = 2;
     conn->client_att_busy = false;
-    rc = ble_gattc_disc_all_dscs(2, 3, 0xffff,
-                                 ble_gatt_conn_test_disc_all_dscs_cb,
+    rc = ble_gattc_disc_all_dscs(2, 3, 0xffff, ble_gatt_conn_test_disc_all_dscs_cb,
                                  &disc_all_dscs_arg);
 
     disc_chr_uuid_arg.exp_conn_handle = 2;
@@ -469,8 +453,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     read_uuid_arg.exp_conn_handle = 2;
     conn->client_att_busy = false;
     rc = ble_gattc_read_by_uuid(2, 1, 0xffff, BLE_UUID16_DECLARE(0x3333),
-                                ble_gatt_conn_test_read_uuid_cb,
-                                &read_uuid_arg);
+                                ble_gatt_conn_test_read_uuid_cb, &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     read_long_arg.exp_conn_handle = 2;
@@ -486,7 +469,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
 
     read_mult_arg.exp_conn_handle = 3;
     conn->client_att_busy = false;
-    rc = ble_gattc_read_mult(3, ((uint16_t[3]){5,6,7}), 3,
+    rc = ble_gattc_read_mult(3, ((uint16_t[3]){ 5, 6, 7 }), 3,
                              ble_gatt_conn_test_read_mult_cb, &read_mult_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
@@ -511,8 +494,8 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     attr.om = os_msys_get_pkthdr(0, 0);
     write_rel_arg.exp_conn_handle = 3;
     conn->client_att_busy = false;
-    rc = ble_gattc_write_reliable(
-        3, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
+    rc = ble_gattc_write_reliable(3, &attr, 1, ble_gatt_conn_test_write_rel_cb,
+                                  &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
 
     conn->client_att_busy = false;
@@ -580,11 +563,9 @@ TEST_CASE_SELF(ble_gatt_conn_test_disconnect)
     TEST_ASSERT(write_long_arg.called == 1);
     TEST_ASSERT(write_rel_arg.called == 1);
     TEST_ASSERT(ble_gatt_conn_test_gap_event.type == BLE_GAP_EVENT_NOTIFY_TX);
-    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.status ==
-                BLE_HS_ENOTCONN);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.status == BLE_HS_ENOTCONN);
     TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.conn_handle == 3);
-    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.attr_handle ==
-                attr_handle);
+    TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.attr_handle == attr_handle);
     TEST_ASSERT(ble_gatt_conn_test_gap_event.notify_tx.indication);
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
@@ -622,20 +603,20 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
 {
     static const uint8_t peer_addr[6] = { 1, 2, 3, 4, 5, 6 };
 
-    struct ble_gatt_conn_test_arg mtu_arg            = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg disc_all_svcs_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg disc_svc_uuid_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg find_inc_svcs_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg disc_all_chrs_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg disc_chr_uuid_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg disc_all_dscs_arg  = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg read_arg           = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg read_uuid_arg      = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg read_long_arg      = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg read_mult_arg      = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg write_arg          = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg write_long_arg     = { 1, BLE_HS_ETIMEOUT };
-    struct ble_gatt_conn_test_arg write_rel_arg      = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg mtu_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_svcs_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_svc_uuid_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg find_inc_svcs_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_chrs_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_chr_uuid_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg disc_all_dscs_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_uuid_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_long_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg read_mult_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_long_arg = { 1, BLE_HS_ETIMEOUT };
+    struct ble_gatt_conn_test_arg write_rel_arg = { 1, BLE_HS_ETIMEOUT };
 
     struct ble_gatt_attr attr;
     int32_t ticks_from_now;
@@ -650,8 +631,7 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
 
     /*** Register an attribute to allow indicatations to be sent. */
     rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x1212), BLE_ATT_F_READ, 0,
-                              &attr_handle,
-                              ble_gatt_conn_test_attr_cb, NULL);
+                              &attr_handle, ble_gatt_conn_test_attr_cb, NULL);
     TEST_ASSERT(rc == 0);
 
     /*** MTU. */
@@ -677,24 +657,21 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
 
     /*** Find included services. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_find_inc_svcs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_find_inc_svcs_cb,
+    rc = ble_gattc_find_inc_svcs(1, 1, 0xffff, ble_gatt_conn_test_find_inc_svcs_cb,
                                  &find_inc_svcs_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &find_inc_svcs_arg);
 
     /*** Discover all characteristics. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff,
-                                 ble_gatt_conn_test_disc_all_chrs_cb,
+    rc = ble_gattc_disc_all_chrs(1, 1, 0xffff, ble_gatt_conn_test_disc_all_chrs_cb,
                                  &disc_all_chrs_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &disc_all_chrs_arg);
 
     /*** Discover all descriptors. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_disc_all_dscs(1, 3, 0xffff,
-                                 ble_gatt_conn_test_disc_all_dscs_cb,
+    rc = ble_gattc_disc_all_dscs(1, 3, 0xffff, ble_gatt_conn_test_disc_all_dscs_cb,
                                  &disc_chr_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &disc_chr_uuid_arg);
@@ -717,24 +694,21 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
     /*** Read by UUID. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read_by_uuid(1, 1, 0xffff, BLE_UUID16_DECLARE(0x3333),
-                                ble_gatt_conn_test_read_uuid_cb,
-                                &read_uuid_arg);
+                                ble_gatt_conn_test_read_uuid_cb, &read_uuid_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &read_uuid_arg);
 
     /*** Read long. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
     rc = ble_gattc_read_long(1, BLE_GATT_BREAK_TEST_READ_ATTR_HANDLE, offset,
-                             ble_gatt_conn_test_read_long_cb,
-                             &read_long_arg);
+                             ble_gatt_conn_test_read_long_cb, &read_long_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &read_long_arg);
 
     /*** Read multiple. */
     ble_hs_test_util_create_conn(1, peer_addr, NULL, NULL);
-    rc = ble_gattc_read_mult(1, ((uint16_t[3]){5,6,7}), 3,
-                             ble_gatt_conn_test_read_mult_cb,
-                             &read_mult_arg);
+    rc = ble_gattc_read_mult(1, ((uint16_t[3]){ 5, 6, 7 }), 3,
+                             ble_gatt_conn_test_read_mult_cb, &read_mult_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &read_mult_arg);
 
@@ -761,8 +735,8 @@ TEST_CASE_SELF(ble_gatt_conn_test_timeout)
     attr.handle = 8;
     attr.offset = 0;
     attr.om = os_msys_get_pkthdr(0, 0);
-    rc = ble_gattc_write_reliable(
-        1, &attr, 1, ble_gatt_conn_test_write_rel_cb, &write_rel_arg);
+    rc = ble_gattc_write_reliable(1, &attr, 1, ble_gatt_conn_test_write_rel_cb,
+                                  &write_rel_arg);
     TEST_ASSERT_FATAL(rc == 0);
     ble_gatt_conn_test_util_timeout(1, &write_rel_arg);
 

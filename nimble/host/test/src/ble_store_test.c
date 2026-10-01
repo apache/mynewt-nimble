@@ -54,8 +54,7 @@ ble_store_test_util_verify_peer_deleted(const ble_addr_t *addr)
 }
 
 static int
-ble_store_test_util_status_overflow(struct ble_store_status_event *event,
-                                    void *arg)
+ble_store_test_util_status_overflow(struct ble_store_status_event *event, void *arg)
 {
     int *status;
 
@@ -85,16 +84,16 @@ ble_store_test_util_overflow_sec(int is_our_sec)
         obj_type = BLE_STORE_OBJ_TYPE_PEER_SEC;
     }
 
-    memset(&ble_store_test_status_event, 0,
-           sizeof ble_store_test_status_event);
+    memset(&ble_store_test_status_event, 0, sizeof ble_store_test_status_event);
     memset(&val, 0, sizeof val);
 
-    val.sec.peer_addr =
-        (ble_addr_t){ BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } };
+    val.sec.peer_addr = (ble_addr_t){
+        BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 }
+    };
     val.sec.ltk_present = 1,
 
     status = BLE_HS_ESTORE_CAP;
-    for (i = 0; ; i++) {
+    for (i = 0;; i++) {
         rc = ble_store_write(obj_type, &val);
         if (i < MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
             TEST_ASSERT_FATAL(rc == 0);
@@ -103,8 +102,7 @@ ble_store_test_util_overflow_sec(int is_our_sec)
             TEST_ASSERT(rc == BLE_HS_ESTORE_CAP);
             TEST_ASSERT(ble_store_test_status_event.event_code ==
                         BLE_STORE_EVENT_OVERFLOW);
-            TEST_ASSERT(ble_store_test_status_event.overflow.obj_type ==
-                        obj_type);
+            TEST_ASSERT(ble_store_test_status_event.overflow.obj_type == obj_type);
             TEST_ASSERT(ble_store_test_status_event.overflow.value == &val);
             break;
         }
@@ -129,18 +127,18 @@ TEST_CASE_SELF(ble_store_test_peers)
 {
     struct ble_store_value_sec secs[3] = {
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            /* Address value is a duplicate of above, but type differs. */
-            .peer_addr = { BLE_ADDR_RANDOM,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         /* Address value is a duplicate of above, but type differs. */
+            .peer_addr = { BLE_ADDR_RANDOM, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 2, 3, 4, 5, 6, 7 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 } },
+         .ltk_present = 1,
+         },
     };
     ble_addr_t peer_addrs[3];
     int num_addrs;
@@ -172,31 +170,31 @@ TEST_CASE_SELF(ble_store_test_delete_peer)
 {
     struct ble_store_value_sec secs[2] = {
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            /* Address value is a duplicate of above, but type differs. */
-            .peer_addr = { BLE_ADDR_RANDOM,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         /* Address value is a duplicate of above, but type differs. */
+            .peer_addr = { BLE_ADDR_RANDOM, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
     };
     struct ble_store_value_cccd cccds[3] = {
         /* First two belong to first peer. */
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 5,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 5,
+         },
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 8,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 8,
+         },
 
         /* Last belongs to second peer. */
         {
-            .peer_addr = secs[1].peer_addr,
-            .chr_val_handle = 5,
-        },
+         .peer_addr = secs[1].peer_addr,
+         .chr_val_handle = 5,
+         },
     };
     union ble_store_value value;
     union ble_store_key key;
@@ -268,31 +266,31 @@ TEST_CASE_SELF(ble_store_test_count)
 {
     struct ble_store_value_sec secs[4] = {
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            .peer_addr = { BLE_ADDR_RANDOM,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_RANDOM, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 2, 3, 4, 5, 6, 7 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 2, 3, 4, 5, 6, 7 } },
+         .ltk_present = 1,
+         },
         {
-            .peer_addr = { BLE_ADDR_RANDOM,     { 3, 4, 5, 6, 7, 8 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_RANDOM, { 3, 4, 5, 6, 7, 8 } },
+         .ltk_present = 1,
+         },
     };
     struct ble_store_value_cccd cccds[2] = {
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 5,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 5,
+         },
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 8,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 8,
+         },
     };
     int count;
     int rc;
@@ -357,31 +355,31 @@ TEST_CASE_SELF(ble_store_test_clear)
 {
     const struct ble_store_value_sec secs[2] = {
         {
-            .peer_addr = { BLE_ADDR_PUBLIC,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         .peer_addr = { BLE_ADDR_PUBLIC, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
         {
-            /* Address value is a duplicate of above, but type differs. */
-            .peer_addr = { BLE_ADDR_RANDOM,     { 1, 2, 3, 4, 5, 6 } },
-            .ltk_present = 1,
-        },
+         /* Address value is a duplicate of above, but type differs. */
+            .peer_addr = { BLE_ADDR_RANDOM, { 1, 2, 3, 4, 5, 6 } },
+         .ltk_present = 1,
+         },
     };
     const struct ble_store_value_cccd cccds[3] = {
         /* First two belong to first peer. */
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 5,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 5,
+         },
         {
-            .peer_addr = secs[0].peer_addr,
-            .chr_val_handle = 8,
-        },
+         .peer_addr = secs[0].peer_addr,
+         .chr_val_handle = 8,
+         },
 
         /* Last belongs to second peer. */
         {
-            .peer_addr = secs[1].peer_addr,
-            .chr_val_handle = 5,
-        },
+         .peer_addr = secs[1].peer_addr,
+         .chr_val_handle = 5,
+         },
     };
     int rc;
     int i;
@@ -401,12 +399,9 @@ TEST_CASE_SELF(ble_store_test_clear)
     }
 
     /* Sanity check. */
-    TEST_ASSERT_FATAL(
-        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 2);
-    TEST_ASSERT_FATAL(
-        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 2);
-    TEST_ASSERT_FATAL(
-        ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 3);
+    TEST_ASSERT_FATAL(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_OUR_SEC) == 2);
+    TEST_ASSERT_FATAL(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_PEER_SEC) == 2);
+    TEST_ASSERT_FATAL(ble_store_test_util_count(BLE_STORE_OBJ_TYPE_CCCD) == 3);
 
     /* Ensure store is empty after clear gets called. */
     rc = ble_store_clear();

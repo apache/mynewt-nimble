@@ -27,7 +27,7 @@ extern "C" {
 struct ble_sm_test_passkey_info {
     struct ble_sm_io passkey;
     uint32_t exp_numcmp;
-    unsigned io_before_rx:1;
+    unsigned io_before_rx : 1;
 };
 
 struct ble_sm_test_params {
@@ -55,7 +55,7 @@ struct ble_sm_test_params {
     struct ble_sm_pair_fail pair_fail;
 
     int pair_alg;
-    unsigned authenticated:1;
+    unsigned authenticated : 1;
 
     /*** Secure connections fields. */
     uint8_t ltk[16];
@@ -85,37 +85,26 @@ void ble_sm_test_util_init(void);
 int ble_sm_test_util_conn_cb(struct ble_gap_event *ctxt, void *arg);
 void ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
                                 uint8_t cur_sm_state);
-void ble_sm_test_util_io_inject_bad(uint16_t conn_handle,
-                                    uint8_t correct_io_act);
-void ble_sm_test_util_io_check_pre(
-    struct ble_sm_test_passkey_info *passkey_info,
-    uint8_t cur_sm_state);
-void ble_sm_test_util_io_check_post(
-    struct ble_sm_test_passkey_info *passkey_info,
-    uint8_t cur_sm_state);
+void ble_sm_test_util_io_inject_bad(uint16_t conn_handle, uint8_t correct_io_act);
+void ble_sm_test_util_io_check_pre(struct ble_sm_test_passkey_info *passkey_info,
+                                   uint8_t cur_sm_state);
+void ble_sm_test_util_io_check_post(struct ble_sm_test_passkey_info *passkey_info,
+                                    uint8_t cur_sm_state);
 void ble_sm_test_util_rx_sec_req(uint16_t conn_handle,
-                                 struct ble_sm_sec_req *cmd,
-                                 int exp_status);
+                                 struct ble_sm_sec_req *cmd, int exp_status);
 void ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
-                                  struct ble_sm_pair_cmd *rsp,
-                                  int rx_status);
+                                  struct ble_sm_pair_cmd *rsp, int rx_status);
 void ble_sm_test_util_verify_tx_pair_fail(struct ble_sm_pair_fail *exp_cmd);
 void ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params);
-void ble_sm_test_util_peer_fail_inval(int we_are_master,
-                                      uint8_t *init_addr,
+void ble_sm_test_util_peer_fail_inval(int we_are_master, uint8_t *init_addr,
                                       uint8_t *resp_addr,
                                       struct ble_sm_pair_cmd *pair_req,
                                       struct ble_sm_pair_fail *pair_fail);
 void ble_sm_test_util_peer_lgcy_fail_confirm(
-    uint8_t *init_addr,
-    uint8_t *resp_addr,
-    struct ble_sm_pair_cmd *pair_req,
-    struct ble_sm_pair_cmd *pair_rsp,
-    struct ble_sm_pair_confirm *confirm_req,
-    struct ble_sm_pair_confirm *confirm_rsp,
-    struct ble_sm_pair_random *random_req,
-    struct ble_sm_pair_random *random_rsp,
-    struct ble_sm_pair_fail *fail_rsp);
+    uint8_t *init_addr, uint8_t *resp_addr, struct ble_sm_pair_cmd *pair_req,
+    struct ble_sm_pair_cmd *pair_rsp, struct ble_sm_pair_confirm *confirm_req,
+    struct ble_sm_pair_confirm *confirm_rsp, struct ble_sm_pair_random *random_req,
+    struct ble_sm_pair_random *random_rsp, struct ble_sm_pair_fail *fail_rsp);
 
 void ble_sm_test_util_peer_lgcy_good_once(struct ble_sm_test_params *params);
 void ble_sm_test_util_peer_lgcy_good(struct ble_sm_test_params *params);
