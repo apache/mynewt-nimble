@@ -23,7 +23,6 @@
 #include "syscfg/syscfg.h"
 #include <string.h>
 
-
 #if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
 
 #include "btp/btp_bap.h"
@@ -40,7 +39,7 @@
 #include "audio/ble_audio.h"
 #include "host/ble_iso.h"
 
-#define BROADCAST_ADV_INSTANCE                 1
+#define BROADCAST_ADV_INSTANCE 1
 
 static struct ble_audio_big_subgroup big_subgroup;
 
@@ -58,15 +57,11 @@ static uint32_t sdu_interval;
 
 static struct ble_audio_base tester_base;
 
-static os_membuf_t bis_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
-                    sizeof(struct ble_audio_bis))
-];
+static os_membuf_t bis_mem[OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES),
+                                           sizeof(struct ble_audio_bis))];
 static struct os_mempool bis_pool;
 
-static os_membuf_t codec_spec_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19)
-];
+static os_membuf_t codec_spec_mem[OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19)];
 static struct os_mempool codec_spec_pool;
 
 static uint16_t bis_handles[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
@@ -89,10 +84,8 @@ audio_broadcast_event_cb(struct os_event *ev)
 
     uint8_t lr_payload[max_sdu * 2];
     memcpy(lr_payload, audio_data + audio_data_offset, max_sdu);
-    memcpy(lr_payload + max_sdu, audio_data + audio_data_offset,
-           max_sdu);
-    ble_iso_tx(bis_handles[0], (void *)(lr_payload),
-               max_sdu * 2);
+    memcpy(lr_payload + max_sdu, audio_data + audio_data_offset, max_sdu);
+    ble_iso_tx(bis_handles[0], (void *)(lr_payload), max_sdu * 2);
 
     audio_data_offset += max_sdu;
 
@@ -117,8 +110,7 @@ iso_event(struct ble_iso_event *event, void *arg)
     switch (event->type) {
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
         console_printf("%s: BIG created\n", __func__);
-        if (event->big_created.desc.num_bis >
-            MYNEWT_VAL(BROADCASTER_CHAN_NUM)) {
+        if (event->big_created.desc.num_bis > MYNEWT_VAL(BROADCASTER_CHAN_NUM)) {
             return BLE_HS_EINVAL;
         }
         for (i = 0; i < MYNEWT_VAL(BROADCASTER_CHAN_NUM); i++) {
@@ -134,8 +126,7 @@ iso_event(struct ble_iso_event *event, void *arg)
 }
 
 static uint8_t
-supported_commands(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_commands(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_bap_read_supported_commands_rp *rp = rsp;
 
@@ -151,12 +142,10 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     struct ble_audio_bis *bis;
     uint8_t sampling_freq = cmd->cc_ltvs[2];
     uint8_t frame_duration = cmd->cc_ltvs[5];
-    uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT |
-                        BLE_AUDIO_LOCATION_FRONT_RIGHT;
+    uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT | BLE_AUDIO_LOCATION_FRONT_RIGHT;
 
-    uint8_t codec_spec_config[] =
-        BLE_AUDIO_BUILD_CODEC_CONFIG(sampling_freq, frame_duration, chan_loc,
-                                     max_sdu, );
+    uint8_t codec_spec_config[] = BLE_AUDIO_BUILD_CODEC_CONFIG(
+        sampling_freq, frame_duration, chan_loc, max_sdu, );
 
     tester_base.broadcast_id = sampling_freq;
     tester_base.presentation_delay = sampling_freq * 10000;
@@ -174,9 +163,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     }
 
     bis->codec_spec_config = os_memblock_get(&codec_spec_pool);
-    memcpy(bis->codec_spec_config,
-           codec_spec_config,
-           sizeof(codec_spec_config));
+    memcpy(bis->codec_spec_config, codec_spec_config, sizeof(codec_spec_config));
     bis->codec_spec_config_len = sizeof(codec_spec_config);
     bis->idx = 1;
 
@@ -204,8 +191,7 @@ broadcast_destroy_fn(struct ble_audio_base *base, void *args)
 }
 
 static uint8_t
-broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
-                       uint16_t *rsp_len)
+broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc;
 
@@ -251,10 +237,7 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
         .svc_data_len = 0,
     };
 
-    rc = ble_audio_broadcast_create(&create_params,
-                               broadcast_destroy_fn,
-                               NULL,
-                               NULL);
+    rc = ble_audio_broadcast_create(&create_params, broadcast_destroy_fn, NULL, NULL);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -263,8 +246,7 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
-                         uint16_t *rsp_len)
+broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc;
 
@@ -277,8 +259,7 @@ broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_adv_start(const void *cmd, uint16_t cmd_len, void *rsp,
-                    uint16_t *rsp_len)
+broadcast_adv_start(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc;
 
@@ -291,8 +272,7 @@ broadcast_adv_start(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_adv_stop(const void *cmd, uint16_t cmd_len, void *rsp,
-                   uint16_t *rsp_len)
+broadcast_adv_stop(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc;
 
@@ -305,8 +285,7 @@ broadcast_adv_stop(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_source_start(const void *cmd, uint16_t cmd_len, void *rsp,
-                       uint16_t *rsp_len)
+broadcast_source_start(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc;
 
@@ -319,8 +298,7 @@ broadcast_source_start(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_code_set(const void *cmd, uint16_t cmd_len, void *rsp,
-                   uint16_t *rsp_len)
+broadcast_code_set(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_bap_set_broadcast_code_cmd *cp = cmd;
 
@@ -341,11 +319,10 @@ broadcast_code_set(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
-broadcast_sink_setup(const void *cmd, uint16_t cmd_len, void *rsp,
-                     uint16_t *rsp_len)
+broadcast_sink_setup(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     int rc, i;
-    struct ble_audio_broadcast_sink_add_params params = {0};
+    struct ble_audio_broadcast_sink_add_params params = { 0 };
 
     for (i = 0; i < sink_num; i++) {
         memcpy(params.broadcast_code, sinks[i].broadcast_code,
@@ -361,8 +338,8 @@ broadcast_sink_setup(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static int
-scan_delegator_receive_state_foreach_fn(struct ble_audio_scan_delegator_receive_state_entry *entry,
-                                        void *addr)
+scan_delegator_receive_state_foreach_fn(
+    struct ble_audio_scan_delegator_receive_state_entry *entry, void *addr)
 {
     if (ble_addr_cmp(addr, &entry->source_desc.addr)) {
         ble_audio_broadcast_sink_stop(entry->source_id);
@@ -372,23 +349,21 @@ scan_delegator_receive_state_foreach_fn(struct ble_audio_scan_delegator_receive_
 }
 
 static uint8_t
-broadcast_sink_stop(const void *cmd, uint16_t cmd_len, void *rsp,
-                    uint16_t *rsp_len)
+broadcast_sink_stop(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     ble_addr_t addr;
     const struct btp_bap_broadcast_sink_stop_cmd *cp = cmd;
 
     addr = cp->address;
 
-    ble_audio_scan_delegator_receive_state_foreach(scan_delegator_receive_state_foreach_fn,
-                                                   &addr);
+    ble_audio_scan_delegator_receive_state_foreach(
+        scan_delegator_receive_state_foreach_fn, &addr);
 
     return BTP_STATUS_SUCCESS;
 }
 
 static uint8_t
-broadcast_source_stop(const void *cmd, uint16_t cmd_len, void *rsp,
-                      uint16_t *rsp_len)
+broadcast_source_stop(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     os_callout_stop(&audio_broadcast_callout);
 
@@ -458,7 +433,7 @@ static const struct btp_handler handlers[] = {
      },
 };
 
-#define BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT  0x07D0
+#define BROADCAST_SINK_PA_SYNC_TIMEOUT_DEFAULT 0x07D0
 
 static int
 broadcast_sink_pa_sync_params_get(struct ble_gap_periodic_sync_params *params)
@@ -534,14 +509,14 @@ broadcast_sink_audio_event_handler(struct ble_audio_event *event, void *arg)
         console_printf("%s: source_id=0x%02x PA sync: %s\n", __func__,
                        event->broadcast_sink_pa_sync_state.source_id,
                        ble_audio_broadcast_sink_sync_state_str(
-                               event->broadcast_sink_pa_sync_state.state));
+                           event->broadcast_sink_pa_sync_state.state));
         break;
     case BLE_AUDIO_EVENT_BROADCAST_SINK_BIS_SYNC_STATE:
         console_printf("%s: source_id=0x%02x bis_index=0x%02x BIS sync: %s\n",
                        __func__, event->broadcast_sink_bis_sync_state.source_id,
                        event->broadcast_sink_bis_sync_state.bis_index,
                        ble_audio_broadcast_sink_sync_state_str(
-                               event->broadcast_sink_bis_sync_state.state));
+                           event->broadcast_sink_bis_sync_state.state));
         if (event->broadcast_sink_bis_sync_state.state ==
             BLE_AUDIO_BROADCAST_SINK_SYNC_STATE_ESTABLISHED) {
             console_printf("%s: conn_handle=0x%04x\n", __func__,
@@ -574,7 +549,8 @@ scan_delegator_action_fn(struct ble_audio_scan_delegator_action *action, void *a
         if (action->source_add.out_source_id_to_swap == NULL) {
             return 0;
         }
-        return scan_delegator_pick_source_id_to_swap(action->source_add.out_source_id_to_swap);
+        return scan_delegator_pick_source_id_to_swap(
+            action->source_add.out_source_id_to_swap);
     case BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_MODIFY:
         console_printf("%s: Source Modify:\nsource_id=%u\n", __func__,
                        action->source_modify.source_id);
@@ -617,21 +593,19 @@ tester_init_bap(void)
     rc = ble_hs_id_infer_auto(0, &id_addr_type);
     assert(rc == 0);
 
-    memset(audio_data, 36, sizeof(char)*155);
+    memset(audio_data, 36, sizeof(char) * 155);
 
     os_callout_init(&audio_broadcast_callout, os_eventq_dflt_get(),
                     audio_broadcast_event_cb, NULL);
 
     rc = os_mempool_init(&bis_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES),
-                         sizeof(struct ble_audio_bis), bis_mem,
-                         "bis_pool");
+                         sizeof(struct ble_audio_bis), bis_mem, "bis_pool");
     if (rc) {
         return BTP_STATUS_FAILED;
     }
 
-    rc = os_mempool_init(&codec_spec_pool,
-                         MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2, 19,
-                         codec_spec_mem, "codec_spec_pool");
+    rc = os_mempool_init(&codec_spec_pool, MYNEWT_VAL(BLE_ISO_MAX_BISES) * 2,
+                         19, codec_spec_mem, "codec_spec_pool");
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -641,16 +615,16 @@ tester_init_bap(void)
     rc = ble_audio_broadcast_sink_cb_set(broadcast_sink_action_fn, NULL);
     assert(rc == 0);
 
-    rc = ble_audio_event_listener_register(&broadcast_sink_listener,
-                                           broadcast_sink_audio_event_handler, NULL);
+    rc = ble_audio_event_listener_register(
+        &broadcast_sink_listener, broadcast_sink_audio_event_handler, NULL);
 
     static struct ble_audio_event_listener scan_delegator_listener;
 
     rc = ble_audio_scan_delegator_action_fn_set(scan_delegator_action_fn, NULL);
     assert(rc == 0);
 
-    rc = ble_audio_event_listener_register(&scan_delegator_listener,
-                                           scan_delegator_audio_event_handler, NULL);
+    rc = ble_audio_event_listener_register(
+        &scan_delegator_listener, scan_delegator_audio_event_handler, NULL);
     assert(rc == 0);
 
     tester_register_command_handlers(BTP_SERVICE_ID_BAP, handlers,
@@ -666,4 +640,3 @@ tester_unregister_bap(void)
 }
 
 #endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
-

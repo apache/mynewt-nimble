@@ -43,11 +43,12 @@ static uint8_t rtt_buf_up[MYNEWT_VAL(BTTESTER_RTT_BUFFER_SIZE_UP)];
 static uint8_t rtt_buf_down[MYNEWT_VAL(BTTESTER_RTT_BUFFER_SIZE_DOWN)];
 static int rtt_index_up, rtt_index_down;
 
-#define RTT_INPUT_POLL_INTERVAL_MIN     10 /* ms */
-#define RTT_INPUT_POLL_INTERVAL_STEP    10 /* ms */
-#define RTT_INPUT_POLL_INTERVAL_MAX     250 /* ms */
+#define RTT_INPUT_POLL_INTERVAL_MIN  10  /* ms */
+#define RTT_INPUT_POLL_INTERVAL_STEP 10  /* ms */
+#define RTT_INPUT_POLL_INTERVAL_MAX  250 /* ms */
 
-static int rtt_pipe_get_char(unsigned int index)
+static int
+rtt_pipe_get_char(unsigned int index)
 {
     char c;
     int r;
@@ -70,7 +71,7 @@ rtt_pipe_poll_func(void *arg)
     int avail = recv_buf_len - recv_off;
 
     if (key < 0) {
-        key = rtt_pipe_get_char((unsigned int) rtt_index_down);
+        key = rtt_pipe_get_char((unsigned int)rtt_index_down);
     }
 
     if (key < 0) {
@@ -78,10 +79,10 @@ rtt_pipe_poll_func(void *arg)
         itvl_ms = min(itvl_ms, RTT_INPUT_POLL_INTERVAL_MAX);
     } else {
         while (key >= 0 && avail > 0) {
-            recv_buf[recv_off] = (uint8_t) key;
+            recv_buf[recv_off] = (uint8_t)key;
             recv_off++;
             avail = recv_buf_len - recv_off;
-            key = rtt_pipe_get_char((unsigned int) rtt_index_down);
+            key = rtt_pipe_get_char((unsigned int)rtt_index_down);
         }
 
         /*
@@ -99,7 +100,7 @@ rtt_pipe_poll_func(void *arg)
 int
 bttester_pipe_send(const uint8_t *data, int len)
 {
-    SEGGER_RTT_Write((unsigned int) rtt_index_up, data, (unsigned int) len);
+    SEGGER_RTT_Write((unsigned int)rtt_index_up, data, (unsigned int)len);
     return 0;
 }
 
@@ -122,9 +123,9 @@ bttester_pipe_init(void)
         return -1;
     }
 
-    rtt_index_down = SEGGER_RTT_AllocDownBuffer(MYNEWT_VAL(BTTESTER_RTT_BUFFER_NAME),
-                                                rtt_buf_down, sizeof(rtt_buf_down),
-                                                SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
+    rtt_index_down = SEGGER_RTT_AllocDownBuffer(
+        MYNEWT_VAL(BTTESTER_RTT_BUFFER_NAME), rtt_buf_down,
+        sizeof(rtt_buf_down), SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 
     if (rtt_index_down < 0) {
         return -1;

@@ -24,7 +24,7 @@
 #include <stdint.h>
 
 #ifndef __packed
-#define __packed    __attribute__((__packed__))
+#define __packed __attribute__((__packed__))
 #endif
 
 /* BAP Service */
@@ -34,9 +34,9 @@ struct btp_bap_read_supported_commands_rp {
     uint8_t data[0];
 } __packed;
 
-#define BTP_BAP_DISCOVER                        0x02
-#define BTP_BAP_SEND                            0x03
-#define BTP_BAP_BROADCAST_SOURCE_SETUP          0x04
+#define BTP_BAP_DISCOVER               0x02
+#define BTP_BAP_SEND                   0x03
+#define BTP_BAP_BROADCAST_SOURCE_SETUP 0x04
 struct bap_broadcast_source_setup_cmd {
     uint8_t streams_per_subgroup;
     uint8_t subgroups;

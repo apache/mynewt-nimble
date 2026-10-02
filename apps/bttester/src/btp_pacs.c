@@ -35,8 +35,8 @@
 #include "services/pacs/ble_audio_svc_pacs.h"
 #include "services/pacs/ble_audio_svc_pacs_lc3.h"
 
-#define BLE_SVC_AUDIO_PACS_LC3_CODEC_ID             0x06
-#define BTTESTER_SUPPORTED_CTXTS                    0x07
+#define BLE_SVC_AUDIO_PACS_LC3_CODEC_ID 0x06
+#define BTTESTER_SUPPORTED_CTXTS        0x07
 
 struct set_avail_cb_data {
     uint16_t src_ctxts;
@@ -44,46 +44,46 @@ struct set_avail_cb_data {
 };
 
 #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SNK_METADATA
-static uint8_t ble_svc_audio_pacs_lc3_snk_metadata[] =
-{ UNMANGLE_MYNEWT_VAL(MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_METADATA)) };
+static uint8_t ble_svc_audio_pacs_lc3_snk_metadata[] = { UNMANGLE_MYNEWT_VAL(
+    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_METADATA)) };
 #endif
 
-static uint8_t ble_svc_audio_pacs_lc3_snk_codec_spec_caps[] = BLE_AUDIO_BUILD_CODEC_CAPS(
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_SAMPLING_FREQUENCIES),
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_FRAME_DURATIONS),
-    #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS
-        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_AUDIO_CHANNEL_COUNTS),
-    #else
-    ,
-    #endif
-        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_MIN_OCTETS_PER_CODEC_FRAME),
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_OCTETS_PER_CODEC_FRAME),
-    #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU
-        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_MAX_CODEC_FRAMES_PER_SDU),
-    #endif
-);
-
-static uint8_t ble_svc_audio_pacs_lc3_src_codec_spec_caps[] = BLE_AUDIO_BUILD_CODEC_CAPS(
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_SAMPLING_FREQUENCIES),
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_FRAME_DURATIONS),
+static uint8_t ble_svc_audio_pacs_lc3_snk_codec_spec_caps[] =
+    BLE_AUDIO_BUILD_CODEC_CAPS(
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_SAMPLING_FREQUENCIES),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_FRAME_DURATIONS),
 #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_AUDIO_CHANNEL_COUNTS),
 #else
-    ,
+        ,
 #endif
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MIN_OCTETS_PER_CODEC_FRAME),
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_OCTETS_PER_CODEC_FRAME),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_MIN_OCTETS_PER_CODEC_FRAME),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_OCTETS_PER_CODEC_FRAME),
 #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU
-    MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SNK_MAX_CODEC_FRAMES_PER_SDU),
 #endif
-);
+    );
+
+static uint8_t ble_svc_audio_pacs_lc3_src_codec_spec_caps[] =
+    BLE_AUDIO_BUILD_CODEC_CAPS(
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_SAMPLING_FREQUENCIES),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_FRAME_DURATIONS),
+#ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_AUDIO_CHANNEL_COUNTS),
+#else
+        ,
+#endif
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MIN_OCTETS_PER_CODEC_FRAME),
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_OCTETS_PER_CODEC_FRAME),
+#ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU
+        MYNEWT_VAL(BLE_SVC_AUDIO_PACS_LC3_SRC_MAX_CODEC_FRAMES_PER_SDU),
+#endif
+    );
 
 static struct ble_audio_codec_register_params snk_codec_params = {
-    .codec_id = {
-        .format = BLE_SVC_AUDIO_PACS_LC3_CODEC_ID,
-        .company_id = 0x00,
-        .vendor_specific = 0x00
-    },
+    .codec_id = { .format = BLE_SVC_AUDIO_PACS_LC3_CODEC_ID,
+                 .company_id = 0x00,
+                 .vendor_specific = 0x00 },
     .codec_spec_caps_len = sizeof(ble_svc_audio_pacs_lc3_snk_codec_spec_caps),
     .codec_spec_caps = ble_svc_audio_pacs_lc3_snk_codec_spec_caps,
 #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SNK_METADATA
@@ -97,11 +97,9 @@ static struct ble_audio_codec_register_params snk_codec_params = {
 };
 
 static struct ble_audio_codec_register_params src_codec_params = {
-    .codec_id = {
-        .format = BLE_SVC_AUDIO_PACS_LC3_CODEC_ID,
-        .company_id = 0x00,
-        .vendor_specific = 0x00
-    },
+    .codec_id = { .format = BLE_SVC_AUDIO_PACS_LC3_CODEC_ID,
+                 .company_id = 0x00,
+                 .vendor_specific = 0x00 },
     .codec_spec_caps_len = sizeof(ble_svc_audio_pacs_lc3_src_codec_spec_caps),
     .codec_spec_caps = ble_svc_audio_pacs_lc3_src_codec_spec_caps,
 #ifdef MYNEWT_VAL_BLE_SVC_AUDIO_PACS_LC3_SRC_METADATA
@@ -119,8 +117,7 @@ set_available(uint16_t conn_handle, void *arg)
     int rc;
     struct set_avail_cb_data *avail_data = arg;
 
-    rc = ble_svc_audio_pacs_avail_contexts_set(conn_handle,
-                                               avail_data->snk_ctxts,
+    rc = ble_svc_audio_pacs_avail_contexts_set(conn_handle, avail_data->snk_ctxts,
                                                avail_data->src_ctxts);
     if (rc) {
         return BTP_STATUS_FAILED;
@@ -130,8 +127,8 @@ set_available(uint16_t conn_handle, void *arg)
 }
 
 static uint8_t
-pacs_set_available_contexts(const void *cmd, uint16_t cmd_len,
-                            void *rsp, uint16_t *rsp_len)
+pacs_set_available_contexts(const void *cmd, uint16_t cmd_len, void *rsp,
+                            uint16_t *rsp_len)
 {
     const struct btp_pacs_set_available_contexts_cmd *cp = cmd;
     uint16_t source_contexts = le16toh(cp->source_contexts);
@@ -187,8 +184,8 @@ pacs_set_src_location(void)
 }
 
 static uint8_t
-pacs_update_characteristic(const void *cmd, uint16_t cmd_len,
-                           void *rsp, uint16_t *rsp_len)
+pacs_update_characteristic(const void *cmd, uint16_t cmd_len, void *rsp,
+                           uint16_t *rsp_len)
 {
     int rc;
     const struct btp_pacs_update_characteristic_cmd *cp = cmd;
@@ -232,8 +229,8 @@ pacs_update_characteristic(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-pacs_set_supported_contexts(const void *cmd, uint16_t cmd_len,
-                            void *rsp, uint16_t *rsp_len)
+pacs_set_supported_contexts(const void *cmd, uint16_t cmd_len, void *rsp,
+                            uint16_t *rsp_len)
 {
     int rc;
     const struct btp_pacs_set_supported_contexts_cmd *sup_ctxts = cmd;
@@ -261,8 +258,7 @@ pacs_set_supported_contexts(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-supported_commands(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_commands(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_pacs_read_supported_commands_rp *rp = rsp;
 

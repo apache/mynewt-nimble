@@ -144,7 +144,7 @@ uart_console_rx_char(void *arg, uint8_t byte)
 static int
 uart_pipe_handle_char(int key)
 {
-    recv_buf[recv_off] = (uint8_t) key;
+    recv_buf[recv_off] = (uint8_t)key;
     recv_off++;
 
     return 0;
@@ -262,9 +262,8 @@ bttester_pipe_init(void)
     rx_ev.ev_cb = uart_console_rx_char_event;
 
     if (!uart_dev) {
-        uart_dev =
-            (struct uart_dev *) os_dev_open(MYNEWT_VAL(BTTESTER_UART_DEV),
-                                            OS_TIMEOUT_NEVER, &uc);
+        uart_dev = (struct uart_dev *)os_dev_open(MYNEWT_VAL(BTTESTER_UART_DEV),
+                                                  OS_TIMEOUT_NEVER, &uc);
         if (!uart_dev) {
             return -1;
         }

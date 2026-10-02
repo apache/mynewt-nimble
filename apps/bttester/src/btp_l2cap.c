@@ -37,14 +37,12 @@
 
 #include "btp/btp.h"
 
-#define CONTROLLER_INDEX             0
-#define CHANNELS                     MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
-#define TESTER_COC_MTU               MYNEWT_VAL(BTTESTER_L2CAP_COC_MTU)
-#define TESTER_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define CONTROLLER_INDEX     0
+#define CHANNELS             MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#define TESTER_COC_MTU       MYNEWT_VAL(BTTESTER_L2CAP_COC_MTU)
+#define TESTER_COC_BUF_COUNT (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
 
-static os_membuf_t tester_sdu_coc_mem[
-    OS_MEMPOOL_SIZE(TESTER_COC_BUF_COUNT, TESTER_COC_MTU)
-];
+static os_membuf_t tester_sdu_coc_mem[OS_MEMPOOL_SIZE(TESTER_COC_BUF_COUNT, TESTER_COC_MTU)];
 
 struct os_mbuf_pool sdu_os_mbuf_pool;
 static struct os_mempool sdu_coc_mbuf_mempool;
@@ -57,8 +55,7 @@ static struct channel {
     struct os_mbuf *queued_sdu_tx;
 } channels[CHANNELS];
 
-static uint8_t
-    recv_cb_buf[TESTER_COC_MTU + sizeof(struct btp_l2cap_data_received_ev)];
+static uint8_t recv_cb_buf[TESTER_COC_MTU + sizeof(struct btp_l2cap_data_received_ev)];
 
 static struct channel *
 get_free_channel(void)
@@ -117,7 +114,7 @@ static void
 tester_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 {
     SYS_LOG_DBG("LE CoC SDU received, chan: 0x%08lx, data len %d",
-                (uint32_t) chan, OS_MBUF_PKTLEN(sdu));
+                (uint32_t)chan, OS_MBUF_PKTLEN(sdu));
 
     os_mbuf_free_chain(sdu);
     if (!hold_credit) {
@@ -129,10 +126,10 @@ tester_l2cap_coc_recv(struct ble_l2cap_chan *chan, struct os_mbuf *sdu)
 }
 
 static void
-recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
-        struct os_mbuf *buf, void *arg)
+recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan, struct os_mbuf *buf,
+        void *arg)
 {
-    struct btp_l2cap_data_received_ev *ev = (void *) recv_cb_buf;
+    struct btp_l2cap_data_received_ev *ev = (void *)recv_cb_buf;
     struct channel *channel = find_channel(chan);
     assert(channel != NULL);
 
@@ -145,16 +142,15 @@ recv_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     }
     os_mbuf_copydata(buf, 0, ev->data_length, ev->data);
 
-    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DATA_RECEIVED,
-                 recv_cb_buf, sizeof(*ev) + ev->data_length);
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DATA_RECEIVED, recv_cb_buf,
+                 sizeof(*ev) + ev->data_length);
 
     tester_l2cap_coc_recv(chan, buf);
 }
 
 static void
 reconfigured_ev(uint16_t conn_handle, struct ble_l2cap_chan *chan,
-                struct ble_l2cap_chan_info *chan_info,
-                int status)
+                struct ble_l2cap_chan_info *chan_info, int status)
 {
     struct btp_l2cap_reconfigured_ev ev;
     struct channel *channel;
@@ -173,7 +169,7 @@ reconfigured_ev(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     ev.our_mps = chan_info->our_l2cap_mtu;
 
     tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_RECONFIGURED,
-                 (uint8_t *) &ev, sizeof(ev));
+                 (uint8_t *)&ev, sizeof(ev));
 }
 
 static void
@@ -201,8 +197,8 @@ connected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
         memcpy(&ev.address, &desc.peer_ota_addr, sizeof(ev.address));
     }
 
-    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_CONNECTED,
-                 (uint8_t *) &ev, sizeof(ev));
+    tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_CONNECTED, (uint8_t *)&ev,
+                 sizeof(ev));
 }
 
 static void
@@ -228,17 +224,16 @@ disconnected_cb(uint16_t conn_handle, struct ble_l2cap_chan *chan,
     }
 
     tester_event(BTP_SERVICE_ID_L2CAP, BTP_L2CAP_EV_DISCONNECTED,
-                 (uint8_t *) &ev, sizeof(ev));
+                 (uint8_t *)&ev, sizeof(ev));
 }
 
 static int
-accept_cb(uint16_t conn_handle, uint16_t peer_mtu,
-          struct ble_l2cap_chan *chan)
+accept_cb(uint16_t conn_handle, uint16_t peer_mtu, struct ble_l2cap_chan *chan)
 {
     struct os_mbuf *sdu_rx;
 
-    SYS_LOG_DBG("LE CoC accepting, chan: 0x%08lx, peer_mtu %d",
-                (uint32_t) chan, peer_mtu);
+    SYS_LOG_DBG("LE CoC accepting, chan: 0x%08lx, peer_mtu %d", (uint32_t)chan,
+                peer_mtu);
 
     sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
     if (!sdu_rx) {
@@ -272,30 +267,27 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
         console_printf("LE COC connected, conn: %d, chan: 0x%08lx, "
                        "psm: 0x%02x, scid: 0x%04x, dcid: 0x%04x, "
                        "our_mps: %d, our_mtu: %d, peer_mps: %d, "
-                       "peer_mtu: %d\n", event->connect.conn_handle,
-                       (uint32_t) event->connect.chan, chan_info.psm,
-                       chan_info.scid, chan_info.dcid,
+                       "peer_mtu: %d\n",
+                       event->connect.conn_handle, (uint32_t)event->connect.chan,
+                       chan_info.psm, chan_info.scid, chan_info.dcid,
                        chan_info.our_l2cap_mtu, chan_info.our_coc_mtu,
                        chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
 
-        connected_cb(event->connect.conn_handle,
-                     event->connect.chan, &chan_info, arg);
+        connected_cb(event->connect.conn_handle, event->connect.chan, &chan_info, arg);
 
         return 0;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
-        if (ble_l2cap_get_chan_info(event->disconnect.chan,
-                                    &chan_info)) {
+        if (ble_l2cap_get_chan_info(event->disconnect.chan, &chan_info)) {
             assert(0);
         }
         console_printf("LE CoC disconnected, chan: 0x%08lx\n",
-                       (uint32_t) event->disconnect.chan);
+                       (uint32_t)event->disconnect.chan);
 
-        disconnected_cb(event->disconnect.conn_handle,
-                        event->disconnect.chan, &chan_info, arg);
+        disconnected_cb(event->disconnect.conn_handle, event->disconnect.chan,
+                        &chan_info, arg);
         return 0;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
-        ble_l2cap_get_chan_info(event->accept.chan,
-                                &chan_info);
+        ble_l2cap_get_chan_info(event->accept.chan, &chan_info);
         if (chan_info.psm == 0x00F2) {
             /* TSPX_psm_authentication_required */
             ble_gap_conn_find(event->accept.conn_handle, &conn);
@@ -323,32 +315,25 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
             }
         }
 
-        console_printf(
-            "LE CoC accept, chan: 0x%08lx, handle: %u, sdu_size: %u\n",
-            (uint32_t) event->accept.chan,
-            event->accept.conn_handle,
-            event->accept.peer_sdu_size);
+        console_printf("LE CoC accept, chan: 0x%08lx, handle: %u, sdu_size: %u\n",
+                       (uint32_t)event->accept.chan, event->accept.conn_handle,
+                       event->accept.peer_sdu_size);
 
         return accept_cb(event->accept.conn_handle,
-                         event->accept.peer_sdu_size,
-                         event->accept.chan);
+                         event->accept.peer_sdu_size, event->accept.chan);
 
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
-        console_printf(
-            "LE CoC data received, chan: 0x%08lx, handle: %u, sdu_len: %u\n",
-            (uint32_t) event->receive.chan,
-            event->receive.conn_handle,
-            OS_MBUF_PKTLEN(event->receive.sdu_rx));
+        console_printf("LE CoC data received, chan: 0x%08lx, handle: %u, sdu_len: %u\n",
+                       (uint32_t)event->receive.chan, event->receive.conn_handle,
+                       OS_MBUF_PKTLEN(event->receive.sdu_rx));
 
         recv_cb(event->receive.conn_handle, event->receive.chan,
                 event->receive.sdu_rx, arg);
         return 0;
     case BLE_L2CAP_EVENT_COC_TX_UNSTALLED:
-        console_printf(
-            "LE CoC tx unstalled, chan: 0x%08lx, handle: %u, status: %d\n",
-            (uint32_t) event->tx_unstalled.chan,
-            event->tx_unstalled.conn_handle,
-            event->tx_unstalled.status);
+        console_printf("LE CoC tx unstalled, chan: 0x%08lx, handle: %u, status: %d\n",
+                       (uint32_t)event->tx_unstalled.chan,
+                       event->tx_unstalled.conn_handle, event->tx_unstalled.status);
 
         chan = find_channel(event->tx_unstalled.chan);
         assert(chan != NULL);
@@ -364,43 +349,38 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 
         return 0;
     case BLE_L2CAP_EVENT_COC_RECONFIG_COMPLETED:
-        if (ble_l2cap_get_chan_info(event->reconfigured.chan,
-                                    &chan_info)) {
+        if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
             assert(0);
         }
         console_printf("LE CoC reconfigure completed status 0x%02x, "
-                       "chan: 0x%08lx\n", event->reconfigured.status,
-                       (uint32_t) event->reconfigured.chan);
+                       "chan: 0x%08lx\n",
+                       event->reconfigured.status,
+                       (uint32_t)event->reconfigured.chan);
 
         if (event->reconfigured.status == 0) {
             console_printf("\t our_mps: %d our_mtu %d\n",
                            chan_info.our_l2cap_mtu, chan_info.our_coc_mtu);
         }
 
-        reconfigured_ev(event->reconfigured.conn_handle,
-                        event->reconfigured.chan,
-                        &chan_info,
-                        event->reconfigured.status);
+        reconfigured_ev(event->reconfigured.conn_handle, event->reconfigured.chan,
+                        &chan_info, event->reconfigured.status);
         return 0;
     case BLE_L2CAP_EVENT_COC_PEER_RECONFIGURED:
-        if (ble_l2cap_get_chan_info(event->reconfigured.chan,
-                                    &chan_info)) {
+        if (ble_l2cap_get_chan_info(event->reconfigured.chan, &chan_info)) {
             assert(0);
         }
         console_printf("LE CoC peer reconfigured status 0x%02x, "
-                       "chan: 0x%08lx\n", event->reconfigured.status,
-                       (uint32_t) event->reconfigured.chan);
+                       "chan: 0x%08lx\n",
+                       event->reconfigured.status,
+                       (uint32_t)event->reconfigured.chan);
 
         if (event->reconfigured.status == 0) {
             console_printf("\t peer_mps: %d peer_mtu %d\n",
-                           chan_info.peer_l2cap_mtu,
-                           chan_info.peer_coc_mtu);
+                           chan_info.peer_l2cap_mtu, chan_info.peer_coc_mtu);
         }
 
-        reconfigured_ev(event->reconfigured.conn_handle,
-                        event->reconfigured.chan,
-                        &chan_info,
-                        event->reconfigured.status);
+        reconfigured_ev(event->reconfigured.conn_handle, event->reconfigured.chan,
+                        &chan_info, event->reconfigured.status);
         return 0;
     default:
         return 0;
@@ -408,8 +388,7 @@ tester_l2cap_event(struct ble_l2cap_event *event, void *arg)
 }
 
 static uint8_t
-connect(const void *cmd, uint16_t cmd_len,
-                       void *rsp, uint16_t *rsp_len)
+connect(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_connect_cmd *cp = cmd;
     struct btp_l2cap_connect_rp *rp = rsp;
@@ -425,13 +404,11 @@ connect(const void *cmd, uint16_t cmd_len,
     bool ecfc = cp->options & BTP_L2CAP_CONNECT_OPT_ECFC;
     hold_credit = cp->options & BTP_L2CAP_CONNECT_OPT_HOLD_CREDIT;
 
-    SYS_LOG_DBG("connect: type: %d addr: %s",
-                addr->type,
+    SYS_LOG_DBG("connect: type: %d addr: %s", addr->type,
                 string_from_bytes(addr->val, 6));
 
     rc = ble_gap_conn_find_by_addr(addr, &desc);
-    if (cp->num == 0 || cp->num > CHANNELS ||
-        mtu > TESTER_COC_MTU || mtu == 0) {
+    if (cp->num == 0 || cp->num > CHANNELS || mtu > TESTER_COC_MTU || mtu == 0) {
         return BTP_STATUS_FAILED;
     }
 
@@ -461,14 +438,11 @@ connect(const void *cmd, uint16_t cmd_len,
     }
 
     if (cp->num == 1 && !ecfc) {
-        rc = ble_l2cap_connect(desc.conn_handle, psm,
-                               mtu, sdu_rx[0],
+        rc = ble_l2cap_connect(desc.conn_handle, psm, mtu, sdu_rx[0],
                                tester_l2cap_event, NULL);
     } else if (ecfc) {
-        rc = ble_l2cap_enhanced_connect(desc.conn_handle,
-                                        psm, mtu,
-                                        cp->num, sdu_rx,
-                                        tester_l2cap_event, NULL);
+        rc = ble_l2cap_enhanced_connect(desc.conn_handle, psm, mtu, cp->num,
+                                        sdu_rx, tester_l2cap_event, NULL);
     } else {
         SYS_LOG_ERR("Invalid 'num' parameter value");
         status = BTP_STATUS_FAILED;
@@ -498,8 +472,7 @@ done:
 }
 
 static uint8_t
-disconnect(const void *cmd, uint16_t cmd_len,
-           void *rsp, uint16_t *rsp_len)
+disconnect(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_disconnect_cmd *cp = cmd;
     struct channel *chan;
@@ -523,8 +496,7 @@ disconnect(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-send_data(const void *cmd, uint16_t cmd_len,
-          void *rsp, uint16_t *rsp_len)
+send_data(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_send_data_cmd *cp = cmd;
     struct channel *chan;
@@ -534,8 +506,7 @@ send_data(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("cmd->chan_id=%d", cp->chan_id);
 
-    if (cmd_len < sizeof(*cp) ||
-        cmd_len != sizeof(*cp) + le16toh(cp->data_len)) {
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + le16toh(cp->data_len)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -587,8 +558,7 @@ fail:
 }
 
 static uint8_t
-listen(const void *cmd, uint16_t cmd_len,
-       void *rsp, uint16_t *rsp_len)
+listen(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_listen_cmd *cp = cmd;
     uint16_t mtu = htole16(cp->mtu);
@@ -619,8 +589,7 @@ listen(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-credits(const void *cmd, uint16_t cmd_len,
-        void *rsp, uint16_t *rsp_len)
+credits(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_credits_cmd *cp = cmd;
     struct channel *chan;
@@ -651,8 +620,7 @@ credits(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-reconfigure(const void *cmd, uint16_t cmd_len,
-            void *rsp, uint16_t *rsp_len)
+reconfigure(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_l2cap_reconfigure_cmd *cp = cmd;
     uint16_t mtu = le16toh(cp->mtu);
@@ -675,8 +643,7 @@ reconfigure(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (cmd_len < sizeof(*cp) ||
-        cmd_len != sizeof(*cp) + cp->num) {
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + cp->num) {
         return BTP_STATUS_FAILED;
     }
 
@@ -706,8 +673,7 @@ reconfigure(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-supported_commands(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_commands(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_l2cap_read_supported_commands_rp *rp = rsp;
 
@@ -762,9 +728,8 @@ tester_init_l2cap(void)
     int rc;
 
     /* For testing we want to support all the available channels */
-    rc = os_mempool_init(&sdu_coc_mbuf_mempool, TESTER_COC_BUF_COUNT,
-                         TESTER_COC_MTU, tester_sdu_coc_mem,
-                         "tester_coc_sdu_pool");
+    rc = os_mempool_init(&sdu_coc_mbuf_mempool, TESTER_COC_BUF_COUNT, TESTER_COC_MTU,
+                         tester_sdu_coc_mem, "tester_coc_sdu_pool");
     assert(rc == 0);
 
     rc = os_mbuf_pool_init(&sdu_os_mbuf_pool, &sdu_coc_mbuf_mempool,

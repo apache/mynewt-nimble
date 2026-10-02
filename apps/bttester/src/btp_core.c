@@ -30,8 +30,7 @@
 static uint8_t registered_services[((BTP_SERVICE_ID_MAX - 1) / 8) + 1];
 
 static uint8_t
-supported_commands(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_commands(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_core_read_supported_commands_rp *rp = rsp;
 
@@ -42,8 +41,7 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-supported_services(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_services(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_core_read_supported_services_rp *rp = rsp;
 
@@ -65,8 +63,7 @@ supported_services(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-register_service(const void *cmd, uint16_t cmd_len,
-                 void *rsp, uint16_t *rsp_len)
+register_service(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_core_register_service_cmd *cp = cmd;
     uint8_t status;
@@ -124,8 +121,7 @@ register_service(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-unregister_service(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+unregister_service(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_core_unregister_service_cmd *cp = cmd;
     uint8_t status;

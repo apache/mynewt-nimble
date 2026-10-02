@@ -62,7 +62,6 @@ static struct {
     uint8_t num;
 } service_handler[BTP_SERVICE_ID_MAX + 1];
 
-
 void
 tester_mbuf_reset(struct os_mbuf *buf)
 {
@@ -70,17 +69,14 @@ tester_mbuf_reset(struct os_mbuf *buf)
     buf->om_len = 0;
 }
 
-static void
-tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
-                       const uint8_t *data, size_t len);
-static void
-tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
-                      uint8_t status);
+static void tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
+                                   const uint8_t *data, size_t len);
+static void tester_rsp_with_index(uint8_t service, uint8_t opcode,
+                                  uint8_t index, uint8_t status);
 
 void
 tester_register_command_handlers(uint8_t service,
-                                 const struct btp_handler *handlers,
-                                 size_t num)
+                                 const struct btp_handler *handlers, size_t num)
 {
     assert(service <= BTP_SERVICE_ID_MAX);
     assert(service_handler[service].handlers == NULL);
@@ -117,8 +113,7 @@ string_from_bytes(const void *buf, size_t len)
 static const struct btp_handler *
 find_btp_handler(uint8_t service, uint8_t opcode)
 {
-    if ((service > BTP_SERVICE_ID_MAX) ||
-        (service_handler[service].handlers == NULL)) {
+    if ((service > BTP_SERVICE_ID_MAX) || (service_handler[service].handlers == NULL)) {
         return NULL;
     }
 
@@ -159,8 +154,7 @@ cmd_handler(struct os_event *ev)
         } else if ((btp->expect_len >= 0) && (btp->expect_len != len)) {
             status = BTP_STATUS_FAILED;
         } else {
-            status = btp->func(cmd->hdr.data, len,
-                               cmd->rsp, &rsp_len);
+            status = btp->func(cmd->hdr.data, len, cmd->rsp, &rsp_len);
         }
 
         assert((rsp_len + sizeof(struct btp_hdr)) <= BTP_MTU);
@@ -182,8 +176,7 @@ cmd_handler(struct os_event *ev)
         tester_send_with_index(cmd->hdr.service, cmd->hdr.opcode,
                                cmd->hdr.index, cmd->rsp, rsp_len);
     } else {
-        tester_rsp_with_index(cmd->hdr.service, cmd->hdr.opcode,
-                              cmd->hdr.index, status);
+        tester_rsp_with_index(cmd->hdr.service, cmd->hdr.opcode, cmd->hdr.index, status);
     }
 
     os_eventq_put(&avail_queue, ev);
@@ -192,7 +185,7 @@ cmd_handler(struct os_event *ev)
 static uint8_t *
 recv_cb(uint8_t *buf, size_t *off)
 {
-    struct btp_hdr *cmd = (void *) buf;
+    struct btp_hdr *cmd = (void *)buf;
     struct os_event *new_ev;
     struct btp_buf *new_buf, *old_buf;
     uint16_t len;
@@ -285,7 +278,7 @@ tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
     msg.index = index;
     msg.len = htole16(len);
 
-    bttester_pipe_send((uint8_t *) &msg, sizeof(msg));
+    bttester_pipe_send((uint8_t *)&msg, sizeof(msg));
     if (data && len) {
         bttester_pipe_send(data, len);
     }
@@ -301,8 +294,7 @@ tester_send_with_index(uint8_t service, uint8_t opcode, uint8_t index,
 }
 
 void
-tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index,
-                struct os_mbuf *data)
+tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index, struct os_mbuf *data)
 {
     struct btp_hdr msg;
 
@@ -311,15 +303,14 @@ tester_send_buf(uint8_t service, uint8_t opcode, uint8_t index,
     msg.index = index;
     msg.len = os_mbuf_len(data);
 
-    bttester_pipe_send((uint8_t *) &msg, sizeof(msg));
+    bttester_pipe_send((uint8_t *)&msg, sizeof(msg));
     if (data && msg.len) {
         bttester_pipe_send_buf(data);
     }
 }
 
 static void
-tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
-                      uint8_t status)
+tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index, uint8_t status)
 {
     struct btp_status s;
 
@@ -329,7 +320,7 @@ tester_rsp_with_index(uint8_t service, uint8_t opcode, uint8_t index,
     }
 
     s.code = status;
-    tester_send_with_index(service, BTP_STATUS, index, (uint8_t *) &s, sizeof(s));
+    tester_send_with_index(service, BTP_STATUS, index, (uint8_t *)&s, sizeof(s));
 }
 
 void

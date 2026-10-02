@@ -39,41 +39,39 @@
 #include "btp/btp.h"
 
 #define CONTROLLER_INDEX 0
-#define MAX_BUFFER_SIZE 2048
+#define MAX_BUFFER_SIZE  2048
 
 /* 0000xxxx-8c26-476f-89a7-a108033a69c7 */
-#define PTS_UUID_DECLARE(uuid16)                                    \
-    ((const ble_uuid_t *) (&(ble_uuid128_t) BLE_UUID128_INIT(   \
-    0xc7, 0x69, 0x3a, 0x03, 0x08, 0xa1, 0xa7, 0x89,             \
-    0x6f, 0x47, 0x26, 0x8c, uuid16, uuid16 >> 8, 0x00, 0x00     \
-    )))
+#define PTS_UUID_DECLARE(uuid16)                                              \
+    ((const ble_uuid_t *)(&(ble_uuid128_t)BLE_UUID128_INIT(                   \
+        0xc7, 0x69, 0x3a, 0x03, 0x08, 0xa1, 0xa7, 0x89, 0x6f, 0x47, 0x26,     \
+        0x8c, uuid16, uuid16 >> 8, 0x00, 0x00)))
 
 /* 0000xxxx-8c26-476f-89a7-a108033a69c6 */
-#define PTS_UUID_DECLARE_ALT(uuid16)                            \
-    ((const ble_uuid_t *) (&(ble_uuid128_t) BLE_UUID128_INIT(   \
-    0xc6, 0x69, 0x3a, 0x03, 0x08, 0xa1, 0xa7, 0x89,             \
-    0x6f, 0x47, 0x26, 0x8c, uuid16, uuid16 >> 8, 0x00, 0x00     \
-    )))
+#define PTS_UUID_DECLARE_ALT(uuid16)                                          \
+    ((const ble_uuid_t *)(&(ble_uuid128_t)BLE_UUID128_INIT(                   \
+        0xc6, 0x69, 0x3a, 0x03, 0x08, 0xa1, 0xa7, 0x89, 0x6f, 0x47, 0x26,     \
+        0x8c, uuid16, uuid16 >> 8, 0x00, 0x00)))
 
-#define  PTS_SVC                           0x0001
-#define  PTS_CHR_READ                      0x0002
-#define  PTS_CHR_WRITE                     0x0003
-#define  PTS_CHR_RELIABLE_WRITE            0x0004
-#define  PTS_CHR_WRITE_NO_RSP              0x0005
-#define  PTS_CHR_READ_WRITE                0x0006
-#define  PTS_CHR_READ_WRITE_ENC            0x0007
-#define  PTS_CHR_READ_WRITE_AUTHEN         0x0008
-#define  PTS_DSC_READ                      0x0009
-#define  PTS_DSC_WRITE                     0x000a
-#define  PTS_DSC_READ_WRITE                0x000b
-#define  PTS_CHR_NOTIFY                    0x0025
-#define  PTS_CHR_NOTIFY_ALT                0x0026
-#define  PTS_CHR_READ_WRITE_AUTHOR         0x0027
-#define  PTS_LONG_CHR_READ_WRITE           0x0015
-#define  PTS_LONG_CHR_READ_WRITE_ALT       0x0016
-#define  PTS_LONG_DSC_READ_WRITE           0x001b
-#define  PTS_INC_SVC                       0x001e
-#define  PTS_CHR_READ_WRITE_ALT            0x001f
+#define PTS_SVC                     0x0001
+#define PTS_CHR_READ                0x0002
+#define PTS_CHR_WRITE               0x0003
+#define PTS_CHR_RELIABLE_WRITE      0x0004
+#define PTS_CHR_WRITE_NO_RSP        0x0005
+#define PTS_CHR_READ_WRITE          0x0006
+#define PTS_CHR_READ_WRITE_ENC      0x0007
+#define PTS_CHR_READ_WRITE_AUTHEN   0x0008
+#define PTS_DSC_READ                0x0009
+#define PTS_DSC_WRITE               0x000a
+#define PTS_DSC_READ_WRITE          0x000b
+#define PTS_CHR_NOTIFY              0x0025
+#define PTS_CHR_NOTIFY_ALT          0x0026
+#define PTS_CHR_READ_WRITE_AUTHOR   0x0027
+#define PTS_LONG_CHR_READ_WRITE     0x0015
+#define PTS_LONG_CHR_READ_WRITE_ALT 0x0016
+#define PTS_LONG_DSC_READ_WRITE     0x001b
+#define PTS_INC_SVC                 0x001e
+#define PTS_CHR_READ_WRITE_ALT      0x001f
 
 static uint8_t gatt_svr_pts_static_long_val[300];
 static uint8_t gatt_svr_pts_static_val[30];
@@ -89,73 +87,59 @@ struct find_attr_data {
     uint16_t handle;
 };
 
-static int
-gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                         struct ble_gatt_access_ctxt *ctxt,
-                         void *arg);
+static int gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
+                                    struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
-                              struct ble_gatt_access_ctxt *ctxt,
-                              void *arg);
+static int gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt,
+                                         void *arg);
 
-static int
-gatt_svr_read_write_author_test(uint16_t conn_handle, uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt,
-                                void *arg);
+static int gatt_svr_read_write_author_test(uint16_t conn_handle, uint16_t attr_handle,
+                                           struct ble_gatt_access_ctxt *ctxt,
+                                           void *arg);
 
-static int
-gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
-                             struct ble_gatt_access_ctxt *ctxt,
-                             void *arg);
+static int gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
+                                        struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                             struct ble_gatt_access_ctxt *ctxt,
-                             void *arg);
+static int gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
+                                        struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_write_no_rsp_test(uint16_t conn_handle, uint16_t attr_handle,
-                           struct ble_gatt_access_ctxt *ctxt,
-                           void *arg);
+static int gatt_svr_write_no_rsp_test(uint16_t conn_handle, uint16_t attr_handle,
+                                      struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_rel_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                        struct ble_gatt_access_ctxt *ctxt,
-                        void *arg);
+static int gatt_svr_rel_write_test(uint16_t conn_handle, uint16_t attr_handle,
+                                   struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
-                              struct ble_gatt_access_ctxt *ctxt,
-                              void *arg);
+static int gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt,
+                                         void *arg);
 
-static int
-gatt_svr_dsc_read_test(uint16_t conn_handle, uint16_t attr_handle,
-                       struct ble_gatt_access_ctxt *ctxt,
-                       void *arg);
+static int gatt_svr_dsc_read_test(uint16_t conn_handle, uint16_t attr_handle,
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg);
 
-static int
-gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg);
+static int gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
+                                             struct ble_gatt_access_ctxt *ctxt,
+                                             void *arg);
 
 static const struct ble_gatt_svc_def gatt_svr_inc_svcs[] = {
     {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = BLE_UUID16_DECLARE(PTS_INC_SVC),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-                                                            .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
-                                                            .access_cb = gatt_svr_read_write_test,
-                                                            .flags = BLE_GATT_CHR_F_WRITE |
-                                                                     BLE_GATT_CHR_F_READ,
-                                                        }, {
-                                                            0,
-                                                        }},
+     .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = BLE_UUID16_DECLARE(PTS_INC_SVC),
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ALT),
+                    .access_cb = gatt_svr_read_write_test,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_READ,
+                },
+                {
+                    0,
+                } },
 
-    },
+     },
 
     {
-        0, /* No more services. */
+     0, /* No more services. */
     },
 };
 
@@ -166,110 +150,107 @@ static const struct ble_gatt_svc_def *inc_svcs[] = {
 
 static const struct ble_gatt_svc_def gatt_svr_svcs[] = {
     {
-        /*** Service: PTS test. */
+     /*** Service: PTS test. */
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = PTS_UUID_DECLARE(PTS_SVC),
-        .includes = inc_svcs,
-        .characteristics = (struct ble_gatt_chr_def[]) {
-            {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE),
-                .access_cb = gatt_svr_read_write_test,
-                .flags = BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE,
-                .descriptors = (struct ble_gatt_dsc_def[]) {{
-                                                                .uuid = PTS_UUID_DECLARE(PTS_DSC_READ_WRITE),
-                                                                .access_cb = gatt_svr_dsc_read_write_test,
-                                                                .att_flags = BLE_ATT_F_READ |
-                                                                             BLE_ATT_F_WRITE,
-                                                            }, {
-                                                                .uuid = PTS_UUID_DECLARE(PTS_LONG_DSC_READ_WRITE),
-                                                                .access_cb = gatt_svr_dsc_read_write_long_test,
-                                                                .att_flags = BLE_ATT_F_READ |
-                                                                             BLE_ATT_F_WRITE,
-                                                            }, {
-                                                                .uuid = PTS_UUID_DECLARE(PTS_DSC_READ),
-                                                                .access_cb = gatt_svr_dsc_read_test,
-                                                                .att_flags = BLE_ATT_F_READ,
-                                                            }, {
-                                                                0, /* No more descriptors in this characteristic */
-                                                            }}
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_WRITE_NO_RSP),
-                .access_cb = gatt_svr_write_no_rsp_test,
-                .flags = BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_WRITE_NO_RSP,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHEN),
-                .access_cb = gatt_svr_read_write_auth_test,
-                .flags = BLE_GATT_CHR_F_READ_AUTHEN |
-                         BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE_AUTHEN |
-                         BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_WRITE_AUTHEN,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHOR),
-                .access_cb = gatt_svr_read_write_author_test,
-                .flags = BLE_GATT_CHR_F_READ_AUTHOR |
-                         BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE_AUTHOR |
-                         BLE_GATT_CHR_F_WRITE
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_RELIABLE_WRITE),
-                .access_cb = gatt_svr_rel_write_test,
-                .flags = BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_RELIABLE_WRITE,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ENC),
-                .access_cb = gatt_svr_read_write_enc_test,
-                .flags = BLE_GATT_CHR_F_READ_ENC |
-                         BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_WRITE_ENC,
-                .min_key_size = 16,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE),
-                .access_cb = gatt_svr_read_write_long_test,
-                .flags = BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_READ,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE_ALT),
-                .access_cb = gatt_svr_read_write_long_test,
-                .flags = BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_READ,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY),
-                .access_cb = gatt_svr_read_write_test,
-                .val_handle = &notify_handle,
-                .flags = BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_NOTIFY |
-                         BLE_GATT_CHR_F_INDICATE,
-            }, {
-                .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY_ALT),
-                .access_cb = gatt_svr_read_write_test,
-                .val_handle = &notify_handle_alt,
-                .flags = BLE_GATT_CHR_F_READ |
-                         BLE_GATT_CHR_F_WRITE |
-                         BLE_GATT_CHR_F_NOTIFY |
-                         BLE_GATT_CHR_F_INDICATE,
-            }, {
-                0, /* No more characteristics in this service. */
-            }
-        },
-    }, {
-        .type = BLE_GATT_SVC_TYPE_PRIMARY,
-        .uuid = PTS_UUID_DECLARE_ALT(PTS_SVC),
-        .characteristics = (struct ble_gatt_chr_def[]) {{
-                                                            .uuid = PTS_UUID_DECLARE_ALT(PTS_CHR_READ_WRITE),
-                                                            .access_cb = gatt_svr_read_write_test,
-                                                            .flags = BLE_GATT_CHR_F_WRITE |
-                                                                     BLE_GATT_CHR_F_READ,
-                                                        }, {
-                                                            0, /* No more characteristics in this service */
-                                                        }},
-    }, {
-        0, /* No more services. */
+     .uuid = PTS_UUID_DECLARE(PTS_SVC),
+     .includes = inc_svcs,
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                { .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE),
+                  .access_cb = gatt_svr_read_write_test,
+                  .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE,
+                  .descriptors =
+                      (struct ble_gatt_dsc_def[]){
+                          {
+                              .uuid = PTS_UUID_DECLARE(PTS_DSC_READ_WRITE),
+                              .access_cb = gatt_svr_dsc_read_write_test,
+                              .att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE,
+                          },
+                          {
+                              .uuid = PTS_UUID_DECLARE(PTS_LONG_DSC_READ_WRITE),
+                              .access_cb = gatt_svr_dsc_read_write_long_test,
+                              .att_flags = BLE_ATT_F_READ | BLE_ATT_F_WRITE,
+                          },
+                          {
+                              .uuid = PTS_UUID_DECLARE(PTS_DSC_READ),
+                              .access_cb = gatt_svr_dsc_read_test,
+                              .att_flags = BLE_ATT_F_READ,
+                          },
+                          {
+                              0, /* No more descriptors in this characteristic */
+                          } } },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_WRITE_NO_RSP),
+                    .access_cb = gatt_svr_write_no_rsp_test,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHEN),
+                    .access_cb = gatt_svr_read_write_auth_test,
+                    .flags = BLE_GATT_CHR_F_READ_AUTHEN | BLE_GATT_CHR_F_READ |
+                             BLE_GATT_CHR_F_WRITE_AUTHEN |
+                             BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_AUTHEN,
+                },
+                { .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_AUTHOR),
+                  .access_cb = gatt_svr_read_write_author_test,
+                  .flags = BLE_GATT_CHR_F_READ_AUTHOR | BLE_GATT_CHR_F_READ |
+                           BLE_GATT_CHR_F_WRITE_AUTHOR | BLE_GATT_CHR_F_WRITE },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_RELIABLE_WRITE),
+                    .access_cb = gatt_svr_rel_write_test,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_RELIABLE_WRITE,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_READ_WRITE_ENC),
+                    .access_cb = gatt_svr_read_write_enc_test,
+                    .flags = BLE_GATT_CHR_F_READ_ENC | BLE_GATT_CHR_F_READ |
+                             BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_ENC,
+                    .min_key_size = 16,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE),
+                    .access_cb = gatt_svr_read_write_long_test,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_READ,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_LONG_CHR_READ_WRITE_ALT),
+                    .access_cb = gatt_svr_read_write_long_test,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_READ,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY),
+                    .access_cb = gatt_svr_read_write_test,
+                    .val_handle = &notify_handle,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE,
+                },
+                {
+                    .uuid = PTS_UUID_DECLARE(PTS_CHR_NOTIFY_ALT),
+                    .access_cb = gatt_svr_read_write_test,
+                    .val_handle = &notify_handle_alt,
+                    .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_WRITE |
+                             BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_INDICATE,
+                },
+                {
+                    0, /* No more characteristics in this service. */
+                } },
+     },
+    {
+     .type = BLE_GATT_SVC_TYPE_PRIMARY,
+     .uuid = PTS_UUID_DECLARE_ALT(PTS_SVC),
+     .characteristics =
+            (struct ble_gatt_chr_def[]){
+                {
+                    .uuid = PTS_UUID_DECLARE_ALT(PTS_CHR_READ_WRITE),
+                    .access_cb = gatt_svr_read_write_test,
+                    .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_READ,
+                },
+                {
+                    0, /* No more characteristics in this service */
+                } },
+     },
+    {
+     0, /* No more services. */
     },
 };
 
@@ -295,9 +276,8 @@ attr_value_changed_ev(uint16_t handle, struct os_mbuf *data)
 }
 
 static int
-gatt_svr_chr_write(uint16_t conn_handle, uint16_t attr_handle,
-                   struct os_mbuf *om, uint16_t min_len, uint16_t max_len,
-                   void *dst, uint16_t *len)
+gatt_svr_chr_write(uint16_t conn_handle, uint16_t attr_handle, struct os_mbuf *om,
+                   uint16_t min_len, uint16_t max_len, void *dst, uint16_t *len)
 {
     uint16_t om_len;
     int rc;
@@ -325,14 +305,13 @@ extract_uuid16_from_pts_uuid128(const ble_uuid_t *uuid)
 
     u8ptr = BLE_UUID128(uuid)->value;
     uuid16 = u8ptr[12];
-    uuid16 |= (uint16_t) u8ptr[13] << 8;
+    uuid16 |= (uint16_t)u8ptr[13] << 8;
     return uuid16;
 }
 
 static int
 gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                         struct ble_gatt_access_ctxt *ctxt,
-                         void *arg)
+                         struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -363,8 +342,7 @@ gatt_svr_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
-                              struct ble_gatt_access_ctxt *ctxt,
-                              void *arg)
+                              struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -393,8 +371,7 @@ gatt_svr_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
-                              struct ble_gatt_access_ctxt *ctxt,
-                              void *arg)
+                              struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -422,8 +399,7 @@ gatt_svr_read_write_auth_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_read_write_author_test(uint16_t conn_handle, uint16_t attr_handle,
-                                struct ble_gatt_access_ctxt *ctxt,
-                                void *arg)
+                                struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
 
@@ -445,8 +421,7 @@ gatt_svr_read_write_author_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
-                             struct ble_gatt_access_ctxt *ctxt,
-                             void *arg)
+                             struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -474,8 +449,7 @@ gatt_svr_read_write_enc_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                             struct ble_gatt_access_ctxt *ctxt,
-                             void *arg)
+                             struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -503,8 +477,7 @@ gatt_svr_dsc_read_write_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
-                                  struct ble_gatt_access_ctxt *ctxt,
-                                  void *arg)
+                                  struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -532,8 +505,7 @@ gatt_svr_dsc_read_write_long_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_dsc_read_test(uint16_t conn_handle, uint16_t attr_handle,
-                       struct ble_gatt_access_ctxt *ctxt,
-                       void *arg)
+                       struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -556,8 +528,7 @@ gatt_svr_dsc_read_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_write_no_rsp_test(uint16_t conn_handle, uint16_t attr_handle,
-                           struct ble_gatt_access_ctxt *ctxt,
-                           void *arg)
+                           struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -585,8 +556,7 @@ gatt_svr_write_no_rsp_test(uint16_t conn_handle, uint16_t attr_handle,
 
 static int
 gatt_svr_rel_write_test(uint16_t conn_handle, uint16_t attr_handle,
-                        struct ble_gatt_access_ctxt *ctxt,
-                        void *arg)
+                        struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     uint16_t uuid16;
     int rc;
@@ -610,8 +580,7 @@ gatt_svr_rel_write_test(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 static uint8_t
-start_server(const void *cmd, uint16_t cmd_len,
-             void *rsp, uint16_t *rsp_len)
+start_server(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_gatt_start_server_rp *rp = rsp;
 
@@ -631,8 +600,7 @@ start_server(const void *cmd, uint16_t cmd_len,
 
 /* Convert UUID from BTP command to bt_uuid */
 static uint8_t
-btp2bt_uuid(const uint8_t *uuid, uint8_t len,
-            ble_uuid_any_t *bt_uuid)
+btp2bt_uuid(const uint8_t *uuid, uint8_t len, ble_uuid_any_t *bt_uuid)
 {
     uint16_t le16;
 
@@ -674,7 +642,7 @@ gatt_buf_add(const void *data, size_t len)
     if (data) {
         memcpy(ptr, data, len);
     } else {
-        (void) memset(ptr, 0, len);
+        (void)memset(ptr, 0, len);
     }
 
     gatt_buf.len += len;
@@ -693,7 +661,7 @@ gatt_buf_reserve(size_t len)
 static void
 gatt_buf_clear(void)
 {
-    (void) memset(&gatt_buf, 0, sizeof(gatt_buf));
+    (void)memset(&gatt_buf, 0, sizeof(gatt_buf));
 }
 
 static void
@@ -709,42 +677,36 @@ read_destroy()
 }
 
 static int
-read_cb(uint16_t conn_handle,
-        const struct ble_gatt_error *error,
-        struct ble_gatt_attr *attr,
-        void *arg)
+read_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
+        struct ble_gatt_attr *attr, void *arg)
 {
-    struct btp_gatt_read_rp *rp = (void *) gatt_buf.buf;
-    uint8_t btp_opcode = (uint8_t) (int) arg;
+    struct btp_gatt_read_rp *rp = (void *)gatt_buf.buf;
+    uint8_t btp_opcode = (uint8_t)(int)arg;
 
     SYS_LOG_DBG("status=%d", error->status);
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        rp->att_response = (uint8_t) BLE_HS_ATT_ERR(error->status);
-        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                        gatt_buf.buf, gatt_buf.len);
+        rp->att_response = (uint8_t)BLE_HS_ATT_ERR(error->status);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
 
     if (!gatt_buf_add(attr->om->om_data, attr->om->om_len)) {
-        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode, BTP_STATUS_FAILED);
         read_destroy();
         return 0;
     }
 
     rp->data_length += attr->om->om_len;
-    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                    gatt_buf.buf, gatt_buf.len);
+    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf.len);
     read_destroy();
 
     return 0;
 }
 
 static uint8_t
-read_data(const void *cmd, uint16_t cmd_len,
-          void *rsp, uint16_t *rsp_len)
+read_data(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_read_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -764,8 +726,8 @@ read_data(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_read(conn.conn_handle, le16toh(cp->handle),
-                       read_cb, (void *) BTP_GATT_READ)) {
+    if (ble_gattc_read(conn.conn_handle, le16toh(cp->handle), read_cb,
+                       (void *)BTP_GATT_READ)) {
         read_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -774,34 +736,29 @@ read_data(const void *cmd, uint16_t cmd_len,
 }
 
 static int
-read_long_cb(uint16_t conn_handle,
-             const struct ble_gatt_error *error,
-             struct ble_gatt_attr *attr,
-             void *arg)
+read_long_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
+             struct ble_gatt_attr *attr, void *arg)
 {
-    struct btp_gatt_read_rp *rp = (void *) gatt_buf.buf;
-    uint8_t btp_opcode = (uint8_t) (int) arg;
+    struct btp_gatt_read_rp *rp = (void *)gatt_buf.buf;
+    uint8_t btp_opcode = (uint8_t)(int)arg;
 
     SYS_LOG_DBG("status=%d", error->status);
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        rp->att_response = (uint8_t) BLE_HS_ATT_ERR(error->status);
-        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                        gatt_buf.buf, gatt_buf.len);
+        rp->att_response = (uint8_t)BLE_HS_ATT_ERR(error->status);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                        gatt_buf.buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf.len);
         read_destroy();
         return 0;
     }
 
     if (gatt_buf_add(attr->om->om_data, attr->om->om_len) == NULL) {
-        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode, BTP_STATUS_FAILED);
         read_destroy();
         return BLE_HS_ENOMEM;
     }
@@ -812,8 +769,7 @@ read_long_cb(uint16_t conn_handle,
 }
 
 static uint8_t
-read_long(const void *cmd, uint16_t cmd_len,
-          void *rsp, uint16_t *rsp_len)
+read_long(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_read_long_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -833,10 +789,8 @@ read_long(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_read_long(conn.conn_handle,
-                            le16toh(cp->handle),
-                            le16toh(cp->offset),
-                            read_long_cb, (void *) BTP_GATT_READ_LONG)) {
+    if (ble_gattc_read_long(conn.conn_handle, le16toh(cp->handle), le16toh(cp->offset),
+                            read_long_cb, (void *)BTP_GATT_READ_LONG)) {
         read_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -845,8 +799,7 @@ read_long(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-read_multiple(const void *cmd, uint16_t cmd_len,
-              void *rsp, uint16_t *rsp_len)
+read_multiple(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_read_multiple_cmd *cp = cmd;
     uint16_t handles[cp->handles_count];
@@ -871,9 +824,8 @@ read_multiple(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_read_mult(conn.conn_handle, handles,
-                            cp->handles_count, read_cb,
-                            (void *) BTP_GATT_READ_MULTIPLE)) {
+    if (ble_gattc_read_mult(conn.conn_handle, handles, cp->handles_count,
+                            read_cb, (void *)BTP_GATT_READ_MULTIPLE)) {
         read_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -882,8 +834,7 @@ read_multiple(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-write_without_rsp(const void *cmd, uint16_t cmd_len,
-                  void *rsp, uint16_t *rsp_len)
+write_without_rsp(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_write_without_rsp_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -891,8 +842,7 @@ write_without_rsp(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    if (cmd_len < sizeof(*cp) ||
-        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -901,10 +851,9 @@ write_without_rsp(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_write_no_rsp_flat(conn.conn_handle,
-                                    le16toh(cp->handle), cp->data,
-                                    le16toh(cp->data_length))) {
-       return BTP_STATUS_FAILED;
+    if (ble_gattc_write_no_rsp_flat(conn.conn_handle, le16toh(cp->handle),
+                                    cp->data, le16toh(cp->data_length))) {
+        return BTP_STATUS_FAILED;
     }
 
     return BTP_STATUS_SUCCESS;
@@ -912,22 +861,19 @@ write_without_rsp(const void *cmd, uint16_t cmd_len,
 
 static int
 write_rsp(uint16_t conn_handle, const struct ble_gatt_error *error,
-          struct ble_gatt_attr *attr,
-          void *arg)
+          struct ble_gatt_attr *attr, void *arg)
 {
-    uint8_t err = (uint8_t) error->status;
-    uint8_t btp_opcode = (uint8_t) (int) arg;
+    uint8_t err = (uint8_t)error->status;
+    uint8_t btp_opcode = (uint8_t)(int)arg;
 
     SYS_LOG_DBG("");
 
-    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                    &err, sizeof(err));
+    tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, &err, sizeof(err));
     return 0;
 }
 
 static uint8_t
-write_data(const void *cmd, uint16_t cmd_len,
-           void *rsp, uint16_t *rsp_len)
+write_data(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_write_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -935,8 +881,7 @@ write_data(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    if (cmd_len < sizeof(*cp) ||
-        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -945,9 +890,9 @@ write_data(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_write_flat(conn.conn_handle, le16toh(cp->handle),
-                             cp->data, le16toh(cp->data_length),
-                             write_rsp, (void *) BTP_GATT_WRITE)) {
+    if (ble_gattc_write_flat(conn.conn_handle, le16toh(cp->handle), cp->data,
+                             le16toh(cp->data_length), write_rsp,
+                             (void *)BTP_GATT_WRITE)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -955,8 +900,7 @@ write_data(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-write_long(const void *cmd, uint16_t cmd_len,
-           void *rsp, uint16_t *rsp_len)
+write_long(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_write_long_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -965,9 +909,8 @@ write_long(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    if (cmd_len < sizeof(*cp) ||
-        cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
-            goto fail;
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + le16toh(cp->data_length)) {
+        goto fail;
     }
 
     rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
@@ -981,11 +924,9 @@ write_long(const void *cmd, uint16_t cmd_len,
         goto fail;
     }
 
-    rc = ble_gattc_write_long(conn.conn_handle,
-                              le16toh(cp->handle),
-                              le16toh(cp->offset),
-                              om, write_rsp,
-                              (void *) BTP_GATT_WRITE_LONG);
+    rc = ble_gattc_write_long(conn.conn_handle, le16toh(cp->handle),
+                              le16toh(cp->offset), om, write_rsp,
+                              (void *)BTP_GATT_WRITE_LONG);
     if (!rc) {
         return BTP_STATUS_DELAY_REPLY;
     }
@@ -997,24 +938,19 @@ fail:
 }
 
 static int
-reliable_write_rsp(uint16_t conn_handle,
-                   const struct ble_gatt_error *error,
-                   struct ble_gatt_attr *attrs,
-                   uint8_t num_attrs,
-                   void *arg)
+reliable_write_rsp(uint16_t conn_handle, const struct ble_gatt_error *error,
+                   struct ble_gatt_attr *attrs, uint8_t num_attrs, void *arg)
 {
-    uint8_t err = (uint8_t) error->status;
+    uint8_t err = (uint8_t)error->status;
 
     SYS_LOG_DBG("Reliable write status %d", err);
 
-    tester_rsp_full(BTP_SERVICE_ID_GATT, BTP_GATT_RELIABLE_WRITE,
-                    &err, sizeof(err));
+    tester_rsp_full(BTP_SERVICE_ID_GATT, BTP_GATT_RELIABLE_WRITE, &err, sizeof(err));
     return 0;
 }
 
 static uint8_t
-reliable_write(const void *cmd, uint16_t cmd_len,
-               void *rsp, uint16_t *rsp_len)
+reliable_write(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_reliable_write_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1041,8 +977,7 @@ reliable_write(const void *cmd, uint16_t cmd_len,
     attr.offset = le16toh(cp->offset);
     attr.om = om;
 
-    if (ble_gattc_write_reliable(conn.conn_handle, &attr, 1,
-                                 reliable_write_rsp, NULL)) {
+    if (ble_gattc_write_reliable(conn.conn_handle, &attr, 1, reliable_write_rsp, NULL)) {
         goto fail;
     }
 
@@ -1055,8 +990,7 @@ fail:
 }
 
 static uint8_t
-read_uuid(const void *cmd, uint16_t cmd_len,
-          void *rsp, uint16_t *rsp_len)
+read_uuid(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_read_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1081,10 +1015,9 @@ read_uuid(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_read_by_uuid(conn.conn_handle,
-                               le16toh(cp->start_handle),
-                               le16toh(cp->end_handle), &uuid.u,
-                               read_long_cb, (void *) BTP_GATT_READ_UUID)) {
+    if (ble_gattc_read_by_uuid(conn.conn_handle, le16toh(cp->start_handle),
+                               le16toh(cp->end_handle), &uuid.u, read_long_cb,
+                               (void *)BTP_GATT_READ_UUID)) {
         read_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -1093,39 +1026,35 @@ read_uuid(const void *cmd, uint16_t cmd_len,
 }
 
 static int
-disc_prim_uuid_cb(uint16_t conn_handle,
-                  const struct ble_gatt_error *error,
+disc_prim_uuid_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
                   const struct ble_gatt_svc *gatt_svc, void *arg)
 {
-    struct btp_gatt_disc_prim_uuid_rp *rp = (void *) gatt_buf.buf;
+    struct btp_gatt_disc_prim_uuid_rp *rp = (void *)gatt_buf.buf;
     struct btp_gatt_service *service;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
-    uint8_t opcode = (uint8_t) (int) arg;
+    uint8_t opcode = (uint8_t)(int)arg;
 
     SYS_LOG_DBG("");
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        tester_rsp(BTP_SERVICE_ID_GATT, opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, opcode, BTP_STATUS_FAILED);
         discover_destroy();
         return 0;
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_rsp_full(BTP_SERVICE_ID_GATT, opcode,
-                        gatt_buf.buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, opcode, gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
 
     uuid = &gatt_svc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+    uuid_length = (uint8_t)(uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
 
     service = gatt_buf_reserve(sizeof(*service) + uuid_length);
     if (!service) {
-        tester_rsp(BTP_SERVICE_ID_GATT, opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, opcode, BTP_STATUS_FAILED);
         discover_destroy();
         return BLE_HS_ENOMEM;
     }
@@ -1138,8 +1067,7 @@ disc_prim_uuid_cb(uint16_t conn_handle,
         uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(service->uuid, &u16, uuid_length);
     } else {
-        memcpy(service->uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
+        memcpy(service->uuid, BLE_UUID128(uuid)->value, uuid_length);
     }
 
     rp->services_count++;
@@ -1148,13 +1076,11 @@ disc_prim_uuid_cb(uint16_t conn_handle,
 }
 
 static int
-disc_all_desc_cb(uint16_t conn_handle,
-                 const struct ble_gatt_error *error,
-                 uint16_t chr_val_handle,
-                 const struct ble_gatt_dsc *gatt_dsc,
+disc_all_desc_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
+                 uint16_t chr_val_handle, const struct ble_gatt_dsc *gatt_dsc,
                  void *arg)
 {
-    struct btp_gatt_disc_all_desc_rp *rp = (void *) gatt_buf.buf;
+    struct btp_gatt_disc_all_desc_rp *rp = (void *)gatt_buf.buf;
     struct btp_gatt_descriptor *dsc;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
@@ -1162,8 +1088,7 @@ disc_all_desc_cb(uint16_t conn_handle,
     SYS_LOG_DBG("");
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC, BTP_STATUS_FAILED);
         discover_destroy();
         return 0;
     }
@@ -1176,12 +1101,11 @@ disc_all_desc_cb(uint16_t conn_handle,
     }
 
     uuid = &gatt_dsc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+    uuid_length = (uint8_t)(uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
 
     dsc = gatt_buf_reserve(sizeof(*dsc) + uuid_length);
     if (!dsc) {
-        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_DISC_ALL_DESC, BTP_STATUS_FAILED);
         discover_destroy();
         return BLE_HS_ENOMEM;
     }
@@ -1202,8 +1126,7 @@ disc_all_desc_cb(uint16_t conn_handle,
 }
 
 static uint8_t
-disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+disc_all_prim_svcs(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_disc_all_prim_svcs_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1221,7 +1144,7 @@ disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
     }
 
     if (ble_gattc_disc_all_svcs(conn.conn_handle, disc_prim_uuid_cb,
-                                (void *) BTP_GATT_DISC_ALL_PRIM_SVCS)) {
+                                (void *)BTP_GATT_DISC_ALL_PRIM_SVCS)) {
         discover_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -1230,8 +1153,7 @@ disc_all_prim_svcs(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-disc_all_desc(const void *cmd, uint16_t cmd_len,
-              void *rsp, uint16_t *rsp_len)
+disc_all_desc(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_disc_all_desc_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1266,21 +1188,19 @@ disc_all_desc(const void *cmd, uint16_t cmd_len,
 }
 
 static int
-find_included_cb(uint16_t conn_handle,
-                 const struct ble_gatt_error *error,
+find_included_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
                  const struct ble_gatt_svc *gatt_svc, void *arg)
 {
-    struct btp_gatt_find_included_rp *rp = (void *) gatt_buf.buf;
+    struct btp_gatt_find_included_rp *rp = (void *)gatt_buf.buf;
     struct btp_gatt_included *included;
     const ble_uuid_any_t *uuid;
-    int service_handle = (int) arg;
+    int service_handle = (int)arg;
     uint8_t uuid_length;
 
     SYS_LOG_DBG("");
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED, BTP_STATUS_FAILED);
         discover_destroy();
         return 0;
     }
@@ -1293,18 +1213,16 @@ find_included_cb(uint16_t conn_handle,
     }
 
     uuid = &gatt_svc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+    uuid_length = (uint8_t)(uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
 
     included = gatt_buf_reserve(sizeof(*included) + uuid_length);
     if (!included) {
-        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, BTP_GATT_FIND_INCLUDED, BTP_STATUS_FAILED);
         discover_destroy();
         return BLE_HS_ENOMEM;
     }
 
-    included->included_handle = htole16(service_handle + 1 +
-                                        rp->services_count);
+    included->included_handle = htole16(service_handle + 1 + rp->services_count);
     included->service.start_handle = htole16(gatt_svc->start_handle);
     included->service.end_handle = htole16(gatt_svc->end_handle);
     included->service.uuid_length = uuid_length;
@@ -1313,8 +1231,7 @@ find_included_cb(uint16_t conn_handle,
         uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(included->service.uuid, &u16, uuid_length);
     } else {
-        memcpy(included->service.uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
+        memcpy(included->service.uuid, BLE_UUID128(uuid)->value, uuid_length);
     }
 
     rp->services_count++;
@@ -1323,39 +1240,35 @@ find_included_cb(uint16_t conn_handle,
 }
 
 static int
-disc_chrc_cb(uint16_t conn_handle,
-             const struct ble_gatt_error *error,
+disc_chrc_cb(uint16_t conn_handle, const struct ble_gatt_error *error,
              const struct ble_gatt_chr *gatt_chr, void *arg)
 {
-    struct btp_gatt_disc_chrc_rp *rp = (void *) gatt_buf.buf;
+    struct btp_gatt_disc_chrc_rp *rp = (void *)gatt_buf.buf;
     struct btp_gatt_characteristic *chrc;
     const ble_uuid_any_t *uuid;
-    uint8_t btp_opcode = (uint8_t) (int) arg;
+    uint8_t btp_opcode = (uint8_t)(int)arg;
     uint8_t uuid_length;
 
     SYS_LOG_DBG("");
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
-        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode, BTP_STATUS_FAILED);
         discover_destroy();
         return 0;
     }
 
     if (error->status == BLE_HS_EDONE) {
-        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode,
-                        gatt_buf.buf, gatt_buf.len);
+        tester_rsp_full(BTP_SERVICE_ID_GATT, btp_opcode, gatt_buf.buf, gatt_buf.len);
         discover_destroy();
         return 0;
     }
 
     uuid = &gatt_chr->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+    uuid_length = (uint8_t)(uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
 
     chrc = gatt_buf_reserve(sizeof(*chrc) + uuid_length);
     if (!chrc) {
-        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode,
-                   BTP_STATUS_FAILED);
+        tester_rsp(BTP_SERVICE_ID_GATT, btp_opcode, BTP_STATUS_FAILED);
         discover_destroy();
         return BLE_HS_ENOMEM;
     }
@@ -1369,8 +1282,7 @@ disc_chrc_cb(uint16_t conn_handle,
         uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
         memcpy(chrc->uuid, &u16, uuid_length);
     } else {
-        memcpy(chrc->uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
+        memcpy(chrc->uuid, BLE_UUID128(uuid)->value, uuid_length);
     }
 
     rp->characteristics_count++;
@@ -1379,8 +1291,7 @@ disc_chrc_cb(uint16_t conn_handle,
 }
 
 static uint8_t
-disc_chrc_uuid(const void *cmd, uint16_t cmd_len,
-               void *rsp, uint16_t *rsp_len)
+disc_chrc_uuid(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_disc_chrc_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1406,9 +1317,9 @@ disc_chrc_uuid(const void *cmd, uint16_t cmd_len,
     start_handle = le16toh(cp->start_handle);
     end_handle = le16toh(cp->end_handle);
 
-    if (ble_gattc_disc_chrs_by_uuid(conn.conn_handle, start_handle,
-                                    end_handle, &uuid.u, disc_chrc_cb,
-                                    (void *) BTP_GATT_DISC_CHRC_UUID)) {
+    if (ble_gattc_disc_chrs_by_uuid(conn.conn_handle, start_handle, end_handle,
+                                    &uuid.u, disc_chrc_cb,
+                                    (void *)BTP_GATT_DISC_CHRC_UUID)) {
         discover_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -1417,8 +1328,7 @@ disc_chrc_uuid(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-disc_prim_uuid(const void *cmd, uint16_t cmd_len,
-               void *rsp, uint16_t *rsp_len)
+disc_prim_uuid(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_disc_prim_uuid_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1427,8 +1337,7 @@ disc_prim_uuid(const void *cmd, uint16_t cmd_len,
 
     SYS_LOG_DBG("");
 
-    if ((cmd_len < sizeof(*cp)) ||
-        (cmd_len != sizeof(*cp) + cp->uuid_length)) {
+    if ((cmd_len < sizeof(*cp)) || (cmd_len != sizeof(*cp) + cp->uuid_length)) {
         return BTP_STATUS_FAILED;
     }
 
@@ -1445,9 +1354,8 @@ disc_prim_uuid(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    if (ble_gattc_disc_svc_by_uuid(conn.conn_handle,
-                                   &uuid.u, disc_prim_uuid_cb,
-                                   (void *) BTP_GATT_DISC_PRIM_UUID)) {
+    if (ble_gattc_disc_svc_by_uuid(conn.conn_handle, &uuid.u, disc_prim_uuid_cb,
+                                   (void *)BTP_GATT_DISC_PRIM_UUID)) {
         discover_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -1456,8 +1364,7 @@ disc_prim_uuid(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-disc_all_chrc(const void *cmd, uint16_t cmd_len,
-              void *rsp, uint16_t *rsp_len)
+disc_all_chrc(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_disc_all_chrc_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1481,7 +1388,7 @@ disc_all_chrc(const void *cmd, uint16_t cmd_len,
     end_handle = le16toh(cp->end_handle);
 
     rc = ble_gattc_disc_all_chrs(conn.conn_handle, start_handle, end_handle,
-                                 disc_chrc_cb, (void *) BTP_GATT_DISC_ALL_CHRC);
+                                 disc_chrc_cb, (void *)BTP_GATT_DISC_ALL_CHRC);
     if (rc) {
         discover_destroy();
         return BTP_STATUS_FAILED;
@@ -1491,8 +1398,7 @@ disc_all_chrc(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-find_included(const void *cmd, uint16_t cmd_len,
-              void *rsp, uint16_t *rsp_len)
+find_included(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_find_included_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1516,8 +1422,7 @@ find_included(const void *cmd, uint16_t cmd_len,
     service_handle_arg = start_handle;
 
     if (ble_gattc_find_inc_svcs(conn.conn_handle, start_handle, end_handle,
-                                find_included_cb,
-                                (void *) service_handle_arg)) {
+                                find_included_cb, (void *)service_handle_arg)) {
         discover_destroy();
         return BTP_STATUS_FAILED;
     }
@@ -1526,8 +1431,7 @@ find_included(const void *cmd, uint16_t cmd_len,
 }
 
 static int
-exchange_func(uint16_t conn_handle,
-              const struct ble_gatt_error *error,
+exchange_func(uint16_t conn_handle, const struct ble_gatt_error *error,
               uint16_t mtu, void *arg)
 {
     SYS_LOG_DBG("");
@@ -1544,8 +1448,7 @@ exchange_func(uint16_t conn_handle,
 }
 
 static uint8_t
-exchange_mtu(const void *cmd, uint16_t cmd_len,
-             void *rsp, uint16_t *rsp_len)
+exchange_mtu(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_exchange_mtu_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1563,23 +1466,22 @@ exchange_mtu(const void *cmd, uint16_t cmd_len,
     }
 
     /* this BTP command is about initiating MTU exchange, no need to wait
-	 * for procedure to complete.
-	 */
+     * for procedure to complete.
+     */
     return BTP_STATUS_SUCCESS;
 }
 
 static int
-enable_subscription(uint16_t conn_handle, uint16_t ccc_handle,
-                    uint16_t value)
+enable_subscription(uint16_t conn_handle, uint16_t ccc_handle, uint16_t value)
 {
     uint8_t op;
 
     SYS_LOG_DBG("");
 
-    op = (uint8_t) (value == 0x0001 ? BTP_GATT_CFG_NOTIFY : BTP_GATT_CFG_INDICATE);
+    op = (uint8_t)(value == 0x0001 ? BTP_GATT_CFG_NOTIFY : BTP_GATT_CFG_INDICATE);
 
-    if (ble_gattc_write_flat(conn_handle, ccc_handle,
-                             &value, sizeof(value), NULL, NULL)) {
+    if (ble_gattc_write_flat(conn_handle, ccc_handle, &value, sizeof(value),
+                             NULL, NULL)) {
         return -EINVAL;
     }
 
@@ -1594,8 +1496,7 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
 
     SYS_LOG_DBG("");
 
-    if (ble_gattc_write_no_rsp_flat(conn_handle, ccc_handle,
-                                    &value, sizeof(value))) {
+    if (ble_gattc_write_no_rsp_flat(conn_handle, ccc_handle, &value, sizeof(value))) {
         return -EINVAL;
     }
 
@@ -1603,8 +1504,7 @@ disable_subscription(uint16_t conn_handle, uint16_t ccc_handle)
 }
 
 static uint8_t
-config_subscription_notif(const void *cmd, uint16_t cmd_len,
-                          void *rsp, uint16_t *rsp_len)
+config_subscription_notif(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_cfg_notify_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1621,8 +1521,7 @@ config_subscription_notif(const void *cmd, uint16_t cmd_len,
 
     if (cp->enable) {
         /* on success response will be sent from callback */
-        if (enable_subscription(conn.conn_handle,
-                                ccc_handle, 0x0001) == 0) {
+        if (enable_subscription(conn.conn_handle, ccc_handle, 0x0001) == 0) {
             return BTP_STATUS_DELAY_REPLY;
         }
 
@@ -1639,8 +1538,7 @@ config_subscription_notif(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-config_subscription_ind(const void *cmd, uint16_t cmd_len,
-                        void *rsp, uint16_t *rsp_len)
+config_subscription_ind(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_cfg_notify_cmd *cp = cmd;
     struct ble_gap_conn_desc conn;
@@ -1657,8 +1555,7 @@ config_subscription_ind(const void *cmd, uint16_t cmd_len,
 
     if (cp->enable) {
         /* on success response will be sent from callback */
-        if (enable_subscription(conn.conn_handle,
-                                ccc_handle, 0x0002) == 0) {
+        if (enable_subscription(conn.conn_handle, ccc_handle, 0x0002) == 0) {
             return BTP_STATUS_DELAY_REPLY;
         }
 
@@ -1674,24 +1571,19 @@ config_subscription_ind(const void *cmd, uint16_t cmd_len,
     return status;
 }
 
-#define BTP_PERM_F_READ                      0x01
-#define BTP_PERM_F_WRITE                     0x02
-#define BTP_PERM_F_READ_ENC                  0x04
-#define BTP_PERM_F_WRITE_ENC                 0x08
-#define BTP_PERM_F_READ_AUTHEN               0x10
-#define BTP_PERM_F_WRITE_AUTHEN              0x20
-#define BTP_PERM_F_READ_AUTHOR               0x40
-#define BTP_PERM_F_WRITE_AUTHOR              0x80
+#define BTP_PERM_F_READ         0x01
+#define BTP_PERM_F_WRITE        0x02
+#define BTP_PERM_F_READ_ENC     0x04
+#define BTP_PERM_F_WRITE_ENC    0x08
+#define BTP_PERM_F_READ_AUTHEN  0x10
+#define BTP_PERM_F_WRITE_AUTHEN 0x20
+#define BTP_PERM_F_READ_AUTHOR  0x40
+#define BTP_PERM_F_WRITE_AUTHOR 0x80
 
 static int flags_hs2btp_map[] = {
-    BTP_PERM_F_READ,
-    BTP_PERM_F_WRITE,
-    BTP_PERM_F_READ_ENC,
-    BTP_PERM_F_READ_AUTHEN,
-    BTP_PERM_F_READ_AUTHOR,
-    BTP_PERM_F_WRITE_ENC,
-    BTP_PERM_F_WRITE_AUTHEN,
-    BTP_PERM_F_WRITE_AUTHOR,
+    BTP_PERM_F_READ,         BTP_PERM_F_WRITE,        BTP_PERM_F_READ_ENC,
+    BTP_PERM_F_READ_AUTHEN,  BTP_PERM_F_READ_AUTHOR,  BTP_PERM_F_WRITE_ENC,
+    BTP_PERM_F_WRITE_AUTHEN, BTP_PERM_F_WRITE_AUTHOR,
 };
 
 static uint8_t
@@ -1710,8 +1602,7 @@ flags_hs2btp(uint8_t flags)
 }
 
 static uint8_t
-get_attrs(const void *cmd, uint16_t cmd_len,
-          void *rsp, uint16_t *rsp_len)
+get_attrs(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_get_attributes_cmd *cp = cmd;
     struct btp_gatt_get_attributes_rp *rp = rsp;
@@ -1743,8 +1634,7 @@ get_attrs(const void *cmd, uint16_t cmd_len,
         }
 
         ble_uuid_to_str(&uuid.u, str);
-        SYS_LOG_DBG("start 0x%04x end 0x%04x, uuid %s", start_handle,
-                    end_handle, str);
+        SYS_LOG_DBG("start 0x%04x end 0x%04x, uuid %s", start_handle, end_handle, str);
 
         uuid_ptr = &uuid.u;
     } else {
@@ -1755,8 +1645,7 @@ get_attrs(const void *cmd, uint16_t cmd_len,
     while (entry) {
 
         if (entry->ha_handle_id < start_handle) {
-            entry = ble_att_svr_find_by_uuid(entry,
-                                             uuid_ptr, end_handle);
+            entry = ble_att_svr_find_by_uuid(entry, uuid_ptr, end_handle);
             continue;
         }
 
@@ -1802,8 +1691,7 @@ done:
 }
 
 static uint8_t
-get_attr_val(const void *cmd, uint16_t cmd_len,
-             void *rsp, uint16_t *rsp_len)
+get_attr_val(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_get_attribute_value_cmd *cp = cmd;
     struct btp_gatt_get_attribute_value_rp *rp;
@@ -1823,9 +1711,7 @@ get_attr_val(const void *cmd, uint16_t cmd_len,
             goto free;
         }
 
-        ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE,
-                                handle, 0, buf,
-                                &out_att_err);
+        ble_att_svr_read_handle(BLE_HS_CONN_HANDLE_NONE, handle, 0, buf, &out_att_err);
 
         rp->att_response = out_att_err;
         rp->value_length = os_mbuf_len(buf) - sizeof(*rp);
@@ -1841,9 +1727,7 @@ get_attr_val(const void *cmd, uint16_t cmd_len,
             goto free;
         }
 
-        ble_att_svr_read_handle(conn.conn_handle,
-                                handle, 0, buf,
-                                &out_att_err);
+        ble_att_svr_read_handle(conn.conn_handle, handle, 0, buf, &out_att_err);
 
         rp->att_response = out_att_err;
         rp->value_length = os_mbuf_len(buf) - sizeof(*rp);
@@ -1860,8 +1744,7 @@ free:
 }
 
 static uint8_t
-notify_mult(const void *cmd, uint16_t cmd_len,
-            void *rsp, uint16_t *rsp_len)
+notify_mult(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_notify_mult_val_cmd *cp = cmd;
     uint16_t ntf_handles[8];
@@ -1941,8 +1824,7 @@ set_val(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 }
 
 static uint8_t
-change_database(const void *cmd, uint16_t cmd_len,
-                void *rsp, uint16_t *rsp_len)
+change_database(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     const struct btp_gatt_change_database_cmd *cp = cmd;
 
@@ -1956,8 +1838,7 @@ change_database(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
-supported_commands(const void *cmd, uint16_t cmd_len,
-                   void *rsp, uint16_t *rsp_len)
+supported_commands(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
 {
     struct btp_gatt_read_supported_commands_rp *rp = rsp;
 
@@ -2127,13 +2008,13 @@ tester_gatt_notify_rx_ev(uint16_t conn_handle, uint16_t attr_handle,
     addr = &conn.peer_ota_addr;
 
     memcpy(&ev->address, addr, sizeof(ev->address));
-    ev->type = (uint8_t) (indication ? 0x02 : 0x01);
+    ev->type = (uint8_t)(indication ? 0x02 : 0x01);
     ev->handle = htole16(attr_handle);
     ev->data_length = htole16(os_mbuf_len(om));
     os_mbuf_appendfrom(buf, om, 0, os_mbuf_len(om));
 
-    tester_event(BTP_SERVICE_ID_GATT, BTP_GATT_EV_NOTIFICATION,
-                 buf->om_data, buf->om_len);
+    tester_event(BTP_SERVICE_ID_GATT, BTP_GATT_EV_NOTIFICATION, buf->om_data,
+                 buf->om_len);
 
 fail:
     os_mbuf_free_chain(buf);
@@ -2141,13 +2022,9 @@ fail:
 }
 
 int
-tester_gatt_subscribe_ev(uint16_t conn_handle,
-                         uint16_t attr_handle,
-                         uint8_t reason,
-                         uint8_t prev_notify,
-                         uint8_t cur_notify,
-                         uint8_t prev_indicate,
-                         uint8_t cur_indicate)
+tester_gatt_subscribe_ev(uint16_t conn_handle, uint16_t attr_handle,
+                         uint8_t reason, uint8_t prev_notify, uint8_t cur_notify,
+                         uint8_t prev_indicate, uint8_t cur_indicate)
 {
     SYS_LOG_DBG("");
     myconn_handle = conn_handle;
@@ -2175,32 +2052,21 @@ gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
 
     switch (ctxt->op) {
     case BLE_GATT_REGISTER_OP_SVC:
-        MODLOG_DFLT(DEBUG,
-                    "registered service %s with handle=%d\n",
-                    ble_uuid_to_str(
-                        ctxt->svc.svc_def->uuid,
-                        buf),
-                    ctxt->svc.handle);
+        MODLOG_DFLT(DEBUG, "registered service %s with handle=%d\n",
+                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf), ctxt->svc.handle);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
         MODLOG_DFLT(DEBUG,
                     "registering characteristic %s with "
                     "def_handle=%d val_handle=%d\n",
-                    ble_uuid_to_str(
-                        ctxt->chr.chr_def->uuid,
-                        buf),
-                    ctxt->chr.def_handle,
-                    ctxt->chr.val_handle);
+                    ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
+                    ctxt->chr.def_handle, ctxt->chr.val_handle);
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
-        MODLOG_DFLT(DEBUG,
-                    "registering descriptor %s with handle=%d\n",
-                    ble_uuid_to_str(
-                        ctxt->dsc.dsc_def->uuid,
-                        buf),
-                    ctxt->dsc.handle);
+        MODLOG_DFLT(DEBUG, "registering descriptor %s with handle=%d\n",
+                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf), ctxt->dsc.handle);
         break;
 
     default:
