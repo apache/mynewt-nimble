@@ -27,6 +27,12 @@
 
 #include "nimble/nimble_npl.h"
 
+/* Event queue depth; default until NuttX provides the Kconfig option. */
+
+#ifndef CONFIG_NIMBLE_EVENTQ_SIZE
+#define CONFIG_NIMBLE_EVENTQ_SIZE 16
+#endif
+
 static struct ble_npl_eventq dflt_evq =
 {
   .mq = (mqd_t)-1
@@ -45,7 +51,7 @@ ble_npl_eventq_init(struct ble_npl_eventq *evq)
 {
     char path[PATH_MAX];
     struct mq_attr attr;
-    attr.mq_maxmsg = 16;
+    attr.mq_maxmsg = CONFIG_NIMBLE_EVENTQ_SIZE;
     attr.mq_msgsize = sizeof(struct ble_npl_event*);
     attr.mq_flags = 0;
 
@@ -92,6 +98,7 @@ ble_npl_eventq_get(struct ble_npl_eventq *evq,
                    ble_npl_time_t tmo)
 {
     struct ble_npl_event *ev = NULL;
+    ssize_t ret;
 
     if (tmo == BLE_NPL_TIME_FOREVER)
       {
@@ -106,13 +113,16 @@ ble_npl_eventq_get(struct ble_npl_eventq *evq,
 
         clock_gettime(CLOCK_REALTIME, &now);
 
-        t.tv_sec += tmo / USEC_PER_SEC;
-        t.tv_nsec = (tmo - t.tv_sec) * NSEC_PER_MSEC;
+        t.tv_sec = tmo / MSEC_PER_SEC;
+        t.tv_nsec = (tmo % MSEC_PER_SEC) * NSEC_PER_MSEC;
         clock_timespec_add(&now, &t, &t);
 
         do
           {
-            mq_timedreceive(evq->mq, (char*)&ev, sizeof(ev), NULL, &t);
+            ret = mq_timedreceive(evq->mq, (char *)&ev, sizeof(ev), NULL, &t);
+            if (ret < 0) {
+                return NULL;
+            }
           } while (ev && ev->ev_queued == 0);
       }
 
