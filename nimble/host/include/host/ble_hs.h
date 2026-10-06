@@ -319,6 +319,16 @@ struct ble_hs_cfg {
      */
     unsigned sm_keypress:1;
 
+    /** @brief Security Manager automatic pairing on Security Request
+     *
+     * If set (default), a Security Request from a peer for which no keys are
+     * stored makes the host send a Pairing Request immediately. If cleared,
+     * such a Security Request is reported as handled but no pairing is
+     * started; the application initiates pairing itself
+     * (e.g. via ble_gap_security_initiate()).
+     */
+    unsigned sm_sec_req_auto_pair:1;
+
     /** @brief Security Manager Local Key Distribution Mask */
     uint8_t sm_our_key_dist;
 
