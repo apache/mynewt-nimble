@@ -30,5 +30,5 @@ pkg.deps:
     - "@apache-mynewt-core/kernel/os"
     - "@apache-mynewt-core/util/parse_arg"
     - "@apache-mynewt-nimble/nimble/host"
-    - "@apache-mynewt-mcumgr/cmd/img_mgmt"
+    - "@apache-mynewt-core/mgmt/mcumgr/cmd/img_mgmt"
     - "@mcuboot/boot/bootutil"

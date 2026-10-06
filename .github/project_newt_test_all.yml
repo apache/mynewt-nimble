@@ -34,6 +34,5 @@ repository.apache-mynewt-core:
 project.repositories.allowed:
        - apache-mynewt-core
        - apache-mynewt-nimble
-       - apache-mynewt-mcumgr
        - mcuboot
        - mbedtls
