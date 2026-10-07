@@ -29,3 +29,4 @@ syscfg.vals:
   BLE_HS_DEBUG: 1
 
   BLE_EXT_ADV: 1
+  BLE_AUDIO_SCAN_DELEGATOR: 1
