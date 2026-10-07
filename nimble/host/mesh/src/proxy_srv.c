@@ -801,18 +801,12 @@ bool bt_mesh_proxy_relay(struct os_mbuf *buf, uint16_t dst)
 					     msg);
 
 		adv_send_start(0, err, cb, cb_data);
+		os_mbuf_free_chain(msg);
 		if (err) {
 			BT_ERR("Failed to send proxy message (err %d)", err);
-
-			/* If segment_and_send() fails the buf_send_end() callback will
-			 * not be called, so we need to clear the user data (net_buf,
-			 * which is just opaque data to segment_and send) reference given
-			 * to segment_and_send() here.
-			 */
-			net_buf_unref(buf);
 			continue;
 		}
-		os_mbuf_free_chain(msg);
+
 		relayed = true;
 	}
 
