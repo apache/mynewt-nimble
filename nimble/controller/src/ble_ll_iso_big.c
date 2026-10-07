@@ -1457,6 +1457,10 @@ ble_ll_iso_big_hci_terminate(const uint8_t *cmdbuf, uint8_t len)
     const struct ble_hci_le_terminate_big_cp *cmd = (void *)cmdbuf;
     int err;
 
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     err = ble_ll_iso_big_terminate(cmd->big_handle, cmd->reason);
     switch (err) {
     case 0:
