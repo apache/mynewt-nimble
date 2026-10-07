@@ -268,13 +268,12 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
         rx->data_offset = sdu_len;
 
     } else {
-        BLE_HS_LOG(DEBUG, "Continuation...received %d\n", (*om)->om_len);
+        BLE_HS_LOG(DEBUG, "Continuation...received %d\n", om_total);
 
-        if (OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + (*om)->om_len > rx->data_offset) {
+        if (OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + om_total > rx->data_offset) {
             /* Disconnect peer with invalid behaviour */
             BLE_HS_LOG(ERROR, "Payload larger than expected (%d>%d)\n",
-                       OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + (*om)->om_len,
-                       rx->data_offset);
+                       OS_MBUF_PKTLEN(rx->sdus[sdu_idx]) + om_total, rx->data_offset);
             rx->data_offset = 0;
             ble_l2cap_disconnect(chan);
             return BLE_HS_EBADDATA;
