@@ -123,7 +123,8 @@ static void
 subgroups_init(struct ble_audio_scan_delegator_subgroup *subgroups,
                const struct ble_svc_audio_bass_subgroup *bass_subgroups, uint8_t num_subgroups)
 {
-    BLE_AUDIO_DBG_ASSERT(num_subgroups < MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_SUBGROUP_MAX));
+    BLE_AUDIO_DBG_ASSERT(num_subgroups <=
+                         MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_SUBGROUP_MAX));
 
     for (uint8_t i = 0; i < num_subgroups; i++) {
         subgroups[i].bis_sync = bass_subgroups[i].bis_sync_state;
@@ -194,7 +195,7 @@ bass_modify_source_op_handler(struct ble_svc_audio_bass_operation *op, void *arg
     sync_opt = &action.source_modify.sync_opt;
     sync_opt_init(sync_opt, op->modify_source.pa_sync, op->modify_source.pa_interval, NULL, 0);
 
-    BLE_AUDIO_DBG_ASSERT(sync_opt->num_subgroups < ARRAY_SIZE(sync_opt->subgroups));
+    BLE_AUDIO_DBG_ASSERT(sync_opt->num_subgroups <= ARRAY_SIZE(sync_opt->subgroups));
 
     for (uint8_t i = 0; i < sync_opt->num_subgroups; i++) {
         sync_opt->subgroups[i].bis_sync = op->modify_source.subgroups[i].bis_sync_state;
