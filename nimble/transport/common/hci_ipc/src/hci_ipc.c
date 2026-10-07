@@ -36,11 +36,43 @@
 
 volatile struct hci_ipc_shm *g_ipc_shm;
 
+static bool
+hci_ipc_hdr_length_valid(struct hci_ipc_sm *sm)
+{
+    switch (sm->hdr.type) {
+#if MYNEWT_VAL(BLE_CONTROLLER)
+    case HCI_IPC_TYPE_CMD:
+#else
+    case HCI_IPC_TYPE_EVT_IN_CMD:
+#endif
+        /* Command pool block: 3 bytes header and up to 255 bytes params */
+        return sm->hdr.length <= 258;
+#if !MYNEWT_VAL(BLE_CONTROLLER)
+    case HCI_IPC_TYPE_EVT:
+    case HCI_IPC_TYPE_EVT_DISCARDABLE:
+        return sm->hdr.length <= MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE);
+#endif
+    default:
+        /* ACL and ISO are appended to mbuf */
+        return true;
+    }
+}
+
 static void
 hci_ipc_alloc(struct hci_ipc_sm *sm)
 {
     assert(sm->hdr.type);
     assert(sm->buf == NULL);
+
+    if (!hci_ipc_hdr_length_valid(sm)) {
+        /* Packet does not fit in buffer, consume and drop its payload to
+         * keep in sync with the peer.
+         */
+        sm->discard = 1;
+        sm->rem_len = sm->hdr.length;
+        sm->buf_len = 0;
+        return;
+    }
 
     switch (sm->hdr.type) {
 #if MYNEWT_VAL(BLE_CONTROLLER)
@@ -162,15 +194,43 @@ hci_ipc_copy_to_hdr(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
     return len;
 }
 
+static void
+hci_ipc_discard_done(struct hci_ipc_sm *sm)
+{
+#if !MYNEWT_VAL(BLE_CONTROLLER)
+    /* Return flow control credit as no buffer will be freed for this
+     * packet.
+     */
+    hci_ipc_put(sm->hdr.type);
+#endif
+
+    sm->hdr.type = 0;
+    sm->hdr.length = 0;
+    sm->hdr_len = 0;
+    sm->buf_len = 0;
+    sm->rem_len = 0;
+    sm->discard = 0;
+}
+
 static uint16_t
 hci_ipc_copy_to_buf(struct hci_ipc_sm *sm, const uint8_t *buf, uint16_t len)
 {
     int rc;
 
     assert(sm->hdr.type);
-    assert(sm->buf);
 
     len = min(len, sm->rem_len);
+
+    if (sm->discard) {
+        sm->rem_len -= len;
+        if (sm->rem_len == 0) {
+            hci_ipc_discard_done(sm);
+        }
+
+        return len;
+    }
+
+    assert(sm->buf);
 
     switch (sm->hdr.type) {
 #if MYNEWT_VAL(BLE_CONTROLLER)
