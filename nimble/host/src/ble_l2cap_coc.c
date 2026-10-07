@@ -196,6 +196,13 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
     uint16_t om_total;
     int rc;
 
+    /* Peer sent LE frame without having credits, disconnect */
+    if (rx->credits == 0) {
+        BLE_HS_LOG(ERROR, "LE frame received with no credits\n");
+        ble_l2cap_disconnect(chan);
+        return BLE_HS_EBADDATA;
+    }
+
     sdu_idx = chan->coc_rx.current_sdu_idx;
     BLE_HS_DBG_ASSERT(rx->sdus[sdu_idx] != NULL);
 
