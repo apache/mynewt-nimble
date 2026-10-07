@@ -1361,9 +1361,67 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user_full_payload)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+struct ble_hs_adv_test_parse_arg {
+    int field_count;
+    uint8_t last_type;
+};
+
+static int
+ble_hs_adv_test_parse_func(const struct ble_hs_adv_field *field, void *user_data)
+{
+    struct ble_hs_adv_test_parse_arg *arg = user_data;
+
+    /* Zero length field must not be passed to callback */
+    TEST_ASSERT(field->length > 0);
+
+    arg->field_count++;
+    arg->last_type = field->type;
+
+    return BLE_HS_EAGAIN;
+}
+
+TEST_CASE_SELF(ble_hs_adv_test_case_parse_zero_length_field)
+{
+    /* Flags field followed by zero length octet which terminates
+     * significant part of data.
+     */
+    static const uint8_t data[] = {
+        0x02, BLE_HS_ADV_TYPE_FLAGS, 0x06, 0x00, 0x16, 0x52,
+    };
+    /* Flags field followed by single zero length octet */
+    static const uint8_t data_trailing[] = {
+        0x02,
+        BLE_HS_ADV_TYPE_FLAGS,
+        0x06,
+        0x00,
+    };
+    struct ble_hs_adv_test_parse_arg arg;
+    struct ble_hs_adv_fields fields;
+    int rc;
+
+    ble_hs_test_util_init();
+
+    memset(&arg, 0, sizeof arg);
+    rc = ble_hs_adv_parse(data, sizeof data, ble_hs_adv_test_parse_func, &arg);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(arg.field_count == 1);
+    TEST_ASSERT(arg.last_type == BLE_HS_ADV_TYPE_FLAGS);
+
+    rc = ble_hs_adv_parse_fields(&fields, data, sizeof data);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(fields.flags == 0x06);
+
+    rc = ble_hs_adv_parse_fields(&fields, data_trailing, sizeof data_trailing);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(fields.flags == 0x06);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_hs_adv_test_suite)
 {
     ble_hs_adv_test_case_user();
     ble_hs_adv_test_case_user_rsp();
     ble_hs_adv_test_case_user_full_payload();
+    ble_hs_adv_test_case_parse_zero_length_field();
 }
