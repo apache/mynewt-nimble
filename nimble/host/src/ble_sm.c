@@ -1791,6 +1791,33 @@ ble_sm_verify_auth_requirements(uint8_t cmd)
     return true;
 }
 
+/* Verify that selected pairing method satisfies configured security level.
+ * Returns 0 on success or SM error code otherwise.
+ */
+static uint8_t
+ble_sm_verify_sec_lvl(struct ble_sm_proc *proc)
+{
+    /* Level 3 and 4 require MITM protection, fail if selected pairing method
+     * does not provide it (e.g. Just Works due to peer IO capabilities).
+     */
+    if (MYNEWT_VAL(BLE_SM_LVL) >= 3 && !(proc->flags & BLE_SM_PROC_F_AUTHENTICATED)) {
+        return BLE_SM_ERR_AUTHREQ;
+    }
+
+    /* Level 4 requires Secure Connections with 128 bit key */
+    if (MYNEWT_VAL(BLE_SM_LVL) == 4) {
+        if (!(proc->flags & BLE_SM_PROC_F_SC)) {
+            return BLE_SM_ERR_AUTHREQ;
+        }
+
+        if (proc->key_size != BLE_SM_PAIR_KEY_SZ_MAX) {
+            return BLE_SM_ERR_ENC_KEY_SZ;
+        }
+    }
+
+    return 0;
+}
+
 static void
 ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
                    struct ble_sm_result *res)
@@ -1902,9 +1929,15 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
             ble_sm_pair_rsp_fill(proc);
             ble_sm_pair_cfg(proc);
 
-            proc_flags = proc->flags;
-            key_size = proc->key_size;
-            res->execute = 1;
+            res->sm_err = ble_sm_verify_sec_lvl(proc);
+            if (res->sm_err != 0) {
+                res->app_status = BLE_HS_SM_US_ERR(res->sm_err);
+                res->enc_cb = 1;
+            } else {
+                proc_flags = proc->flags;
+                key_size = proc->key_size;
+                res->execute = 1;
+            }
         }
     }
 
@@ -1981,7 +2014,12 @@ ble_sm_pair_rsp_rx(uint16_t conn_handle, struct os_mbuf **om,
             rc = ble_sm_io_action(proc, &ioact);
             if (rc != 0) {
                 res->sm_err = BLE_SM_ERR_AUTHREQ;
-                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_AUTHREQ);
+            } else {
+                res->sm_err = ble_sm_verify_sec_lvl(proc);
+            }
+
+            if (res->sm_err != 0) {
+                res->app_status = BLE_HS_SM_US_ERR(res->sm_err);
                 res->enc_cb = 1;
             } else {
                 proc->state = ble_sm_state_after_pair(proc);
