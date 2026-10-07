@@ -1776,6 +1776,10 @@ ble_ll_conn_hci_set_default_subrate(const uint8_t *cmdbuf, uint8_t len,
     uint16_t cont_num;
     uint16_t supervision_tmo;
 
+    if (len != sizeof(*cp)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     subrate_min = le16toh(cp->subrate_min);
     subrate_max = le16toh(cp->subrate_max);
     max_latency = le16toh(cp->max_latency);
@@ -1819,6 +1823,10 @@ ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
     struct ble_ll_conn_sm *connsm;
     uint16_t conn_handle;
     int rc;
+
+    if (len != sizeof(*cp)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     conn_handle = le16toh(cp->conn_handle);
     srp.subrate_min = le16toh(cp->subrate_min);
