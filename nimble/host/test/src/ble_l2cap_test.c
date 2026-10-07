@@ -685,6 +685,8 @@ struct test_data {
     uint16_t event_iter;
     uint16_t psm;
     uint16_t mtu;
+    /* If set, used by peer as DCID in connection response */
+    uint16_t peer_dcid;
     uint8_t num;
     struct ble_l2cap_chan *chan[5];
 };
@@ -799,7 +801,7 @@ ble_l2cap_test_coc_connect_multi(struct test_data *t)
      * only*/
     rsp->credits = htole16(10);
     for (i = 0; i < t->num; i++) {
-        rsp->dcids[i] = htole16(current_cid + i);
+        rsp->dcids[i] = htole16(t->peer_dcid ? t->peer_dcid : current_cid + i);
     }
     rsp->mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     rsp->mtu = htole16(t->mtu);
@@ -855,7 +857,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     /* Use some different parameters for peer. Just keep mtu same for testing
      * only*/
     rsp.credits = htole16(10);
-    rsp.dcid = htole16(current_cid);
+    rsp.dcid = htole16(t->peer_dcid ? t->peer_dcid : current_cid);
     rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     rsp.mtu = htole16(t->mtu);
     rsp.result = htole16(ev->l2cap_status);
@@ -1177,6 +1179,53 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
+
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_rsp_invalid_dcid)
+{
+    struct test_data t;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 1;
+
+    /* Peer accepts connection but uses fixed ATT channel CID as DCID */
+    t.peer_dcid = BLE_L2CAP_CID_ATT;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[0].app_status = BLE_HS_EBADDATA;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi_rsp_invalid_dcid)
+{
+    struct test_data t;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 1;
+    t.num = 1;
+
+    /* Peer accepts connection but uses DCID outside of dynamic range */
+    t.peer_dcid = 0x0007;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[0].app_status = BLE_HS_EREJECT;
+
+    ble_l2cap_test_coc_connect_multi(&t);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+#endif
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
 {
@@ -1529,6 +1578,10 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_conn_invalid_psm();
     ble_l2cap_test_case_sig_coc_conn_out_of_resource();
     ble_l2cap_test_case_sig_coc_conn_invalid_cid();
+    ble_l2cap_test_case_sig_coc_conn_rsp_invalid_dcid();
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+    ble_l2cap_test_case_sig_coc_conn_multi_rsp_invalid_dcid();
+#endif
     ble_l2cap_test_case_sig_coc_conn_insuff_authen();
     ble_l2cap_test_case_sig_coc_conn_insuff_author();
     ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm();
