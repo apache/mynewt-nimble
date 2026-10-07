@@ -2544,6 +2544,58 @@ ble_sm_test_util_us_sc_bad(struct ble_sm_test_params *params)
     ble_sm_test_util_us_sc_bad_once(params);
 }
 
+/* SC OOB pairing with peer as initiator. Peer indicates it has our OOB data
+ * while application injects no local OOB data.
+ */
+void
+ble_sm_test_util_peer_sc_oob_no_local(struct ble_sm_test_params *params)
+{
+    struct ble_sm_test_util_entity peer_entity;
+    struct ble_sm_test_util_entity our_entity;
+    struct ble_sm_pair_fail fail;
+    struct ble_hs_conn *conn;
+    struct ble_sm_io io;
+    int rc;
+
+    params->sec_req.authreq = 0;
+    ble_sm_test_util_init_good(params, 0, &conn, &our_entity, &peer_entity);
+
+    /* Receive a pair request from the peer. */
+    ble_sm_test_util_rx_pair_req(2, peer_entity.pair_cmd, 0);
+    ble_sm_test_util_verify_tx_pair_rsp(our_entity.pair_cmd);
+
+    /* Exchange public keys. */
+    ble_sm_test_util_rx_public_key(2, peer_entity.public_key);
+    ble_sm_test_util_verify_tx_public_key(our_entity.public_key);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+
+    /* Application has no OOB data. */
+    memset(&io, 0, sizeof io);
+    io.action = BLE_SM_IOACT_OOB_SC;
+    rc = ble_sm_inject_io(2, &io);
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+
+    /* Exchange randoms. */
+    ble_sm_test_util_rx_random(2, peer_entity.randoms, 0);
+    ble_sm_test_util_verify_tx_pair_random(our_entity.randoms);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+
+    /* Receive a dhkey check from the peer. */
+    ble_sm_test_util_rx_dhkey_check(2, peer_entity.dhkey_check,
+                                    BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
+
+    /* Ensure we sent pair fail and procedure was aborted. */
+    fail.reason = BLE_SM_ERR_OOB;
+    ble_sm_test_util_verify_tx_pair_fail(&fail);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
+    TEST_ASSERT(!conn->bhc_sec_state.encrypted);
+
+    ble_hs_test_util_conn_disconnect(2);
+}
+
 static void
 ble_sm_test_util_peer_sc_good_once_no_init(struct ble_sm_test_params *params,
                                            struct ble_hs_conn *conn,
