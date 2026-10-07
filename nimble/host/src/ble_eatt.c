@@ -280,6 +280,13 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         break;
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
         assert(eatt->chan == event->receive.chan);
+        if (OS_MBUF_PKTLEN(event->receive.sdu_rx) < sizeof(opcode)) {
+            /* Empty SDU is not a valid ATT PDU */
+            os_mbuf_free_chain(event->receive.sdu_rx);
+            ble_l2cap_disconnect(eatt->chan);
+            return BLE_HS_EREJECT;
+        }
+
         opcode = event->receive.sdu_rx->om_data[0];
         if (ble_eatt_supported_rsp(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
