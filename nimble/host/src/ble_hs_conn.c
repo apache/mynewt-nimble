@@ -88,6 +88,20 @@ ble_hs_conn_chan_find_by_dcid(struct ble_hs_conn *conn, uint16_t cid)
     return NULL;
 }
 
+/**
+ * Looks up a dynamically allocated (CoC) channel by its destination CID.
+ * Fixed channels are never returned, even if their CID matches.
+ */
+struct ble_l2cap_chan *
+ble_hs_conn_coc_chan_find_by_dcid(struct ble_hs_conn *conn, uint16_t cid)
+{
+    if (cid < BLE_L2CAP_COC_CID_START || cid > BLE_L2CAP_COC_CID_END) {
+        return NULL;
+    }
+
+    return ble_hs_conn_chan_find_by_dcid(conn, cid);
+}
+
 bool
 ble_hs_conn_chan_exist(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {

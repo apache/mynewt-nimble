@@ -814,7 +814,7 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
     rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_SUCCEED);
 
     for (i = 0; i < cid_cnt; i++) {
-        chan[i] = ble_hs_conn_chan_find_by_dcid(conn, req->dcids[i]);
+        chan[i] = ble_hs_conn_coc_chan_find_by_dcid(conn, le16toh(req->dcids[i]));
         if (!chan[i]) {
              rsp->result = htole16(BLE_L2CAP_ERR_RECONFIG_INVALID_DCID);
              goto failed;
