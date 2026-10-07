@@ -831,6 +831,66 @@ TEST_CASE_SELF(ble_sm_lgcy_peer_pk_iio4_rio4_b1_iat0_rat0_ik7_rk7)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+/**
+ * Legacy pairing
+ * Master: us
+ * Pair algorithm: passkey entry
+ * Peer sends its confirm before we sent ours (passkey not injected yet).
+ */
+TEST_CASE_SELF(ble_sm_lgcy_us_pk_confirm_early)
+{
+    struct ble_sm_test_params params;
+
+    params = (struct ble_sm_test_params) {
+        .init_id_addr = {
+            0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a,
+        },
+        .resp_addr_type = BLE_ADDR_RANDOM,
+        .resp_id_addr = {
+            0x11, 0x22, 0x11, 0x22, 0x11, 0xcc,
+        },
+        .pair_req = {
+            .io_cap = 0x04,
+            .oob_data_flag = 0x00,
+            .authreq = 0x0d,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = {
+            .io_cap = 0x02,
+            .oob_data_flag = 0x00,
+            .authreq = 0x05,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x05,
+        },
+        .confirm_rsp[0] = {
+            .value = {
+                0x1a, 0x03, 0x20, 0xda, 0x60, 0x21, 0x9b, 0x4b,
+                0x5d, 0x45, 0x90, 0x64, 0xe1, 0x24, 0x2c, 0xb6,
+            },
+        },
+        .random_req[0] = {
+            .value = {
+                0x45, 0xa3, 0x1a, 0x0b, 0xf6, 0x0f, 0x7c, 0xcf,
+                0x1a, 0xfb, 0xfc, 0x1a, 0xad, 0x62, 0x0e, 0x76,
+            },
+        },
+        .pair_alg = 1,
+        .authenticated = true,
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_IOACT_DISP,
+                .passkey = 46128,
+            },
+        },
+    };
+    ble_sm_test_util_us_lgcy_confirm_early(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_sm_lgcy_test_suite)
 {
     /*** No privacy. */
@@ -844,6 +904,7 @@ TEST_SUITE(ble_sm_lgcy_test_suite)
     ble_sm_lgcy_us_jw_iio3_rio3_b1_iat0_rat1_ik7_rk5();
     ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5();
     ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7();
+    ble_sm_lgcy_us_pk_confirm_early();
 }
 
 #endif

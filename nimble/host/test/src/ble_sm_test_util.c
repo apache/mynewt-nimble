@@ -684,7 +684,8 @@ ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle, struct ble_sm_pair_cmd *rsp,
 }
 
 static void
-ble_sm_test_util_rx_confirm(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
+ble_sm_test_util_rx_confirm_status(uint16_t conn_handle,
+                                   struct ble_sm_pair_confirm *cmd, int exp_status)
 {
     struct hci_data_hdr hci_hdr;
     struct os_mbuf *om;
@@ -708,7 +709,13 @@ ble_sm_test_util_rx_confirm(uint16_t conn_handle, struct ble_sm_pair_confirm *cm
 
     rc = ble_hs_test_util_l2cap_rx_first_frag(conn_handle, BLE_L2CAP_CID_SM,
                                               &hci_hdr, om);
-    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(rc == exp_status);
+}
+
+static void
+ble_sm_test_util_rx_confirm(uint16_t conn_handle, struct ble_sm_pair_confirm *cmd)
+{
+    ble_sm_test_util_rx_confirm_status(conn_handle, cmd, 0);
 }
 
 static void
@@ -2135,6 +2142,58 @@ ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params)
 
     TEST_ASSERT(ble_hs_test_util_num_our_secs() == 0);
     TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
+}
+
+/* Peer (responder) sends its confirm before we (initiator) sent ours.
+ * Pairing must fail.
+ */
+void
+ble_sm_test_util_us_lgcy_confirm_early(struct ble_sm_test_params *params)
+{
+    struct ble_sm_test_util_entity peer_entity;
+    struct ble_sm_test_util_entity our_entity;
+    struct ble_sm_pair_fail fail = {
+        .reason = BLE_SM_ERR_UNSPECIFIED,
+    };
+    struct ble_hs_conn *conn;
+    int rc;
+
+    params->sec_req.authreq = 0;
+    ble_sm_test_util_init_good(params, 1, &conn, &our_entity, &peer_entity);
+
+    TEST_ASSERT(!conn->bhc_sec_state.encrypted);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+
+    /* Initiate the pairing procedure. */
+    rc = ble_gap_security_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure we sent the expected pair request. */
+    ble_sm_test_util_verify_tx_pair_req(our_entity.pair_cmd);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+
+    /* Receive a pair response from the peer. */
+    ble_sm_test_util_rx_pair_rsp(2, peer_entity.pair_cmd, 0);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+
+    /* Receive a pair confirm from the peer before IO was injected (our
+     * confirm was not sent yet).
+     */
+    ble_sm_test_util_rx_confirm_status(2, peer_entity.confirms,
+                                       BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+
+    /* Ensure we sent pair fail and procedure was aborted. */
+    ble_sm_test_util_verify_tx_pair_fail(&fail);
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+
+    /* Verify that security callback was executed with failure. */
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+    TEST_ASSERT(!conn->bhc_sec_state.encrypted);
+    TEST_ASSERT(!conn->bhc_sec_state.authenticated);
+
+    ble_hs_test_util_conn_disconnect(2);
 }
 
 void
