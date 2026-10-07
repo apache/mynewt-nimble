@@ -1737,6 +1737,12 @@ ble_att_svr_build_read_mult_rsp_var(uint16_t conn_handle, uint16_t cid,
     }
 
     tmp = os_msys_get_pkthdr(2, 0);
+    if (tmp == NULL) {
+        *att_err = BLE_ATT_ERR_INSUFFICIENT_RES;
+        *err_handle = 0;
+        rc = BLE_HS_ENOMEM;
+        goto done;
+    }
 
     /* Iterate through requested handles, reading the corresponding attribute
      * for each.  Stop when there are no more handles to process.
