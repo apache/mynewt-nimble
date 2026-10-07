@@ -204,7 +204,15 @@ ble_l2cap_coc_rx_fn(struct ble_l2cap_chan *chan, struct os_mbuf **om)
     }
 
     sdu_idx = chan->coc_rx.current_sdu_idx;
-    BLE_HS_DBG_ASSERT(rx->sdus[sdu_idx] != NULL);
+
+    /* Peer may still have credits left while application has not provided
+     * new SDU buffer yet. There is no place to store data, disconnect.
+     */
+    if (rx->sdus[sdu_idx] == NULL) {
+        BLE_HS_LOG(ERROR, "LE frame received with no SDU buffer\n");
+        ble_l2cap_disconnect(chan);
+        return BLE_HS_ENOMEM;
+    }
 
     om_total = OS_MBUF_PKTLEN(*om);
 
