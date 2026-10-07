@@ -40,10 +40,17 @@ ble_audio_adv_parse_broadcast_announcement(const struct ble_hs_adv_field *field,
 {
     struct ble_audio_adv_parse_broadcast_announcement_data *data = user_data;
     struct ble_audio_event_broadcast_announcement *event;
-    const uint8_t value_len = field->length - sizeof(field->length);
     ble_uuid16_t uuid16 = BLE_UUID16_INIT(0);
+    uint8_t value_len;
     uint8_t offset = 0;
 
+    /* Zero length field terminates significant part of data */
+    if (field->length == 0) {
+        /* Stop parsing */
+        return 0;
+    }
+
+    value_len = field->length - sizeof(field->type);
     event = &data->event.broadcast_announcement;
 
     switch (field->type) {
