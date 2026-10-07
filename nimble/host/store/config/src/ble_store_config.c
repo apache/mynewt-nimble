@@ -55,21 +55,16 @@ int ble_store_config_num_cccds;
 static void
 ble_store_config_print_value_sec(const struct ble_store_value_sec *sec)
 {
+    /* Do not log key values */
     if (sec->ltk_present) {
-        BLE_HS_LOG(DEBUG, "ediv=%u rand=%llu authenticated=%d ltk=",
-                       sec->ediv, sec->rand_num, sec->authenticated);
-        ble_hs_log_flat_buf(sec->ltk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG(DEBUG, "ediv=%u rand=%llu authenticated=%d ltk ", sec->ediv,
+                   sec->rand_num, sec->authenticated);
     }
     if (sec->irk_present) {
-        BLE_HS_LOG(DEBUG, "irk=");
-        ble_hs_log_flat_buf(sec->irk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG(DEBUG, "irk ");
     }
     if (sec->csrk_present) {
-        BLE_HS_LOG(DEBUG, "csrk=");
-        ble_hs_log_flat_buf(sec->csrk, 16);
-        BLE_HS_LOG(DEBUG, " ");
+        BLE_HS_LOG(DEBUG, "csrk ");
     }
 
     BLE_HS_LOG(DEBUG, "\n");

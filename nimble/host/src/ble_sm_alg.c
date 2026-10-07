@@ -100,14 +100,10 @@ ble_sm_alg_s1(const uint8_t *k, const uint8_t *r1, const uint8_t *r2,
         return rc;
     }
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_s1()\n    k=");
-    ble_hs_log_flat_buf(k, 16);
-    BLE_HS_LOG(DEBUG, "\n    r1=");
+    BLE_HS_LOG(DEBUG, "ble_sm_alg_s1()\n    r1=");
     ble_hs_log_flat_buf(r1, 16);
     BLE_HS_LOG(DEBUG, "\n    r2=");
     ble_hs_log_flat_buf(r2, 16);
-    BLE_HS_LOG(DEBUG, "\n    out=");
-    ble_hs_log_flat_buf(out, 16);
     BLE_HS_LOG(DEBUG, "\n");
 
     return 0;
@@ -123,9 +119,7 @@ ble_sm_alg_c1(const uint8_t *k, const uint8_t *r,
     uint8_t p1[16], p2[16];
     int rc;
 
-    BLE_HS_LOG(DEBUG, "ble_sm_alg_c1()\n    k=");
-    ble_hs_log_flat_buf(k, 16);
-    BLE_HS_LOG(DEBUG, "\n    r=");
+    BLE_HS_LOG(DEBUG, "ble_sm_alg_c1()\n    r=");
     ble_hs_log_flat_buf(r, 16);
     BLE_HS_LOG(DEBUG, "\n    iat=%d rat=%d", iat, rat);
     BLE_HS_LOG(DEBUG, "\n    ia=");
@@ -282,7 +276,6 @@ ble_sm_alg_f5(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
     int rc;
 
     BLE_HS_LOG(DEBUG, "ble_sm_alg_f5()\n");
-    ble_sm_alg_log_buf("w", w, 32);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
 
@@ -292,8 +285,6 @@ ble_sm_alg_f5(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
-
-    ble_sm_alg_log_buf("t", t, 16);
 
     swap_buf(m + 5, n1, 16);
     swap_buf(m + 21, n2, 16);
@@ -307,8 +298,6 @@ ble_sm_alg_f5(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
         return BLE_HS_EUNKNOWN;
     }
 
-    ble_sm_alg_log_buf("mackey", mackey, 16);
-
     swap_in_place(mackey, 16);
 
     /* Counter for ltk is 1. */
@@ -318,8 +307,6 @@ ble_sm_alg_f5(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
     if (rc != 0) {
         return BLE_HS_EUNKNOWN;
     }
-
-    ble_sm_alg_log_buf("ltk", ltk, 16);
 
     swap_in_place(ltk, 16);
 
@@ -337,10 +324,8 @@ ble_sm_alg_f6(const uint8_t *w, const uint8_t *n1, const uint8_t *n2,
     int rc;
 
     BLE_HS_LOG(DEBUG, "ble_sm_alg_f6()\n");
-    ble_sm_alg_log_buf("w", w, 16);
     ble_sm_alg_log_buf("n1", n1, 16);
     ble_sm_alg_log_buf("n2", n2, 16);
-    ble_sm_alg_log_buf("r", r, 16);
     ble_sm_alg_log_buf("iocap", iocap, 3);
     ble_sm_alg_log_buf("a1t", &a1t, 1);
     ble_sm_alg_log_buf("a1", a1, 6);
