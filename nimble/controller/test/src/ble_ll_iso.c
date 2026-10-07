@@ -378,6 +378,78 @@ TEST_CASE_SELF(test_ll_iso_data_in_short_header)
     test_ll_iso_data_in_teardown(&fixture);
 }
 
+TEST_CASE_SELF(test_ll_iso_hci_cmd_len)
+{
+    struct ble_hci_le_setup_iso_data_path_cp setup_cp;
+    struct ble_hci_le_setup_iso_data_path_rp setup_rp;
+    struct ble_hci_le_remove_iso_data_path_cp remove_cp;
+    struct ble_hci_le_remove_iso_data_path_rp remove_rp;
+    struct ble_hci_le_read_iso_tx_sync_cp tx_sync_cp;
+    struct ble_hci_le_read_iso_tx_sync_rp tx_sync_rp;
+    struct ble_hci_le_iso_transmit_test_cp transmit_test_cp;
+    struct ble_hci_le_iso_transmit_test_rp transmit_test_rp;
+    struct ble_hci_le_iso_test_end_cp test_end_cp;
+    struct ble_hci_le_iso_test_end_rp test_end_rp;
+    struct test_ll_iso_fixture fixture;
+    uint8_t rsplen;
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    memset(&transmit_test_cp, 0, sizeof(transmit_test_cp));
+    transmit_test_cp.conn_handle = htole16(fixture.conn.handle);
+    transmit_test_cp.payload_type = BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH;
+    rc = ble_ll_iso_transmit_test((uint8_t *)&transmit_test_cp,
+                                  sizeof(transmit_test_cp) - 1,
+                                  (uint8_t *)&transmit_test_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    memset(&test_end_cp, 0, sizeof(test_end_cp));
+    test_end_cp.conn_handle = htole16(fixture.conn.handle);
+    rc = ble_ll_iso_end_test((uint8_t *)&test_end_cp, 0,
+                             (uint8_t *)&test_end_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    memset(&tx_sync_cp, 0, sizeof(tx_sync_cp));
+    tx_sync_cp.conn_handle = htole16(fixture.conn.handle);
+    rc = ble_ll_iso_read_tx_sync((uint8_t *)&tx_sync_cp, 0,
+                                 (uint8_t *)&tx_sync_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_read_tx_sync((uint8_t *)&tx_sync_cp, sizeof(tx_sync_cp),
+                                 (uint8_t *)&tx_sync_rp, &rsplen);
+    TEST_ASSERT(rc == 0);
+
+    memset(&setup_cp, 0, sizeof(setup_cp));
+    setup_cp.conn_handle = htole16(fixture.conn.handle);
+    rc = ble_ll_iso_setup_iso_data_path((uint8_t *)&setup_cp, 0,
+                                        (uint8_t *)&setup_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    /* Codec Configuration Length exceeds parameters */
+    setup_cp.codec_config_len = 1;
+    rc = ble_ll_iso_setup_iso_data_path((uint8_t *)&setup_cp, sizeof(setup_cp),
+                                        (uint8_t *)&setup_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    setup_cp.codec_config_len = 0;
+    rc = ble_ll_iso_setup_iso_data_path((uint8_t *)&setup_cp, sizeof(setup_cp),
+                                        (uint8_t *)&setup_rp, &rsplen);
+    TEST_ASSERT(rc == 0);
+
+    memset(&remove_cp, 0, sizeof(remove_cp));
+    remove_cp.conn_handle = htole16(fixture.conn.handle);
+    rc = ble_ll_iso_remove_iso_data_path((uint8_t *)&remove_cp, sizeof(remove_cp) - 1,
+                                         (uint8_t *)&remove_rp, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_remove_iso_data_path((uint8_t *)&remove_cp, sizeof(remove_cp),
+                                         (uint8_t *)&remove_rp, &rsplen);
+    TEST_ASSERT(rc == 0);
+
+    test_ll_iso_teardown(&fixture);
+}
+
 TEST_SUITE(ble_ll_iso_test_suite)
 {
     ble_ll_iso_init();
@@ -391,6 +463,8 @@ TEST_SUITE(ble_ll_iso_test_suite)
     test_ll_iso_data_in_first_while_pending();
     test_ll_iso_data_in_pending_on_free();
     test_ll_iso_data_in_short_header();
+
+    test_ll_iso_hci_cmd_len();
 
     ble_ll_iso_reset();
 }
