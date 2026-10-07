@@ -321,6 +321,144 @@ TEST_CASE_SELF(ble_audio_bass_test_add_source_no_mem)
     TEST_ASSERT(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
 }
 
+static int
+bass_test_receive_state_add(uint8_t num_subgroups, uint8_t metadata_len,
+                            uint8_t *source_id)
+{
+    struct ble_svc_audio_bass_receiver_state_add_params params = { 0 };
+    static uint8_t metadata[UINT8_MAX];
+    int i;
+
+    memset(metadata, 0xbb, sizeof(metadata));
+
+    params.source_addr = *BLE_ADDR_ANY;
+    params.broadcast_id = 0x123456;
+    params.num_subgroups = num_subgroups;
+    for (i = 0; i < num_subgroups && i < BLE_SVC_AUDIO_BASS_SUB_NUM_MAX; i++) {
+        params.subgroups[i].metadata_length = metadata_len;
+        params.subgroups[i].metadata = metadata;
+    }
+
+    return ble_svc_audio_bass_receive_state_add(&params, source_id);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_update_metadata)
+{
+    struct ble_svc_audio_bass_metadata_params params = { 0 };
+    struct ble_svc_audio_bass_receiver_state *state;
+    uint8_t metadata[MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) + 8];
+    uint8_t source_id;
+    int rc;
+
+    bass_test_init();
+
+    memset(metadata, 0xcc, sizeof(metadata));
+
+    rc = bass_test_add_source(1, 4);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Invalid subgroup index */
+    params.subgroup_idx = 1;
+    params.metadata = metadata;
+    params.metadata_length = 4;
+    rc = ble_svc_audio_bass_update_metadata(&params, source_id);
+    TEST_ASSERT(rc != 0);
+
+    /* Metadata longer than what can be stored */
+    params.subgroup_idx = 0;
+    params.metadata_length = sizeof(metadata);
+    rc = ble_svc_audio_bass_update_metadata(&params, source_id);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_svc_audio_bass_receiver_state_get(source_id, &state);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(state->subgroups[0].metadata_length <=
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_receive_state_update)
+{
+    struct ble_svc_audio_bass_update_params params = { 0 };
+    struct ble_svc_audio_bass_receiver_state *state;
+    uint8_t metadata[MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) + 8];
+    uint8_t source_id;
+    int rc;
+
+    bass_test_init();
+
+    memset(metadata, 0xcc, sizeof(metadata));
+
+    rc = bass_test_receive_state_add(1, 4, &source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Metadata longer than what can be stored */
+    params.num_subgroups = 1;
+    params.subgroups[0].metadata = metadata;
+    params.subgroups[0].metadata_length = sizeof(metadata);
+    rc = ble_svc_audio_bass_receive_state_update(&params, source_id);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_svc_audio_bass_receiver_state_get(source_id, &state);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(state->subgroups[0].metadata_length ==
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_receive_state_add)
+{
+    void *blocks[BASS_METADATA_POOL_SIZE];
+    struct os_mempool *mp;
+    uint8_t source_id;
+    int rc;
+    int i;
+
+    bass_test_init();
+
+    mp = bass_test_metadata_pool();
+    TEST_ASSERT_FATAL(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
+
+    /* Too many subgroups */
+    rc = bass_test_receive_state_add(BLE_SVC_AUDIO_BASS_SUB_NUM_MAX + 1, 4, &source_id);
+    TEST_ASSERT(rc != 0);
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    bass_test_remove_all();
+
+    /* Exhaust metadata pool */
+    for (i = 0; i < BASS_METADATA_POOL_SIZE; i++) {
+        blocks[i] = os_memblock_get(mp);
+        TEST_ASSERT_FATAL(blocks[i] != NULL);
+    }
+
+    rc = bass_test_receive_state_add(1, 4, &source_id);
+    TEST_ASSERT(rc != 0);
+
+    /* Receive State shall not be left allocated */
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    for (i = 0; i < BASS_METADATA_POOL_SIZE; i++) {
+        os_memblock_put(mp, blocks[i]);
+    }
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
+}
+
 TEST_SUITE(ble_audio_bass_test_suite)
 {
     ble_audio_bass_test_cp_empty_write();
@@ -328,4 +466,7 @@ TEST_SUITE(ble_audio_bass_test_suite)
     ble_audio_bass_test_add_source_metadata_len();
     ble_audio_bass_test_add_source_swap();
     ble_audio_bass_test_add_source_no_mem();
+    ble_audio_bass_test_update_metadata();
+    ble_audio_bass_test_receive_state_update();
+    ble_audio_bass_test_receive_state_add();
 }
