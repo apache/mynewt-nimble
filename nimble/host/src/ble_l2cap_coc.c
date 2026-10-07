@@ -593,7 +593,7 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
         return;
     }
 
-    chan = ble_hs_conn_chan_find_by_dcid(conn, dcid);
+    chan = ble_hs_conn_coc_chan_find_by_dcid(conn, dcid);
     if (!chan) {
         ble_hs_unlock();
         return;
