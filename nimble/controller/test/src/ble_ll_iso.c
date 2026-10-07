@@ -35,6 +35,15 @@
 #define TSPX_max_tx_nse     3
 #define TSPX_max_tx_payload 32
 
+#define TEST_BUF_SIZE                                                         \
+    (sizeof(struct os_mbuf) + sizeof(struct os_mbuf_pkthdr) +                 \
+     sizeof(struct ble_mbuf_hdr) + 64)
+#define TEST_BUF_COUNT (10)
+
+static struct os_mbuf_pool g_test_mbuf_pool;
+static struct os_mempool g_test_mempool;
+static os_membuf_t g_test_mbuf_buffer[OS_MEMPOOL_SIZE(TEST_BUF_COUNT, TEST_BUF_SIZE)];
+
 /* LL.TS.p24 4.11.2 Common Parameters */
 struct test_ll_common_params {
     uint8_t TxNumBIS;
@@ -212,11 +221,175 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c)
     test_ll_iso_teardown(&fixture);
 }
 
+static void
+test_ll_iso_data_in_init(void)
+{
+    int rc;
+
+    rc = os_mempool_init(&g_test_mempool, TEST_BUF_COUNT, TEST_BUF_SIZE,
+                         &g_test_mbuf_buffer[0], "test_iso_pool");
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = os_mbuf_pool_init(&g_test_mbuf_pool, &g_test_mempool, TEST_BUF_SIZE,
+                           TEST_BUF_COUNT);
+    TEST_ASSERT_FATAL(rc == 0);
+}
+
+static int
+test_ll_iso_data_in(uint16_t conn_handle, uint8_t pb_flag, uint16_t data_len)
+{
+    struct ble_hci_iso_data hci_iso_data;
+    struct ble_hci_iso hci_iso;
+    struct os_mbuf *om;
+    uint8_t data = 0;
+    uint16_t len;
+    int rc;
+
+    om = os_mbuf_get_pkthdr(&g_test_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    TEST_ASSERT_FATAL(om != NULL);
+
+    len = data_len;
+    if ((pb_flag == BLE_HCI_ISO_PB_FIRST) || (pb_flag == BLE_HCI_ISO_PB_COMPLETE)) {
+        len += sizeof(hci_iso_data);
+    }
+
+    hci_iso.handle = htole16(BLE_HCI_ISO_HANDLE(conn_handle, pb_flag, 0));
+    hci_iso.length = htole16(len);
+    rc = os_mbuf_append(om, &hci_iso, sizeof(hci_iso));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    if ((pb_flag == BLE_HCI_ISO_PB_FIRST) || (pb_flag == BLE_HCI_ISO_PB_COMPLETE)) {
+        hci_iso_data.packet_seq_num = 0;
+        hci_iso_data.sdu_len = htole16(data_len);
+        rc = os_mbuf_append(om, &hci_iso_data, sizeof(hci_iso_data));
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    while (data_len--) {
+        rc = os_mbuf_append(om, &data, 1);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    return ble_ll_iso_data_in(om);
+}
+
+static void
+test_ll_iso_data_in_teardown(struct test_ll_iso_fixture *fixture)
+{
+    test_ll_iso_teardown(fixture);
+
+    /* Memory leak test */
+    TEST_ASSERT(g_test_mempool.mp_num_free == TEST_BUF_COUNT,
+                "mp_num_free is %d", g_test_mempool.mp_num_free);
+}
+
+TEST_CASE_SELF(test_ll_iso_data_in_continuation_without_first)
+{
+    struct test_ll_iso_fixture fixture;
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_CONTINUATION, 4);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    test_ll_iso_data_in_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ll_iso_data_in_last_without_first)
+{
+    struct test_ll_iso_fixture fixture;
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_LAST, 4);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    test_ll_iso_data_in_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ll_iso_data_in_first_while_pending)
+{
+    struct test_ll_iso_fixture fixture;
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_FIRST, 4);
+    TEST_ASSERT(rc == 0);
+
+    /* Pending fragment shall be dropped */
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_FIRST, 4);
+    TEST_ASSERT(rc == 0);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_LAST, 4);
+    TEST_ASSERT(rc == 0);
+
+    /* Pending fragment shall be dropped */
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_FIRST, 4);
+    TEST_ASSERT(rc == 0);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_COMPLETE, 4);
+    TEST_ASSERT(rc == 0);
+
+    test_ll_iso_data_in_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ll_iso_data_in_pending_on_free)
+{
+    struct test_ll_iso_fixture fixture;
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    rc = test_ll_iso_data_in(fixture.conn.handle, BLE_HCI_ISO_PB_FIRST, 4);
+    TEST_ASSERT(rc == 0);
+
+    /* Pending fragment shall be freed with ISO connection */
+    test_ll_iso_data_in_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ll_iso_data_in_short_header)
+{
+    struct test_ll_iso_fixture fixture;
+    struct os_mbuf *om;
+    uint8_t hdr[4];
+    int rc;
+
+    test_ll_iso_setup(&fixture, &test_ll_common_params_bn_1);
+
+    om = os_mbuf_get_pkthdr(&g_test_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    TEST_ASSERT_FATAL(om != NULL);
+
+    put_le16(&hdr[0],
+             BLE_HCI_ISO_HANDLE(fixture.conn.handle, BLE_HCI_ISO_PB_COMPLETE, 0));
+    put_le16(&hdr[2], sizeof(struct ble_hci_iso_data));
+    rc = os_mbuf_append(om, hdr, sizeof(hdr));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Only handle is included in packet */
+    os_mbuf_adj(om, -2);
+
+    rc = ble_ll_iso_data_in(om);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    test_ll_iso_data_in_teardown(&fixture);
+}
+
 TEST_SUITE(ble_ll_iso_test_suite)
 {
     ble_ll_iso_init();
 
+    test_ll_iso_data_in_init();
+
     test_ll_ist_brd_bv_01_c();
+
+    test_ll_iso_data_in_continuation_without_first();
+    test_ll_iso_data_in_last_without_first();
+    test_ll_iso_data_in_first_while_pending();
+    test_ll_iso_data_in_pending_on_free();
+    test_ll_iso_data_in_short_header();
 
     ble_ll_iso_reset();
 }
