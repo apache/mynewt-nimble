@@ -78,6 +78,71 @@ bass_test_cp_write(const uint8_t *data, uint16_t len)
     return bass_test_cp_write_om(om);
 }
 
+static int
+bass_test_add_source(uint8_t num_subgroups, uint8_t metadata_len)
+{
+    uint8_t buf[256];
+    uint16_t len = 0;
+    int i;
+
+    buf[len++] = BASS_OP_ADD_SOURCE;
+    buf[len++] = BLE_ADDR_PUBLIC;
+    memset(&buf[len], 0x11, 6);
+    len += 6;
+    buf[len++] = 0x00; /* Advertising_SID */
+    put_le24(&buf[len], 0x123456);
+    len += 3;
+    buf[len++] = 0x00; /* PA_Sync: do not synchronize */
+    put_le16(&buf[len], 0xffff);
+    len += 2;
+    buf[len++] = num_subgroups;
+
+    for (i = 0; i < num_subgroups; i++) {
+        TEST_ASSERT_FATAL(len + 5 + metadata_len <= sizeof(buf));
+        put_le32(&buf[len], 0);
+        len += 4;
+        buf[len++] = metadata_len;
+        memset(&buf[len], 0xaa, metadata_len);
+        len += metadata_len;
+    }
+
+    return bass_test_cp_write(buf, len);
+}
+
+static int
+bass_test_source_id_first(uint8_t *source_id)
+{
+    int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX); i++) {
+        if (ble_svc_audio_bass_source_id_get(i, source_id) == 0) {
+            return 0;
+        }
+    }
+
+    return BLE_HS_ENOENT;
+}
+
+static void
+bass_test_remove_all(void)
+{
+    uint8_t buf[2];
+    uint8_t source_id;
+    int rc;
+    int i;
+
+    for (i = 0; i < MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX); i++) {
+        if (ble_svc_audio_bass_source_id_get(i, &source_id) != 0) {
+            continue;
+        }
+
+        buf[0] = BASS_OP_REMOVE_SOURCE;
+        buf[1] = source_id;
+        rc = bass_test_cp_write(buf, sizeof(buf));
+        TEST_ASSERT(rc == 0);
+    }
+}
+
 TEST_CASE_SELF(ble_audio_bass_test_cp_empty_write)
 {
     struct os_mbuf *om;
@@ -115,8 +180,50 @@ TEST_CASE_SELF(ble_audio_bass_test_cp_unknown_opcode)
     }
 }
 
+TEST_CASE_SELF(ble_audio_bass_test_add_source_metadata_len)
+{
+    struct ble_svc_audio_bass_receiver_state *state;
+    uint16_t rcv_state_handle;
+    struct os_mbuf *om;
+    uint8_t source_id;
+    int rc;
+
+    bass_test_init();
+
+    rc = ble_gatts_find_chr(
+        BLE_UUID16_DECLARE(BLE_SVC_AUDIO_BASS_UUID16),
+        BLE_UUID16_DECLARE(BLE_SVC_AUDIO_BASS_CHR_UUID16_BROADCAST_RECEIVE_STATE),
+        NULL, &rcv_state_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Metadata longer than what can be stored */
+    rc = bass_test_add_source(1, MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) + 8);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_svc_audio_bass_receiver_state_get(source_id, &state);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(state->num_subgroups == 1);
+    TEST_ASSERT(state->subgroups[0].metadata_length <=
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+
+    /* Receive State value: 15 bytes of fixed fields and subgroup with
+     * BIS_Sync, Metadata_Length and Metadata
+     */
+    rc = ble_att_svr_read_local(rcv_state_handle, &om);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(OS_MBUF_PKTLEN(om) <=
+                15 + 5 + MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+    os_mbuf_free_chain(om);
+
+    bass_test_remove_all();
+}
+
 TEST_SUITE(ble_audio_bass_test_suite)
 {
     ble_audio_bass_test_cp_empty_write();
     ble_audio_bass_test_cp_unknown_opcode();
+    ble_audio_bass_test_add_source_metadata_len();
 }
