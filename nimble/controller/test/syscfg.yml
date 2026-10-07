@@ -24,6 +24,7 @@ syscfg.vals:
     BLE_CONN_SUBRATING: 1
     BLE_EXT_ADV: 1
     BLE_PERIODIC_ADV: 1
+    BLE_PERIODIC_ADV_SYNC_TRANSFER: 1
 
     # Prevent priority conflict with controller task.
     MCU_TIMER_POLLER_PRIO: 1
