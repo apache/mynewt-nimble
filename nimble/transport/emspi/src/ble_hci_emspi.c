@@ -420,6 +420,15 @@ ble_hci_emspi_rx_evt(void)
     }
 
     len = data[1];
+    if (len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE) - sizeof(struct ble_hci_ev)) {
+        /*
+         * Parameter data cannot exceed the size of an event buffer. If it
+         * does this is considered to be a loss of sync.
+         */
+        rc = BLE_ERR_UNSPECIFIED;
+        goto err;
+    }
+
     if (len > 0) {
         rc = ble_hci_emspi_rx(data + sizeof(struct ble_hci_ev), len);
         if (rc != 0) {
