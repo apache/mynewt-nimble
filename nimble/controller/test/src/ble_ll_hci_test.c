@@ -22,6 +22,7 @@
 #include <nimble/ble.h>
 #include <nimble/hci_common.h>
 #include <testutil/testutil.h>
+#include <controller/ble_ll_iso_big.h>
 #include "ble_ll_conn_priv.h"
 
 /* Handle of a connection that does not exist */
@@ -101,6 +102,26 @@ TEST_CASE_SELF(test_ll_hci_subrate_req_len)
 }
 #endif
 
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+TEST_CASE_SELF(test_ll_hci_terminate_big_len)
+{
+    struct ble_hci_le_terminate_big_cp cmd = {
+        .big_handle = 0x00,
+        .reason = BLE_ERR_REM_USER_CONN_TERM,
+    };
+    int rc;
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, 0);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, sizeof(cmd) - 1);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, sizeof(cmd));
+    TEST_ASSERT(rc == BLE_ERR_UNK_ADV_INDENT);
+}
+#endif
+
 TEST_SUITE(ble_ll_hci_test_suite)
 {
 #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
@@ -109,5 +130,8 @@ TEST_SUITE(ble_ll_hci_test_suite)
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     test_ll_hci_set_default_subrate_len();
     test_ll_hci_subrate_req_len();
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    test_ll_hci_terminate_big_len();
 #endif
 }
