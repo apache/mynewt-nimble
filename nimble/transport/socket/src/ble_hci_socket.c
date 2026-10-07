@@ -495,7 +495,7 @@ ble_hci_sock_rx_msg(void)
                 STATS_INC(hci_sock_stats, ierr);
                 dprintf(1, "Too big HCI event (%d > %d), ignoring\n", len - 1,
                         MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE));
-                return -1;
+                break;
             }
 
             /* Advertising reports can be dropped if there is no free buffer
