@@ -673,7 +673,7 @@ ble_svc_audio_bass_find_handler(uint8_t opcode)
 {
     int i;
 
-    for (i = 0; i < sizeof(ble_svc_audio_bass_ctrl_point_handlers); i++) {
+    for (i = 0; i < ARRAY_SIZE(ble_svc_audio_bass_ctrl_point_handlers); i++) {
         if (ble_svc_audio_bass_ctrl_point_handlers[i].op_code == opcode) {
             return &ble_svc_audio_bass_ctrl_point_handlers[i];
         }
@@ -687,6 +687,10 @@ ble_svc_audio_bass_ctrl_point_write_access(struct ble_gatt_access_ctxt *ctxt, ui
 {
     uint8_t opcode;
     struct ble_svc_audio_bass_ctrl_point_handler *handler;
+
+    if (OS_MBUF_PKTLEN(ctxt->om) < sizeof(opcode)) {
+        return BLE_ATT_ERR_WRITE_REQ_REJECTED;
+    }
 
     ctxt->om = os_mbuf_pullup(ctxt->om, OS_MBUF_PKTLEN(ctxt->om));
     if (!ctxt->om) {
