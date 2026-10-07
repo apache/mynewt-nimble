@@ -169,7 +169,7 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
     assert(eatt);
 
     omp = STAILQ_FIRST(&eatt->eatt_tx_q);
-    if (omp != NULL) {
+    if (omp != NULL && eatt->chan != NULL) {
         STAILQ_REMOVE_HEAD(&eatt->eatt_tx_q, omp_next);
 
         txom = OS_MBUF_PKTHDR_TO_MBUF(omp);
@@ -205,6 +205,10 @@ static void
 ble_eatt_free(struct ble_eatt *eatt)
 {
     struct os_mbuf_pkthdr *omp;
+
+    /* Make sure no event referencing this context is left queued */
+    ble_npl_eventq_remove(ble_hs_evq_get(), &eatt->setup_ev);
+    ble_npl_eventq_remove(ble_hs_evq_get(), &eatt->wakeup_ev);
 
     while ((omp = STAILQ_FIRST(&eatt->eatt_tx_q)) != NULL) {
         STAILQ_REMOVE_HEAD(&eatt->eatt_tx_q, omp_next);
