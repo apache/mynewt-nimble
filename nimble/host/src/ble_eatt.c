@@ -514,8 +514,10 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
         BLE_EATT_LOG_DEBUG("ble_eatt_tx: Eatt stalled");
     } else if (rc == BLE_HS_EBUSY) {
         BLE_EATT_LOG_DEBUG("ble_eatt_tx: Message queued");
+        /* Channel is stalled waiting for credits, queued PDU will be sent
+         * on BLE_L2CAP_EVENT_COC_TX_UNSTALLED event.
+         */
         STAILQ_INSERT_HEAD(&eatt->eatt_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
-        ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
     } else {
         BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d ", __func__, rc);
         assert(0);
