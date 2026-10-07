@@ -1532,6 +1532,7 @@ ble_sm_confirm_rx(uint16_t conn_handle, struct os_mbuf **om,
     struct ble_sm_pair_confirm *cmd;
     struct ble_sm_proc *proc;
     uint8_t ioact;
+    int rc;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
@@ -1547,13 +1548,28 @@ ble_sm_confirm_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
     } else {
-        memcpy(proc->confirm_peer, cmd->value, 16);
-
         if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-            proc->state = BLE_SM_PROC_STATE_RANDOM;
-            res->execute = 1;
+            rc = ble_sm_io_action(proc, &ioact);
+            if (rc != 0) {
+                BLE_HS_DBG_ASSERT(0);
+            }
+
+            /* Responder sends its confirm only after receiving ours. If our
+             * confirm was not sent yet (waiting for passkey or OOB data from
+             * the application) this is an unexpected PDU.
+             */
+            if (ble_sm_ioact_state(ioact) == proc->state &&
+                !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
+                res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+                res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+                res->enc_cb = 1;
+            } else {
+                memcpy(proc->confirm_peer, cmd->value, 16);
+                proc->state = BLE_SM_PROC_STATE_RANDOM;
+                res->execute = 1;
+            }
         } else {
-            int rc;
+            memcpy(proc->confirm_peer, cmd->value, 16);
 
             rc = ble_sm_io_action(proc, &ioact);
             if (rc != 0) {
