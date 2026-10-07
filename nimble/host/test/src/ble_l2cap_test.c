@@ -1539,6 +1539,40 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_credits)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_sdu)
+{
+    struct test_data t = {};
+    uint8_t buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    ble_l2cap_test_util_init();
+
+    /* MTU larger than MPS so peer gets more than one initial credit */
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
+                                      4 * BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 3;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DATA_RECEIVED;
+    t.event[1].data = buf;
+    t.event[1].data_len = sizeof(buf);
+    t.event[2].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    /* Application does not provide new SDU buffer after this one */
+    ble_l2cap_test_coc_recv_data(&t);
+    TEST_ASSERT_FATAL(t.chan[0]->coc_rx.credits > 0);
+
+    /* Peer still has credits and sends LE frame, channel shall be
+     * disconnected as there is no buffer for it
+     */
+    ble_l2cap_test_coc_recv_data_expect_disc(&t, buf, sizeof(buf), BLE_HS_ENOMEM);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
 {
     struct test_data t;
@@ -1737,6 +1771,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
     ble_l2cap_test_case_coc_recv_data_no_credits();
+    ble_l2cap_test_case_coc_recv_data_no_sdu();
     ble_l2cap_test_case_sig_coc_conn_multi();
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
     ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid();
