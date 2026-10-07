@@ -484,7 +484,8 @@ ble_hs_hci_evt_le_adv_rpt_first_pass(const void *data, unsigned int len)
 
         rpt = data;
 
-        if (rpt->data_len > len) {
+        /* extra byte for RSSI after adv data */
+        if (rpt->data_len > len - sizeof(*rpt) - 1) {
             return BLE_HS_ECONTROLLER;
         }
 
@@ -629,7 +630,7 @@ ble_hs_hci_evt_le_ext_adv_rpt_first_pass(const void *data, unsigned int len)
 
         report = data;
 
-        if (report->data_len > len) {
+        if (report->data_len > len - sizeof(*report)) {
             return BLE_HS_ECONTROLLER;
         }
 
