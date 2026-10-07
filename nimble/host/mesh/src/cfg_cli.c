@@ -257,7 +257,7 @@ static int net_key_list(struct bt_mesh_model *model,
 		return -ENOENT;
 	}
 
-	for (i = 0; i < *param->key_cnt && buf->om_len >= 3; i += 2) {
+	for (i = 0; (i + 1) < *param->key_cnt && buf->om_len >= 3; i += 2) {
 		key_idx_unpack(buf, &param->keys[i], &param->keys[i + 1]);
 	}
 
@@ -371,7 +371,7 @@ static int app_key_list(struct bt_mesh_model *model,
 		return -ENOENT;
 	}
 
-	for (i = 0; i < *param->key_cnt && buf->om_len >= 3; i += 2) {
+	for (i = 0; (i + 1) < *param->key_cnt && buf->om_len >= 3; i += 2) {
 		key_idx_unpack(buf, &param->keys[i], &param->keys[i + 1]);
 	}
 
