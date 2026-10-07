@@ -239,6 +239,19 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         break;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
         BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
+
+        /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
+         * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
+         * Channel Requirements):
+         * The channel shall be encrypted.
+         *
+         * Reject with Insufficient Encryption if link is not encrypted.
+         */
+        rc = ble_gap_conn_find(event->accept.conn_handle, &desc);
+        if (rc != 0 || !desc.sec_state.encrypted) {
+            return BLE_HS_EENCRYPT;
+        }
+
         eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
         if (eatt) {
             /* For now we accept only one additional coc channel per ACL
