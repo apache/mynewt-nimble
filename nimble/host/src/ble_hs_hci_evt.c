@@ -819,7 +819,12 @@ ble_hs_hci_evt_le_create_big_complete(uint8_t subevent, const void *data,
 {
     const struct ble_hci_ev_le_subev_create_big_complete *ev = data;
 
-    if (len != sizeof(*ev) + (ev->num_bis * sizeof(ev->conn_handle[0]))) {
+    if (len < sizeof(*ev) ||
+        len != sizeof(*ev) + (ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    if (ev->num_bis > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
         return BLE_HS_EBADDATA;
     }
 
@@ -853,6 +858,10 @@ ble_hs_hci_evt_le_big_sync_established(uint8_t subevent, const void *data,
 
     if (len < sizeof(*ev) ||
         len != (sizeof(*ev) + ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    if (ev->num_bis > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
         return BLE_HS_EBADDATA;
     }
 
