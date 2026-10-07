@@ -32,12 +32,40 @@
 #define BASS_OP_MODIFY_SOURCE       0x03
 #define BASS_OP_REMOVE_SOURCE       0x05
 
+#define BASS_METADATA_POOL_NAME     "ble_audio_svc_bass_metadata_pool"
+#define BASS_METADATA_POOL_SIZE                                               \
+    (MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX) *                       \
+     MYNEWT_VAL(BLE_SVC_AUDIO_BASS_SUB_NUM_MAX))
+
 static uint16_t bass_cp_handle;
+static uint8_t bass_test_swap_source_id;
 
 static int
 bass_test_action_fn(struct ble_audio_scan_delegator_action *action, void *arg)
 {
+    if (action->type == BLE_AUDIO_SCAN_DELEGATOR_ACTION_SOURCE_ADD &&
+        action->source_add.out_source_id_to_swap != NULL) {
+        *action->source_add.out_source_id_to_swap = bass_test_swap_source_id;
+    }
+
     return 0;
+}
+
+static struct os_mempool *
+bass_test_metadata_pool(void)
+{
+    struct os_mempool *mp;
+
+    mp = os_mempool_get(BASS_METADATA_POOL_NAME, NULL);
+    TEST_ASSERT_FATAL(mp != NULL);
+
+    return mp;
+}
+
+static uint16_t
+bass_test_metadata_pool_free(void)
+{
+    return bass_test_metadata_pool()->mp_num_free;
 }
 
 /* Needs to be called at the beginning of each test case as sysinit is called
@@ -221,9 +249,83 @@ TEST_CASE_SELF(ble_audio_bass_test_add_source_metadata_len)
     bass_test_remove_all();
 }
 
+TEST_CASE_SELF(ble_audio_bass_test_add_source_swap)
+{
+    uint8_t source_id;
+    uint16_t num_free;
+    int rc;
+    int i;
+
+    bass_test_init();
+
+    num_free = bass_test_metadata_pool_free();
+    TEST_ASSERT_FATAL(num_free == BASS_METADATA_POOL_SIZE);
+
+    /* Fill all Receive States */
+    for (i = 0; i < MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX); i++) {
+        rc = bass_test_add_source(2, 4);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    TEST_ASSERT(bass_test_metadata_pool_free() ==
+                num_free - 2 * MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX));
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Swap source, metadata buffers of swapped source shall be reused */
+    bass_test_swap_source_id = source_id;
+    rc = bass_test_add_source(2, 4);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    TEST_ASSERT(bass_test_metadata_pool_free() ==
+                num_free - 2 * MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX));
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == num_free);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_add_source_no_mem)
+{
+    void *blocks[BASS_METADATA_POOL_SIZE];
+    struct os_mempool *mp;
+    uint8_t source_id;
+    int rc;
+    int i;
+
+    bass_test_init();
+
+    mp = bass_test_metadata_pool();
+    TEST_ASSERT_FATAL(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
+
+    /* Exhaust metadata pool */
+    for (i = 0; i < BASS_METADATA_POOL_SIZE; i++) {
+        blocks[i] = os_memblock_get(mp);
+        TEST_ASSERT_FATAL(blocks[i] != NULL);
+    }
+
+    rc = bass_test_add_source(1, 4);
+    TEST_ASSERT(rc != 0);
+
+    /* Receive State shall not be left allocated */
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    for (i = 0; i < BASS_METADATA_POOL_SIZE; i++) {
+        os_memblock_put(mp, blocks[i]);
+    }
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
+}
+
 TEST_SUITE(ble_audio_bass_test_suite)
 {
     ble_audio_bass_test_cp_empty_write();
     ble_audio_bass_test_cp_unknown_opcode();
     ble_audio_bass_test_add_source_metadata_len();
+    ble_audio_bass_test_add_source_swap();
+    ble_audio_bass_test_add_source_no_mem();
 }
