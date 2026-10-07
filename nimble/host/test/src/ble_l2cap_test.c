@@ -442,6 +442,52 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_timeout)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_frag_too_long)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL, NULL);
+
+    /* Receive the first fragment of PDU exceeding channel MTU */
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, 1000);
+    TEST_ASSERT(rc == BLE_HS_EBADDATA);
+
+    /* Ensure fragment was not buffered */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->rx_frags == NULL);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_l2cap_test_case_frag_invalid_cid)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL, NULL);
+
+    /* Receive the first fragment of PDU for unknown CID */
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, 1234, 30);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    /* Ensure fragment was not buffered */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->rx_frags == NULL);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 /*****************************************************************************
  * $unsolicited response                                                     *
  *****************************************************************************/
@@ -1568,6 +1614,8 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_frag_multiple();
     ble_l2cap_test_case_frag_channels();
     ble_l2cap_test_case_frag_timeout();
+    ble_l2cap_test_case_frag_too_long();
+    ble_l2cap_test_case_frag_invalid_cid();
     ble_l2cap_test_case_sig_unsol_rsp();
     ble_l2cap_test_case_sig_update_accept();
     ble_l2cap_test_case_sig_update_reject();
