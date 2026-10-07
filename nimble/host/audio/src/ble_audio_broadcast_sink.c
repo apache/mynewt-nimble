@@ -302,9 +302,17 @@ static int
 periodic_report_parse(const struct ble_hs_adv_field *field, void *user_data)
 {
     struct periodic_report *report = user_data;
-    const uint8_t value_len = field->length - sizeof(field->length);
     ble_uuid16_t uuid16 = BLE_UUID16_INIT(0);
+    uint8_t value_len;
     uint8_t offset = 0;
+
+    /* Zero length field terminates significant part of data */
+    if (field->length == 0) {
+        /* Stop */
+        return 0;
+    }
+
+    value_len = field->length - sizeof(field->type);
 
     switch (field->type) {
     case BLE_HS_ADV_TYPE_SVC_DATA_UUID16:
@@ -1138,8 +1146,16 @@ periodic_report_handler(uint16_t pa_sync_handle, const uint8_t *data, uint8_t da
 static int
 broadcast_id_parse_from_adv(const struct ble_hs_adv_field *field, void *user_data)
 {
-    const uint8_t value_len = field->length - sizeof(field->length);
     uint32_t *broadcast_id = user_data;
+    uint8_t value_len;
+
+    /* Zero length field terminates significant part of data */
+    if (field->length == 0) {
+        /* stop parsing */
+        return 0;
+    }
+
+    value_len = field->length - sizeof(field->type);
 
     if (field->type == BLE_HS_ADV_TYPE_SVC_DATA_UUID16) {
         ble_uuid16_t uuid16 = BLE_UUID16_INIT(0);
