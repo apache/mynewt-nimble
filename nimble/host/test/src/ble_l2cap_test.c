@@ -1528,6 +1528,51 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid)
 
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
+
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_reconfig_rsp_after_disconnect)
+{
+    struct ble_l2cap_sig_credit_base_reconfig_rsp rsp = {};
+    uint8_t req[sizeof(struct ble_l2cap_sig_credit_base_reconfig_req) + sizeof(uint16_t)];
+    struct ble_l2cap_chan *chans[1];
+    struct test_data t;
+    uint8_t id;
+    int rc;
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+    t.num = 1;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect_multi(&t);
+
+    /* Start reconfiguration */
+    chans[0] = t.chan[0];
+    rc = ble_l2cap_reconfig(chans, 1, BLE_L2CAP_TEST_COC_MTU + 100);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    put_le16(req + 0, BLE_L2CAP_TEST_COC_MTU + 100);
+    put_le16(req + 2, MYNEWT_VAL(BLE_L2CAP_COC_MPS));
+    put_le16(req + 4, t.chan[0]->scid);
+
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_CREDIT_RECONFIG_REQ,
+                                              req, sizeof(req));
+
+    /* Peer disconnects channel while reconfiguration is pending */
+    ble_l2cap_test_coc_disc_by_peer(&t);
+
+    /* Peer responds to reconfiguration of no longer existing channel */
+    rsp.result = htole16(BLE_L2CAP_ERR_RECONFIG_SUCCEED);
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(
+        2, BLE_L2CAP_SIG_OP_CREDIT_RECONFIG_RSP, id, &rsp, sizeof(rsp));
+    TEST_ASSERT(rc == 0);
+
+    /* Ensure no reconfigured event was sent to application */
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
 #endif
 
 TEST_CASE_SELF(ble_l2cap_test_case_sig_le_credits_fixed_cid)
@@ -1618,6 +1663,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_conn_multi();
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
     ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid();
+    ble_l2cap_test_case_sig_coc_reconfig_rsp_after_disconnect();
 #endif
     ble_l2cap_test_case_sig_le_credits_fixed_cid();
     ble_l2cap_test_case_server_create_remove();
