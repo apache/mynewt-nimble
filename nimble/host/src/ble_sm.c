@@ -994,12 +994,15 @@ static void
 ble_sm_key_dist(struct ble_sm_proc *proc,
                 uint8_t *out_init_key_dist, uint8_t *out_resp_key_dist)
 {
+    struct ble_sm_pair_cmd *pair_req;
     struct ble_sm_pair_cmd *pair_rsp;
 
+    pair_req = (struct ble_sm_pair_cmd *)&proc->pair_req[1];
     pair_rsp = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
 
-    *out_init_key_dist = pair_rsp->init_key_dist;
-    *out_resp_key_dist = pair_rsp->resp_key_dist;
+    /* Responder shall not set keys not requested by initiator. */
+    *out_init_key_dist = pair_req->init_key_dist & pair_rsp->init_key_dist;
+    *out_resp_key_dist = pair_req->resp_key_dist & pair_rsp->resp_key_dist;
 
     /* Encryption info and master ID are only sent in legacy pairing. */
     if (proc->flags & BLE_SM_PROC_F_SC) {
@@ -2386,6 +2389,11 @@ ble_sm_enc_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else if (!(proc->rx_key_flags & BLE_SM_KE_F_ENC_INFO)) {
+        /* Key was not negotiated or was already received */
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ENC_INFO;
         proc->peer_keys.ltk_valid = 1;
@@ -2420,6 +2428,11 @@ ble_sm_master_id_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else if (!(proc->rx_key_flags & BLE_SM_KE_F_MASTER_ID)) {
+        /* Key was not negotiated or was already received */
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_MASTER_ID;
         proc->peer_keys.ediv_rand_valid = 1;
@@ -2455,6 +2468,11 @@ ble_sm_id_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+    } else if (!(proc->rx_key_flags & BLE_SM_KE_F_ID_INFO)) {
+        /* Key was not negotiated or was already received */
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ID_INFO;
 
@@ -2579,6 +2597,15 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (proc == NULL) {
         res->app_status = BLE_HS_ENOENT;
         res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        ble_hs_unlock();
+        return;
+    }
+
+    if (!(proc->rx_key_flags & BLE_SM_KE_F_ADDR_INFO)) {
+        /* Key was not negotiated or was already received */
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
         ble_hs_unlock();
         return;
     }
