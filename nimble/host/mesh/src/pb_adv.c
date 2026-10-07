@@ -153,7 +153,7 @@ static struct bt_mesh_send_cb buf_sent_cb = {
 	.end = buf_sent,
 };
 
-static uint8_t last_seg(uint8_t len)
+static uint8_t last_seg(uint16_t len)
 {
 	if (len <= START_PAYLOAD_MAX) {
 		return 0;
@@ -473,8 +473,29 @@ static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
               return;
           }
 
+          if (adv_link.rx.buf->om_len > RX_BUFFER_MAX) {
+              BT_ERR("Too large provisioning PDU (%u bytes)",
+                     adv_link.rx.buf->om_len);
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
+
+          if (adv_link.rx.buf->om_len < buf->om_len) {
+              BT_ERR("Invalid declared provisioning PDU length (%u > %u)",
+                     buf->om_len, adv_link.rx.buf->om_len);
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
+
           if (START_LAST_SEG(rx->gpc) > 0 && adv_link.rx.buf->om_len <= 20U) {
               BT_ERR("Too small total length for multi-segment PDU");
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
+
+          if (START_LAST_SEG(rx->gpc) != last_seg(adv_link.rx.buf->om_len)) {
+              BT_ERR("Invalid SegN (%u, calculated %u)", START_LAST_SEG(rx->gpc),
+                     last_seg(adv_link.rx.buf->om_len));
               prov_failed(PROV_ERR_NVAL_FMT);
               return;
           }
