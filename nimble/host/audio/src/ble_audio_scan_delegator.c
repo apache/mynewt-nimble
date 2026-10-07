@@ -333,9 +333,9 @@ ble_audio_scan_delegator_receive_state_add(const struct ble_audio_scan_delegator
 int
 ble_audio_scan_delegator_receive_state_remove(uint8_t source_id)
 {
+#if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
     int rc;
 
-#if MYNEWT_VAL(BLE_AUDIO_BROADCAST_SINK)
     rc = ble_audio_broadcast_sink_stop(source_id);
     if (rc != 0) {
         BLE_HS_LOG_WARN("sink stop failed (%d)\n", rc);
@@ -444,7 +444,7 @@ audio_event_handler(struct ble_audio_event *event, void *arg)
 int
 ble_audio_scan_delegator_init(void)
 {
-    int rc;
+    int rc = 0;
 
     /* Ensure this function only gets called by sysinit. */
     SYSINIT_ASSERT_ACTIVE();
