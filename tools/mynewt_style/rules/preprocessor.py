@@ -401,3 +401,123 @@ class MacroMultiStatement(Rule):
                                           "multi-statement macro should be wrapped in "
                                           "'do { ... } while (0)'"))
         return out
+
+
+_SAFE_BEFORE = {None, "(", ",", "[", "{", ";", "=", "return"}
+_SAFE_AFTER = {None, ")", ",", "]", "}", ";"}
+_GLUE = {"#", "##", ".", "->", "struct", "union", "enum"}
+
+
+@register_rule
+class MacroArgParens(Rule):
+    name = "macro-arg-parens"
+    category = "preprocessor"
+    summary = "Macro parameters are parenthesised in the macro body: (x)."
+    explanation = """
+        CERT PRE01-C. An argument is substituted as text, so without
+        parentheses operator precedence leaks between argument and body:
+
+            #define DOUBLE(x)  x * 2        DOUBLE(a + 1)  ->  a + 1 * 2
+            #define DOUBLE(x)  ((x) * 2)    DOUBLE(a + 1)  ->  ((a + 1) * 2)
+
+        A parameter does not need parentheses when it is already delimited
+        on both sides (a whole function argument, array index, initializer
+        element, right-hand side of '='), when it is stringified/pasted
+        ('#x', 'a##x'), used as a member name ('p->x') or a type/declarator
+        ('struct x', 'x name'). Reported only: adding parentheses blindly
+        would break macros that take types.
+    """
+    severity = "warning"
+
+    def check(self, ctx: FileContext):
+        from mynewt_style.helpers import tokens
+        out = []
+        for d in ctx.directives:
+            if d.name != "define":
+                continue
+            text = "\n".join(ctx.code_lines[d.start_line - 1:d.end_line])
+            text = text.replace("\\\n", "  ")
+            m = re.match(r"\s*#\s*define\s+\w+\(([^)]*)\)", text)
+            if not m:
+                continue
+            params = [p.strip() for p in m.group(1).split(",") if p.strip() not in ("", "...")]
+            toks = [t.text for t in tokens(text, m.end())]
+            reported = set()
+            for i, tok in enumerate(toks):
+                if tok not in params or tok in reported:
+                    continue
+                before = toks[i - 1] if i > 0 else None
+                after = toks[i + 1] if i + 1 < len(toks) else None
+                if before in _GLUE or after == "##":
+                    continue
+                if before in _SAFE_BEFORE and after in _SAFE_AFTER:
+                    continue
+                if after is not None and re.match(r"[A-Za-z_]", after):
+                    continue  # used as a type: 'x name'
+                if before is not None and re.match(r"[A-Za-z_]", before) and before != "return":
+                    continue  # used as a declarator: 'type x'
+                if before is not None and re.match(r"[A-Za-z_]", before) and before != "return":
+                    continue  # used as a declarator: 'type x'
+                reported.add(tok)
+                out.append(self.violation(ctx, d.start_line, 1,
+                                          f"macro parameter '{tok}' is used without "
+                                          f"parentheses"))
+        return out
+
+
+@register_rule
+class DuplicateInclude(Rule):
+    name = "duplicate-include"
+    category = "preprocessor"
+    summary = "Each header is included once per file."
+    explanation = """
+        A second '#include' of the same header is dead weight and usually a
+        merge leftover. Includes in different #if branches are fine.
+    """
+
+    def check(self, ctx: FileContext):
+        out = []
+        branch: List[int] = []   # stack of branch ids
+        next_id = 0
+        seen = {}                # header -> branch path where first included
+        for d in ctx.directives:
+            line = ctx.lines[d.start_line - 1]
+            if d.name in ("if", "ifdef", "ifndef"):
+                next_id += 1
+                branch.append(next_id)
+            elif d.name in ("elif", "else") and branch:
+                next_id += 1
+                branch[-1] = next_id
+            elif d.name == "endif" and branch:
+                branch.pop()
+            elif d.name == "include":
+                m = re.search(r"[<\"]([^>\"]+)[>\"]", line)
+                if not m:
+                    continue
+                path = tuple(branch)
+                first = seen.get(m.group(1))
+                if first is not None and path[:len(first)] == first:
+                    out.append(self.violation(ctx, d.start_line, 1,
+                                              f"'{m.group(1)}' is already included"))
+                elif first is None:
+                    seen[m.group(1)] = path
+        return out
+
+
+@register_rule
+class NoIfZero(Rule):
+    name = "no-if-0"
+    category = "preprocessor"
+    summary = "No '#if 0' blocks; delete dead code (git remembers it)."
+    explanation = """
+        Code disabled with '#if 0' rots: it is never compiled, so it stops
+        matching the code around it. Remove it, or make it a real option
+        ('#if MYNEWT_VAL(...)').
+    """
+    severity = "warning"
+
+    def check(self, ctx: FileContext):
+        return [self.violation(ctx, d.start_line, 1, "'#if 0' block")
+                for d in ctx.directives
+                if d.name == "if" and re.match(r"\s*#\s*if\s+0\s*($|/[*/])",
+                                               ctx.code_lines[d.start_line - 1] + "\n")]
