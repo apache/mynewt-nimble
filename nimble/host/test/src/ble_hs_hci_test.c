@@ -111,15 +111,30 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi)
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
-    /*** Failure: params too short. */
-    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
-                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN - 1);
-    rc = ble_hs_hci_util_read_rssi(1, &rssi);
-    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
-
     /*** Failure: params too long. */
     ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
                                         BLE_HCI_READ_RSSI_ACK_PARAM_LEN + 1);
+    rc = ble_hs_hci_util_read_rssi(1, &rssi);
+    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_hs_hci_test_rssi_short)
+{
+    uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN];
+    uint16_t opcode;
+    int8_t rssi;
+    int rc;
+
+    opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_STATUS_PARAMS, BLE_HCI_OCF_RD_RSSI);
+
+    /* Incorrect connection handle. */
+    put_le16(params + 0, 99);
+
+    /*** Failure: params too short. */
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params,
+                                        BLE_HCI_READ_RSSI_ACK_PARAM_LEN - 1);
     rc = ble_hs_hci_util_read_rssi(1, &rssi);
     TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
 
@@ -375,6 +390,7 @@ TEST_SUITE(ble_hs_hci_suite)
     ble_hs_hci_test_event_bad();
     ble_hs_hci_test_event_dir_adv_rpt_len();
     ble_hs_hci_test_rssi();
+    ble_hs_hci_test_rssi_short();
     ble_hs_hci_acl_one_conn();
     ble_hs_hci_acl_two_conn();
 }
