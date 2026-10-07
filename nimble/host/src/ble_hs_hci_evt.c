@@ -546,7 +546,8 @@ ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, const void *data, unsigned int l
     struct ble_gap_disc_desc desc = {0};
     int i;
 
-    if (len < sizeof(*ev) || len != ev->num_reports * sizeof(ev->reports[0])) {
+    if (len < sizeof(*ev) ||
+        len != sizeof(*ev) + ev->num_reports * sizeof(ev->reports[0])) {
         return BLE_HS_ECONTROLLER;
     }
 
