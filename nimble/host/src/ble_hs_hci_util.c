@@ -277,3 +277,17 @@ ble_hs_hci_set_chan_class(const uint8_t *chan_map)
                                         BLE_HCI_OCF_LE_SET_HOST_CHAN_CLASS),
                              &cmd, sizeof(cmd), NULL, 0);
 }
+
+int
+ble_hs_hci_util_set_data_addr_change(uint8_t adv_handle, uint8_t change_reason)
+{
+    struct ble_hci_le_set_data_addr_change_cp cmd;
+    uint16_t opcode;
+
+    opcode = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_DATA_ADDR_CHANGE);
+
+    cmd.adv_handle = adv_handle;
+    cmd.change_reason = change_reason;
+
+    return ble_hs_hci_cmd_tx(opcode, &cmd, sizeof(cmd), NULL, 0);
+}
