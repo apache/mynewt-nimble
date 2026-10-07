@@ -244,6 +244,16 @@ syscfg.defs:
             This option saves both both code and RAM.
         value: 'MYNEWT_VAL_BLE_LL_ROLE_CENTRAL || MYNEWT_VAL_BLE_LL_ROLE_PERIPHERAL || MYNEWT_VAL_BLE_LL_ISO'
 
+    BLE_LL_ENC_SHORT_PKT_CNTR:
+        description: >
+            Use shortened 32-bit packet counter for connection encryption
+            instead of 39-bit counter defined by specification. This saves
+            some RAM and code, but violates specification: packet counter
+            wraps after 2^32 packets resulting in either MIC failure (if peer
+            uses 39-bit counter) or CCM nonce reuse (if peer also truncates
+            counter) for the remaining part of the connection.
+        value: 0
+
     BLE_LL_CFG_FEAT_CONN_PARAM_REQ:
         description: >
             This option enables/disables the connection parameter request

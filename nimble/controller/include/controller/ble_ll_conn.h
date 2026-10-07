@@ -78,19 +78,23 @@ enum conn_enc_state {
  * Note that the LTK is the key, the SDK is the plain text, and the
  * session key is the cipher text portion of the encryption block.
  *
- * NOTE: we have intentionally violated the specification by making the
- * transmit and receive packet counters 32-bits as opposed to 39 (as per the
- * specification). We do this to save code space, ram and calculation time. The
- * only drawback is that any encrypted connection that sends more than 2^32
- * packets will suffer a MIC failure and thus be disconnected.
+ * Transmit and receive packet counters are stored as 64-bit values so that
+ * the full 39-bit packet counter (as per specification) is used in CCM
+ * nonce. If BLE_LL_ENC_SHORT_PKT_CNTR is enabled, counters are 32-bit which
+ * violates the specification, see syscfg description for consequences.
  */
 struct ble_ll_conn_enc_data
 {
     uint8_t enc_state;
     uint8_t tx_encrypted;
     uint16_t enc_div;
+#if MYNEWT_VAL(BLE_LL_ENC_SHORT_PKT_CNTR)
     uint32_t tx_pkt_cntr;
     uint32_t rx_pkt_cntr;
+#else
+    uint64_t tx_pkt_cntr;
+    uint64_t rx_pkt_cntr;
+#endif
     uint64_t host_rand_num;
     uint8_t iv[8];
     struct ble_encryption_block enc_block;
