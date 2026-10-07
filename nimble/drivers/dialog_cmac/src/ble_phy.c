@@ -1643,7 +1643,7 @@ ble_phy_encrypt_counter_set(uint64_t counter, uint8_t dir_bit)
 
     enc = &g_ble_phy_encrypt_data;
     put_le32(&enc->b0[1], counter);
-    enc->b0[5] = dir_bit ? 0x80 : 0;
+    enc->b0[5] = ((counter >> 32) & 0x7f) | (dir_bit ? 0x80 : 0);
     put_le32(&enc->ai[1], counter);
     enc->ai[5] = enc->b0[5];
 
