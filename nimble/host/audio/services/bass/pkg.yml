@@ -27,6 +27,7 @@ pkg.keywords:
 
 pkg.deps:
   - nimble/host
+  - nimble/host/audio
   - nimble/host/services/gatt
 
 pkg.init:
