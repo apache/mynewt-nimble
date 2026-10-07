@@ -367,7 +367,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
 #if MYNEWT_VAL(BLE_L2CAP_JOIN_RX_FRAGS)
         os_mbuf_pack_chains(conn->rx_frags, om);
 #else
-        os_mbuf_concat(conn->rx_frag, om);
+        os_mbuf_concat(conn->rx_frags, om);
 #endif
         break;
     default:
