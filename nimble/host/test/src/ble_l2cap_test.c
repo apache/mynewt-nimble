@@ -1107,6 +1107,49 @@ ble_l2cap_test_coc_recv_data(struct test_data *t)
 }
 
 static void
+ble_l2cap_test_coc_recv_data_expect_disc(struct test_data *t, uint8_t *data,
+                                         uint16_t data_len, int exp_rc)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct event *ev = &t->event[t->event_iter++];
+    struct hci_data_hdr hci_hdr;
+    struct os_mbuf *sdu;
+    uint8_t id;
+    int rc;
+
+    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    assert(sdu != NULL);
+
+    rc = os_mbuf_append(sdu, data, data_len);
+    TEST_ASSERT(rc == 0);
+
+    /* Add place for SDU len */
+    sdu = os_mbuf_prepend_pullup(sdu, 2);
+    assert(sdu != NULL);
+    put_le16(sdu->om_data, data_len);
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH, BLE_L2CAP_HDR_SZ + OS_MBUF_PKTLEN(sdu));
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(2, t->chan[0]->scid, &hci_hdr, sdu);
+    TEST_ASSERT(rc == exp_rc);
+
+    /* Ensure channel is being disconnected */
+    req.dcid = htole16(t->chan[0]->dcid);
+    req.scid = htole16(t->chan[0]->scid);
+
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &req, sizeof(req));
+    TEST_ASSERT(rc == 0);
+
+    /* Ensure callback got called. */
+    TEST_ASSERT(ev->handled);
+}
+
+static void
 ble_l2cap_test_set_chan_test_conf(uint16_t psm, uint16_t mtu, struct test_data *t)
 {
     memset(t, 0, sizeof(*t));
@@ -1463,6 +1506,39 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_credits)
+{
+    struct test_data t = {};
+    uint8_t buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+    ble_l2cap_test_util_init();
+
+    /* Single initial credit since MTU is not larger than MPS */
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 3;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DATA_RECEIVED;
+    t.event[1].data = buf;
+    t.event[1].data_len = sizeof(buf);
+    t.event[2].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    /* This uses the only credit peer had, application does not give new
+     * credits.
+     */
+    ble_l2cap_test_coc_recv_data(&t);
+    TEST_ASSERT_FATAL(t.chan[0]->coc_rx.credits == 0);
+
+    /* Peer sends LE frame without credits, channel shall be disconnected */
+    ble_l2cap_test_coc_recv_data_expect_disc(&t, buf, sizeof(buf), BLE_HS_EBADDATA);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
 {
     struct test_data t;
@@ -1660,6 +1736,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
+    ble_l2cap_test_case_coc_recv_data_no_credits();
     ble_l2cap_test_case_sig_coc_conn_multi();
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
     ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid();
