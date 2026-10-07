@@ -553,6 +553,29 @@ TEST_CASE_SELF(ble_audio_bass_test_receive_state_remove)
     TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
 }
 
+TEST_CASE_SELF(ble_audio_bass_test_add_source_max_subgroups)
+{
+    struct ble_svc_audio_bass_receiver_state *state;
+    uint8_t source_id;
+    int rc;
+
+    bass_test_init();
+
+    rc = bass_test_add_source(BLE_SVC_AUDIO_BASS_SUB_NUM_MAX, 4);
+    TEST_ASSERT(rc == 0);
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_svc_audio_bass_receiver_state_get(source_id, &state);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(state->num_subgroups == BLE_SVC_AUDIO_BASS_SUB_NUM_MAX);
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
+}
+
 TEST_SUITE(ble_audio_bass_test_suite)
 {
     ble_audio_bass_test_cp_empty_write();
@@ -565,4 +588,5 @@ TEST_SUITE(ble_audio_bass_test_suite)
     ble_audio_bass_test_receive_state_add();
     ble_audio_bass_test_modify_source();
     ble_audio_bass_test_receive_state_remove();
+    ble_audio_bass_test_add_source_max_subgroups();
 }
