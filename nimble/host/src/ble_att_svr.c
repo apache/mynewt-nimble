@@ -2749,6 +2749,7 @@ ble_att_svr_rx_notify_multi(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
         rc = os_mbuf_appendfrom(tmp, *rxom, 0, attr_len);
         if (rc) {
             BLE_HS_LOG_ERROR("not enough resources, aborting");
+            os_mbuf_free_chain(tmp);
             rc = BLE_ATT_ERR_INSUFFICIENT_RES;
             goto done;
         }
