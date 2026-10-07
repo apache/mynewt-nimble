@@ -1573,6 +1573,81 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_sdu)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_too_long_fragmented)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct hci_data_hdr hci_hdr;
+    struct test_data t = {};
+    struct os_mbuf *sdu;
+    struct os_mbuf *om;
+    uint8_t buf[200] = { 0 };
+    uint8_t id;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM,
+                                      4 * BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    /* First LE frame of 100 bytes long SDU, carrying 10 bytes */
+    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    assert(sdu != NULL);
+
+    rc = os_mbuf_append(sdu, buf, 10);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    sdu = os_mbuf_prepend_pullup(sdu, 2);
+    assert(sdu != NULL);
+    put_le16(sdu->om_data, 100);
+
+    ble_hs_test_util_inject_rx_l2cap(2, t.chan[0]->scid, sdu);
+
+    /* Continuation LE frame carrying 210 bytes in two mbufs, first mbuf
+     * alone fits into remaining SDU space
+     */
+    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    assert(sdu != NULL);
+
+    rc = os_mbuf_append(sdu, buf, 10);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    om = os_mbuf_get(&sdu_os_mbuf_pool, 0);
+    assert(om != NULL);
+
+    rc = os_mbuf_append(om, buf, sizeof(buf));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    os_mbuf_concat(sdu, om);
+    TEST_ASSERT_FATAL(OS_MBUF_PKTLEN(sdu) == 10 + sizeof(buf));
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH, BLE_L2CAP_HDR_SZ + OS_MBUF_PKTLEN(sdu));
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(2, t.chan[0]->scid, &hci_hdr, sdu);
+    TEST_ASSERT(rc == BLE_HS_EBADDATA);
+
+    /* Ensure channel is being disconnected */
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &req, sizeof(req));
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
 {
     struct test_data t;
@@ -1772,6 +1847,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_recv_data_succeed();
     ble_l2cap_test_case_coc_recv_data_no_credits();
     ble_l2cap_test_case_coc_recv_data_no_sdu();
+    ble_l2cap_test_case_coc_recv_data_too_long_fragmented();
     ble_l2cap_test_case_sig_coc_conn_multi();
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
     ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid();
