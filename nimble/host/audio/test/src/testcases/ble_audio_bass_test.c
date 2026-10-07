@@ -459,6 +459,77 @@ TEST_CASE_SELF(ble_audio_bass_test_receive_state_add)
     TEST_ASSERT(mp->mp_num_free == BASS_METADATA_POOL_SIZE);
 }
 
+static int
+bass_test_modify_source(uint8_t source_id, uint8_t num_subgroups, uint8_t metadata_len)
+{
+    uint8_t buf[256];
+    uint16_t len = 0;
+    int i;
+
+    buf[len++] = BASS_OP_MODIFY_SOURCE;
+    buf[len++] = source_id;
+    buf[len++] = 0x00; /* PA_Sync: do not synchronize */
+    put_le16(&buf[len], 0xffff);
+    len += 2;
+    buf[len++] = num_subgroups;
+
+    for (i = 0; i < num_subgroups; i++) {
+        TEST_ASSERT_FATAL(len + 5 + metadata_len <= sizeof(buf));
+        put_le32(&buf[len], 0);
+        len += 4;
+        buf[len++] = metadata_len;
+        memset(&buf[len], 0xdd, metadata_len);
+        len += metadata_len;
+    }
+
+    return bass_test_cp_write(buf, len);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_modify_source)
+{
+    struct ble_svc_audio_bass_receiver_state *state;
+    uint8_t source_id;
+    int rc;
+    int i;
+
+    bass_test_init();
+
+    TEST_ASSERT_FATAL(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
+
+    rc = bass_test_add_source(2, 4);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = bass_test_source_id_first(&source_id);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE - 2);
+
+    for (i = 0; i < BASS_METADATA_POOL_SIZE; i++) {
+        rc = bass_test_modify_source(source_id, 2, 6);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE - 2);
+
+    rc = ble_svc_audio_bass_receiver_state_get(source_id, &state);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT(state->num_subgroups == 2);
+    TEST_ASSERT(state->subgroups[0].metadata_length == 6);
+    TEST_ASSERT(state->subgroups[0].metadata[0] == 0xdd);
+    TEST_ASSERT(state->subgroups[1].metadata_length == 6);
+
+    /* Less subgroups */
+    rc = bass_test_modify_source(source_id, 1, 6);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    TEST_ASSERT(state->num_subgroups == 1);
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE - 1);
+
+    bass_test_remove_all();
+
+    TEST_ASSERT(bass_test_metadata_pool_free() == BASS_METADATA_POOL_SIZE);
+}
+
 TEST_SUITE(ble_audio_bass_test_suite)
 {
     ble_audio_bass_test_cp_empty_write();
@@ -469,4 +540,5 @@ TEST_SUITE(ble_audio_bass_test_suite)
     ble_audio_bass_test_update_metadata();
     ble_audio_bass_test_receive_state_update();
     ble_audio_bass_test_receive_state_add();
+    ble_audio_bass_test_modify_source();
 }
