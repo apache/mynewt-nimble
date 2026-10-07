@@ -330,7 +330,7 @@ periodic_report_parse(const struct ble_hs_adv_field *field, void *user_data)
 static uint32_t
 subgroup_bis_sync_get(struct ble_audio_broadcast_sink *sink, uint8_t subgroup_index)
 {
-    if (subgroup_index > sink->num_subgroups) {
+    if (subgroup_index >= sink->num_subgroups) {
         return 0;
     }
 
@@ -874,6 +874,7 @@ bis_params_get(struct ble_audio_broadcast_sink *sink, struct ble_audio_base_grou
                struct ble_iso_bis_params bis_params[MYNEWT_VAL(BLE_ISO_MAX_BISES)], uint8_t *out_bis_cnt)
 {
     uint8_t subgroup_index;
+    uint8_t num_subgroups;
     uint32_t group_bis_sync = 0;
     uint8_t bis_cnt = 0;
     int rc = 0;
@@ -883,7 +884,10 @@ bis_params_get(struct ble_audio_broadcast_sink *sink, struct ble_audio_base_grou
         return BLE_HS_EAPP;
     }
 
-    for (subgroup_index = 0; subgroup_index < group->num_subgroups; subgroup_index++) {
+    /* Subgroups exceeding local capacity are not synced to */
+    num_subgroups = MIN(group->num_subgroups, ARRAY_SIZE(sink->subgroups));
+
+    for (subgroup_index = 0; subgroup_index < num_subgroups; subgroup_index++) {
         struct ble_audio_base_subgroup subgroup;
         struct ble_audio_base_iter bis_iter;
         uint32_t subgroup_bis_sync_req;
@@ -1582,6 +1586,10 @@ ble_audio_broadcast_sink_config(uint8_t source_id, uint16_t conn_handle,
     int rc;
 
     BLE_AUDIO_DBG_ASSERT(sync_opt != NULL);
+
+    if (sync_opt->num_subgroups > ARRAY_SIZE(sink->subgroups)) {
+        return BLE_HS_EINVAL;
+    }
 
     sink = broadcast_sink_get(source_id);
     if (sink == NULL) {
