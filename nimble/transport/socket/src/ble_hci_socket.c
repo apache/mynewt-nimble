@@ -581,8 +581,12 @@ ble_hci_sock_rx_msg(void)
             OS_EXIT_CRITICAL(sr);
             break;
         default:
+            /* Unknown packet type, there is no way to resync so drop all
+             * received data. Note that len is not valid here.
+             */
             STATS_INC(hci_sock_stats, ierr);
-            break;
+            bhss->rx_off = 0;
+            return -1;
         }
 
         memmove(bhss->rx_data, &bhss->rx_data[len], bhss->rx_off - len);
