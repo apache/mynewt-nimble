@@ -456,10 +456,11 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
             ev.bass_operation_status.status = BLE_HS_ENOMEM;
             goto done;
         }
-        rcv_state->state.subgroups[i].metadata_length = operation.add_source.subgroups[i].metadata_length;
+        rcv_state->state.subgroups[i].metadata_length =
+            min(operation.add_source.subgroups[i].metadata_length,
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
         memcpy(metadata_ptr, operation.add_source.subgroups[i].metadata,
-               min(operation.add_source.subgroups[i].metadata_length,
-                   MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)));
+               rcv_state->state.subgroups[i].metadata_length);
 
         rcv_state->state.subgroups[i].metadata = metadata_ptr;
     }
