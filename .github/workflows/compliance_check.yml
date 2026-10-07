@@ -74,6 +74,36 @@ jobs:
         if: steps.label_check.outputs.skip == 'true'
         run: echo "Skipping style check because 'skip-style-check' label is present."
 
+  style_check_mynewt_format:
+    name: Coding style (mynewt_format, informational)
+    runs-on: ubuntu-24.04
+    # Informational only: reports problems but never fails the PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: check style with mynewt_format
+        shell: bash
+        run: |
+          # Only lines changed by this PR are checked.
+          ARGS="--git-diff origin/${{ github.base_ref }} --changed-lines --no-color"
+          python3 tools/mynewt_format.py $ARGS || true
+          echo ""
+          echo "Proposed fixes (apply with 'git apply'):"
+          python3 tools/mynewt_format.py $ARGS -d 2>/dev/null || true
+          echo ""
+          echo "This check is informational and does not fail the PR."
+          echo "Review fixes locally: python3 tools/mynewt_format.py -i --git-diff origin/master --changed-lines"
+          echo "Rules: python3 tools/mynewt_format.py --list-rules (--explain RULE)"
+          exit 0
+
   style_license:
     name: Licensing
     runs-on: ubuntu-24.04
