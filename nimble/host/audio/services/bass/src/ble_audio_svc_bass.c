@@ -836,8 +836,11 @@ ble_svc_audio_bass_receive_state_add(const struct ble_svc_audio_bass_receiver_st
                                      uint8_t *source_id)
 {
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state;
-    int i;
     int rc;
+
+    if (params->num_subgroups > BLE_SVC_AUDIO_BASS_SUB_NUM_MAX) {
+        return BLE_HS_EINVAL;
+    }
 
     rc = ble_svc_audio_bass_receive_state_find_free(&rcv_state);
     if (rc) {
@@ -855,21 +858,12 @@ ble_svc_audio_bass_receive_state_add(const struct ble_svc_audio_bass_receiver_st
         memcpy(&rcv_state->state.bad_code, params->bad_code,
                BLE_AUDIO_BROADCAST_CODE_SIZE);
     }
-    rcv_state->state.num_subgroups = params->num_subgroups;
 
-    for (i = 0; i < rcv_state->state.num_subgroups; i++) {
-        rcv_state->state.subgroups[i].metadata =
-            os_memblock_get(&ble_audio_svc_bass_metadata_pool);
-
-        if (!rcv_state->state.subgroups[i].metadata) {
-            return 0;
-        }
-
-        rcv_state->state.subgroups[i].metadata_length =
-            min(params->subgroups[i].metadata_length,
-                ble_audio_svc_bass_metadata_pool.mp_block_size);
-        memcpy(rcv_state->state.subgroups[i].metadata, params->subgroups[i].metadata,
-               rcv_state->state.subgroups[i].metadata_length);
+    rc = ble_svc_audio_bass_metadata_set(&rcv_state->state, params->num_subgroups,
+                                         params->subgroups);
+    if (rc != 0) {
+        ble_svc_audio_bass_receive_state_release(rcv_state);
+        return rc;
     }
 
     *source_id = rcv_state->source_id;
@@ -902,6 +896,7 @@ ble_svc_audio_bass_update_metadata(const struct ble_svc_audio_bass_metadata_para
                                    uint8_t source_id)
 {
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
+    struct ble_svc_audio_bass_subgroup *subgroup;
     int rc;
 
     rc = ble_svc_audio_bass_receive_state_find_by_source_id(&rcv_state, source_id);
@@ -909,9 +904,23 @@ ble_svc_audio_bass_update_metadata(const struct ble_svc_audio_bass_metadata_para
         return rc;
     }
 
-    rcv_state->state.subgroups[params->subgroup_idx].metadata_length = params->metadata_length;
-    memcpy(rcv_state->state.subgroups[params->subgroup_idx].metadata,
-           params->metadata, params->metadata_length);
+    if (params->subgroup_idx >= rcv_state->state.num_subgroups) {
+        return BLE_HS_EINVAL;
+    }
+
+    subgroup = &rcv_state->state.subgroups[params->subgroup_idx];
+    if (subgroup->metadata == NULL) {
+        return BLE_HS_EINVAL;
+    }
+
+    if (params->metadata == NULL) {
+        subgroup->metadata_length = 0;
+    } else {
+        subgroup->metadata_length =
+            min(params->metadata_length,
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+        memcpy(subgroup->metadata, params->metadata, subgroup->metadata_length);
+    }
 
     return ble_svc_audio_bass_receive_state_notify(rcv_state);
 }
@@ -944,11 +953,21 @@ ble_svc_audio_bass_receive_state_update(const struct
 
     int i;
     for (i = 0; i < params->num_subgroups; i++) {
-        rcv_state->state.subgroups[i].bis_sync_state =
-            params->subgroups[i].bis_sync_state;
-        memcpy(rcv_state->state.subgroups[i].metadata,
-               params->subgroups[i].metadata,
-               params->subgroups[i].metadata_length);
+        struct ble_svc_audio_bass_subgroup *subgroup =
+            &rcv_state->state.subgroups[i];
+
+        subgroup->bis_sync_state = params->subgroups[i].bis_sync_state;
+
+        if (subgroup->metadata == NULL || params->subgroups[i].metadata == NULL ||
+            subgroup->metadata == params->subgroups[i].metadata) {
+            continue;
+        }
+
+        subgroup->metadata_length =
+            min(params->subgroups[i].metadata_length,
+                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+        memcpy(subgroup->metadata, params->subgroups[i].metadata,
+               subgroup->metadata_length);
     }
 
     return ble_svc_audio_bass_receive_state_notify(rcv_state);
