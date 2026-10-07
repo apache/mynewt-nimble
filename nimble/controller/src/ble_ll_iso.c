@@ -39,6 +39,10 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
     struct ble_ll_iso_conn *conn;
     uint16_t conn_handle;
 
+    if ((cmdlen < sizeof(*cmd)) || (cmdlen != sizeof(*cmd) + cmd->codec_config_len)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     conn_handle = le16toh(cmd->conn_handle);
 
     conn = ble_ll_iso_conn_find_by_handle(conn_handle);
@@ -82,6 +86,10 @@ ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
     struct ble_ll_iso_conn *conn;
     uint16_t conn_handle;
 
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     conn_handle = le16toh(cmd->conn_handle);
 
     conn = ble_ll_iso_conn_find_by_handle(conn_handle);
@@ -111,6 +119,10 @@ ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t cmdlen,
     struct ble_ll_iso_conn *iso_conn;
     uint16_t handle;
 
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     handle = le16toh(cmd->conn_handle);
     iso_conn = ble_ll_iso_conn_find_by_handle(handle);
     if (!iso_conn) {
@@ -134,6 +146,10 @@ ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
     struct ble_hci_le_iso_transmit_test_rp *rsp = (void *)rspbuf;
     struct ble_ll_iso_conn *conn;
     uint16_t handle;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     handle = le16toh(cmd->conn_handle);
 
@@ -173,6 +189,10 @@ ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t
     struct ble_hci_le_iso_test_end_rp *rsp = (void *)rspbuf;
     struct ble_ll_iso_conn *iso_conn;
     uint16_t handle;
+
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     handle = le16toh(cmd->conn_handle);
     iso_conn = ble_ll_iso_conn_find_by_handle(handle);
