@@ -682,7 +682,6 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
     struct ble_svc_audio_bass_operation operation;
     int rc = 0;
-    int i;
 
     ev.bass_set_broadcast_code.source_id = data[0];
     operation.op = BLE_SVC_AUDIO_BASS_OPERATION_REMOVE_SOURCE;
@@ -706,11 +705,7 @@ ble_svc_audio_bass_remove_source(uint8_t *data, uint16_t data_len, uint16_t conn
         }
     }
 
-    for (i = 0; i < rcv_state->state.num_subgroups; i++) {
-        os_memblock_put(&ble_audio_svc_bass_metadata_pool, rcv_state->state.subgroups[i].metadata);
-    }
-
-    ble_svc_audio_bass_receive_state_free(rcv_state);
+    ble_svc_audio_bass_receive_state_release(rcv_state);
 
 done:
     if (!rc) {
@@ -871,18 +866,14 @@ int
 ble_svc_audio_bass_receive_state_remove(uint8_t source_id)
 {
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
-    int rc, i;
+    int rc;
 
     rc = ble_svc_audio_bass_receive_state_find_by_source_id(&rcv_state, source_id);
     if (rc) {
         return rc;
     }
 
-    ble_svc_audio_bass_receive_state_free(rcv_state);
-
-    for (i = 0; i < rcv_state->state.num_subgroups; i++) {
-        os_memblock_put(&ble_audio_svc_bass_metadata_pool, rcv_state->state.subgroups[i].metadata);
-    }
+    ble_svc_audio_bass_receive_state_release(rcv_state);
 
     return ble_svc_audio_bass_receive_state_notify(rcv_state);
 }
