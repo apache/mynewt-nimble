@@ -27,6 +27,31 @@
 /* Handle of a connection that does not exist */
 #define TEST_CONN_HANDLE (0x0abc)
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+TEST_CASE_SELF(test_ll_hci_conn_update_len)
+{
+    struct ble_hci_le_conn_update_cp cmd = {
+        .conn_handle = htole16(TEST_CONN_HANDLE),
+        .conn_itvl_min = htole16(0x0018),
+        .conn_itvl_max = htole16(0x0028),
+        .conn_latency = htole16(0),
+        .supervision_timeout = htole16(0x0100),
+        .min_ce_len = htole16(0),
+        .max_ce_len = htole16(0),
+    };
+    int rc;
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, 0);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, sizeof(cmd) - 1);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, sizeof(cmd));
+    TEST_ASSERT(rc == BLE_ERR_UNK_CONN_ID);
+}
+#endif
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
 TEST_CASE_SELF(test_ll_hci_set_default_subrate_len)
 {
@@ -78,6 +103,9 @@ TEST_CASE_SELF(test_ll_hci_subrate_req_len)
 
 TEST_SUITE(ble_ll_hci_test_suite)
 {
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    test_ll_hci_conn_update_len();
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     test_ll_hci_set_default_subrate_len();
     test_ll_hci_subrate_req_len();
