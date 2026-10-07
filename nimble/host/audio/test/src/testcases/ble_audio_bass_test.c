@@ -1,0 +1,122 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+#include "testutil/testutil.h"
+
+#include "os/os_mbuf.h"
+#include "host/ble_hs.h"
+#include "host/ble_gatt.h"
+#include "audio/ble_audio.h"
+#include "audio/ble_audio_scan_delegator.h"
+#include "services/bass/ble_audio_svc_bass.h"
+
+#define BASS_OP_REMOTE_SCAN_STOPPED 0x00
+#define BASS_OP_REMOTE_SCAN_STARTED 0x01
+#define BASS_OP_ADD_SOURCE          0x02
+#define BASS_OP_MODIFY_SOURCE       0x03
+#define BASS_OP_REMOVE_SOURCE       0x05
+
+static uint16_t bass_cp_handle;
+
+static int
+bass_test_action_fn(struct ble_audio_scan_delegator_action *action, void *arg)
+{
+    return 0;
+}
+
+/* Needs to be called at the beginning of each test case as sysinit is called
+ * before each test case.
+ */
+static void
+bass_test_init(void)
+{
+    int rc;
+
+    rc = ble_gatts_start();
+    TEST_ASSERT_FATAL(rc == 0);
+
+    rc = ble_gatts_find_chr(BLE_UUID16_DECLARE(BLE_SVC_AUDIO_BASS_UUID16),
+                            BLE_UUID16_DECLARE(BLE_SVC_AUDIO_BASS_CHR_UUID16_BASS_CP),
+                            NULL, &bass_cp_handle);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Callback is not cleared by sysinit */
+    rc = ble_audio_scan_delegator_action_fn_set(bass_test_action_fn, NULL);
+    TEST_ASSERT_FATAL(rc == 0 || rc == BLE_HS_EALREADY);
+}
+
+static int
+bass_test_cp_write_om(struct os_mbuf *om)
+{
+    return ble_att_svr_write_local(bass_cp_handle, om);
+}
+
+static int
+bass_test_cp_write(const uint8_t *data, uint16_t len)
+{
+    struct os_mbuf *om;
+
+    om = ble_hs_mbuf_from_flat(data, len);
+    TEST_ASSERT_FATAL(om != NULL);
+
+    return bass_test_cp_write_om(om);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_cp_empty_write)
+{
+    struct os_mbuf *om;
+    int rc;
+
+    bass_test_init();
+
+    /* Leave valid opcode in buffer but write zero length value */
+    om = ble_hs_mbuf_from_flat((uint8_t[]){ BASS_OP_REMOTE_SCAN_STOPPED }, 1);
+    TEST_ASSERT_FATAL(om != NULL);
+    os_mbuf_adj(om, -1);
+    TEST_ASSERT_FATAL(OS_MBUF_PKTLEN(om) == 0);
+
+    rc = bass_test_cp_write_om(om);
+    TEST_ASSERT(rc != 0);
+}
+
+TEST_CASE_SELF(ble_audio_bass_test_cp_unknown_opcode)
+{
+    uint8_t buf[32] = { 0 };
+    int rc;
+    int op;
+
+    bass_test_init();
+
+    /* Sanity check that writes reach Control Point */
+    buf[0] = BASS_OP_REMOTE_SCAN_STARTED;
+    rc = bass_test_cp_write(buf, 1);
+    TEST_ASSERT(rc == 0);
+
+    for (op = BASS_OP_REMOVE_SOURCE + 1; op <= 0xff; op++) {
+        buf[0] = op;
+        rc = bass_test_cp_write(buf, sizeof(buf));
+        TEST_ASSERT(rc != 0);
+    }
+}
+
+TEST_SUITE(ble_audio_bass_test_suite)
+{
+    ble_audio_bass_test_cp_empty_write();
+    ble_audio_bass_test_cp_unknown_opcode();
+}
