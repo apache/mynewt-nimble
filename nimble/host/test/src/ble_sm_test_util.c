@@ -2569,28 +2569,18 @@ ble_sm_test_util_peer_sc_oob_no_local(struct ble_sm_test_params *params)
     ble_sm_test_util_verify_tx_public_key(our_entity.public_key);
     TEST_ASSERT(ble_sm_num_procs() == 1);
 
-    /* Application has no OOB data. */
+    /* Application has no OOB data, this is rejected as peer indicated it
+     * has our OOB data.
+     */
     memset(&io, 0, sizeof io);
     io.action = BLE_SM_IOACT_OOB_SC;
     rc = ble_sm_inject_io(2, &io);
-    TEST_ASSERT(rc == 0);
-    TEST_ASSERT(ble_sm_num_procs() == 1);
-
-    /* Exchange randoms. */
-    ble_sm_test_util_rx_random(2, peer_entity.randoms, 0);
-    ble_sm_test_util_verify_tx_pair_random(our_entity.randoms);
-    TEST_ASSERT(ble_sm_num_procs() == 1);
-
-    /* Receive a dhkey check from the peer. */
-    ble_sm_test_util_rx_dhkey_check(2, peer_entity.dhkey_check,
-                                    BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
+    TEST_ASSERT(rc == BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
 
     /* Ensure we sent pair fail and procedure was aborted. */
     fail.reason = BLE_SM_ERR_OOB;
     ble_sm_test_util_verify_tx_pair_fail(&fail);
     TEST_ASSERT(ble_sm_num_procs() == 0);
-    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
-    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
 
     ble_hs_test_util_conn_disconnect(2);

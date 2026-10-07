@@ -873,10 +873,13 @@ ble_sm_sc_oob_data_check(struct ble_sm_proc *proc,
     req_oob_present = pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES;
     rsp_oob_present = pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES;
 
+    /* Local OOB data is required if peer indicated it has it */
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        return req_oob_present == oob_data_remote_present;
+        return (req_oob_present == oob_data_remote_present) &&
+               (!rsp_oob_present || oob_data_local_present);
     } else {
-        return rsp_oob_present == oob_data_remote_present;
+        return (rsp_oob_present == oob_data_remote_present) &&
+               (!req_oob_present || oob_data_local_present);
     }
 }
 
