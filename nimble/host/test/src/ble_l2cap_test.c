@@ -1488,6 +1488,80 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid)
+{
+    struct ble_l2cap_sig_credit_base_reconfig_rsp rsp = {};
+    uint8_t req[sizeof(struct ble_l2cap_sig_credit_base_reconfig_req) + sizeof(uint16_t)];
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    uint8_t id = 10;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }),
+                                    ble_l2cap_test_util_conn_cb, NULL);
+
+    /* Peer requests reconfiguration of the fixed ATT channel */
+    put_le16(req + 0, 100);
+    put_le16(req + 2, 100);
+    put_le16(req + 4, BLE_L2CAP_CID_ATT);
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(
+        2, BLE_L2CAP_SIG_OP_CREDIT_RECONFIG_REQ, id, req, sizeof(req));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure request was rejected with Invalid DCID */
+    rsp.result = htole16(BLE_L2CAP_ERR_RECONFIG_INVALID_DCID);
+    TEST_ASSERT(ble_hs_test_util_verify_tx_l2cap_sig(
+                    BLE_L2CAP_SIG_OP_CREDIT_RECONFIG_RSP, &rsp, sizeof(rsp)) == id);
+
+    /* Ensure ATT channel was not modified */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+    TEST_ASSERT(chan->peer_mtu == 0);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+#endif
+
+TEST_CASE_SELF(ble_l2cap_test_case_sig_le_credits_fixed_cid)
+{
+    struct ble_l2cap_sig_le_credits req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }),
+                                    ble_l2cap_test_util_conn_cb, NULL);
+
+    /* Peer sends credits for the fixed ATT channel */
+    req.scid = htole16(BLE_L2CAP_CID_ATT);
+    req.credits = htole16(10);
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_FLOW_CTRL_CREDIT,
+                                              10, &req, sizeof(req));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Ensure credits were not applied to ATT channel */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    chan = ble_hs_conn_chan_find_by_scid(conn, BLE_L2CAP_CID_ATT);
+    TEST_ASSERT_FATAL(chan != NULL);
+    TEST_ASSERT(chan->coc_tx.credits == 0);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_server_create_remove)
 {
     int rc;
@@ -1542,5 +1616,9 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
     ble_l2cap_test_case_sig_coc_conn_multi();
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+    ble_l2cap_test_case_sig_coc_reconfig_req_fixed_cid();
+#endif
+    ble_l2cap_test_case_sig_le_credits_fixed_cid();
     ble_l2cap_test_case_server_create_remove();
 }
