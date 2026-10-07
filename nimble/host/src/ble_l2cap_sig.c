@@ -870,6 +870,11 @@ ble_l2cap_sig_coc_reconfig_cb(struct ble_l2cap_sig_proc *proc, int status)
 
     for (i = 0; i< proc->reconfig.cid_cnt; i++) {
         chan[i] = ble_hs_conn_chan_find_by_scid(conn, proc->reconfig.cids[i]);
+        /* Channel could have been disconnected while procedure was pending */
+        if (!chan[i]) {
+            continue;
+        }
+
         if (status == 0) {
             ble_l2cap_coc_set_new_mtu_mps(chan[i], proc->reconfig.new_mtu, proc->reconfig.new_mps);
         }
@@ -878,6 +883,10 @@ ble_l2cap_sig_coc_reconfig_cb(struct ble_l2cap_sig_proc *proc, int status)
     ble_hs_unlock();
 
     for (i = 0; i < proc->reconfig.cid_cnt; i++) {
+        if (!chan[i]) {
+            continue;
+        }
+
         ble_l2cap_event_coc_reconfigured(proc->conn_handle, status, chan[i], false);
     }
 }
