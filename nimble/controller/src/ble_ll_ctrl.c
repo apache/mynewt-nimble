@@ -928,20 +928,6 @@ ble_ll_ctrl_phy_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
     ctrdata[1] = connsm->phy_data.pref_mask_rx;
 }
 
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
-/**
- * Create a LL_CLOCK_ACCURACY_REQ or LL_CLOCK_ACCURACY_RSP pdu
- *
- * @param connsm Pointer to connection state machine
- * @param ctrdata: Pointer to where CtrData starts in pdu
- */
-static void
-ble_ll_ctrl_sca_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
-{
-    ctrdata[0] = BLE_LL_SCA_ENUM;
-}
-#endif
-
 static uint8_t
 ble_ll_ctrl_rx_phy_req(struct ble_ll_conn_sm *connsm, uint8_t *req,
                        uint8_t *rsp)
@@ -1173,6 +1159,18 @@ ble_ll_ctrl_rx_periodic_sync_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr)
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
+/**
+ * Create a LL_CLOCK_ACCURACY_REQ or LL_CLOCK_ACCURACY_RSP pdu
+ *
+ * @param connsm Pointer to connection state machine
+ * @param ctrdata: Pointer to where CtrData starts in pdu
+ */
+static void
+ble_ll_ctrl_sca_req_rsp_make(struct ble_ll_conn_sm *connsm, uint8_t *ctrdata)
+{
+    ctrdata[0] = BLE_LL_SCA_ENUM;
+}
+
 /**
  * Called when a BLE_LL_CTRL_CLOCK_ACCURACY_REQ PDU is received
  *
