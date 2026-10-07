@@ -739,6 +739,11 @@ ble_hs_adv_parse_fields(struct ble_hs_adv_fields *adv_fields,
     memset(adv_fields, 0, sizeof *adv_fields);
 
     while (src_len > 0) {
+        /* Zero length field terminates significant part of data */
+        if (src[0] == 0) {
+            break;
+        }
+
         rc = ble_hs_adv_parse_one_field(adv_fields, &field_len, src, src_len);
         if (rc != 0) {
             return rc;
@@ -759,6 +764,11 @@ ble_hs_adv_parse(const uint8_t *data, uint8_t length,
 
     while (length > 1) {
         field = (const void *) data;
+
+        /* Zero length field terminates significant part of data */
+        if (field->length == 0) {
+            return 0;
+        }
 
         if (field->length >= length) {
             return BLE_HS_EBADDATA;
