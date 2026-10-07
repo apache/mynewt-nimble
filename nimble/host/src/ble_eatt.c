@@ -163,7 +163,6 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
     struct ble_eatt *eatt;
     struct os_mbuf *txom;
     struct os_mbuf_pkthdr *omp;
-    struct ble_l2cap_chan_info info;
 
     eatt = ble_npl_event_get_arg(ev);
     assert(eatt);
@@ -173,8 +172,7 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
         STAILQ_REMOVE_HEAD(&eatt->eatt_tx_q, omp_next);
 
         txom = OS_MBUF_PKTHDR_TO_MBUF(omp);
-        ble_l2cap_get_chan_info(eatt->chan, &info);
-        ble_eatt_tx(eatt->conn_handle, info.dcid, txom);
+        ble_eatt_tx(eatt->conn_handle, eatt->chan->scid, txom);
     }
 }
 
