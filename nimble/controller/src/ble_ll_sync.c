@@ -615,8 +615,8 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
             i += BLE_LL_EXT_ADV_TX_POWER_SIZE;
         }
 
-        /* sanity check */
-        if (i > ext_hdr_len) {
+        /* sanity check, ext_hdr_len includes flags */
+        if (i >= ext_hdr_len) {
             return -1;
         }
 
