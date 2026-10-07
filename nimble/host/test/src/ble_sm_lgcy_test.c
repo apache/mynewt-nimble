@@ -1045,6 +1045,22 @@ TEST_CASE_SELF(ble_sm_lgcy_peer_jw_id_addr_fail)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+/**
+ * Legacy pairing
+ * Master: peer
+ * Pair algorithm: just works
+ * Peer sends Identity Information twice.
+ */
+TEST_CASE_SELF(ble_sm_lgcy_peer_jw_key_dup)
+{
+    struct ble_sm_test_params params;
+
+    ble_sm_lgcy_test_peer_jw_params(&params);
+    ble_sm_test_util_peer_lgcy_key_dup(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_sm_lgcy_test_suite)
 {
     /*** No privacy. */
@@ -1061,6 +1077,7 @@ TEST_SUITE(ble_sm_lgcy_test_suite)
     ble_sm_lgcy_us_pk_confirm_early();
 
     ble_sm_lgcy_peer_jw_id_addr_fail();
+    ble_sm_lgcy_peer_jw_key_dup();
 }
 
 #endif

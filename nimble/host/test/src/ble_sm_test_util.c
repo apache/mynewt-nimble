@@ -2189,42 +2189,18 @@ ble_sm_test_util_us_lgcy_confirm_early(struct ble_sm_test_params *params)
     ble_hs_test_util_conn_disconnect(2);
 }
 
-/* Peer distributes identity address which is invalid or already bonded to
- * other device. If bonded_addr is not NULL, bond for that address is
- * created before pairing and application ignores repeat pairing event.
+/* Legacy pairing with peer as initiator, up to the point where we sent our
+ * keys and wait for keys from peer.
  */
-void
-ble_sm_test_util_peer_lgcy_id_addr_fail(struct ble_sm_test_params *params,
-                                        const ble_addr_t *bonded_addr,
-                                        uint8_t exp_reason)
+static void
+ble_sm_test_util_peer_lgcy_to_key_exch(struct ble_sm_test_params *params)
 {
     struct ble_sm_test_util_entity peer_entity;
     struct ble_sm_test_util_entity our_entity;
-    struct ble_store_value_sec value_sec;
-    struct ble_store_key_sec key_sec;
-    struct ble_sm_pair_fail fail;
     struct ble_hs_conn *conn;
-    int rc;
 
     params->sec_req.authreq = 0;
     ble_sm_test_util_init_good(params, 0, &conn, &our_entity, &peer_entity);
-
-    memset(&ble_sm_test_repeat_pairing, 0, sizeof ble_sm_test_repeat_pairing);
-    ble_sm_test_repeat_pairing.rp.conn_handle = BLE_HS_CONN_HANDLE_NONE;
-    ble_sm_test_repeat_pairing.params = *params;
-    ble_sm_test_repeat_pairing.rc = BLE_GAP_REPEAT_PAIRING_IGNORE;
-    ble_sm_test_repeat_pairing.next_rc = BLE_GAP_REPEAT_PAIRING_IGNORE;
-
-    if (bonded_addr != NULL) {
-        memset(&value_sec, 0, sizeof value_sec);
-        value_sec.peer_addr = *bonded_addr;
-        value_sec.key_size = 16;
-        value_sec.authenticated = 1;
-        value_sec.ltk_present = 1;
-        memset(value_sec.ltk, 0xaa, sizeof value_sec.ltk);
-        rc = ble_store_write_peer_sec(&value_sec);
-        TEST_ASSERT_FATAL(rc == 0);
-    }
 
     /* Receive a pair request from the peer. */
     ble_sm_test_util_rx_pair_req(2, peer_entity.pair_cmd, 0);
@@ -2245,6 +2221,65 @@ ble_sm_test_util_peer_lgcy_id_addr_fail(struct ble_sm_test_params *params,
     /* Verify key material gets sent to peer. */
     ble_sm_test_util_verify_tx_keys(params, 0);
     TEST_ASSERT(ble_sm_num_procs() == 1);
+}
+
+/* Peer sends key which was already received during key distribution. */
+void
+ble_sm_test_util_peer_lgcy_key_dup(struct ble_sm_test_params *params)
+{
+    struct ble_sm_pair_fail fail;
+
+    ble_sm_test_util_peer_lgcy_to_key_exch(params);
+
+    ble_sm_test_util_rx_enc_info(2, &params->enc_info_rsp, 0);
+    ble_sm_test_util_rx_master_id(2, &params->master_id_rsp, 0);
+    ble_sm_test_util_rx_id_info(2, &params->id_info_rsp, 0);
+    ble_sm_test_util_rx_id_info(2, &params->id_info_rsp,
+                                BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+
+    /* Ensure we sent pair fail and procedure was aborted. */
+    fail.reason = BLE_SM_ERR_UNSPECIFIED;
+    ble_sm_test_util_verify_tx_pair_fail(&fail);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+    TEST_ASSERT(ble_hs_test_util_num_peer_secs() == 0);
+
+    ble_hs_test_util_conn_disconnect(2);
+}
+
+/* Peer distributes identity address which is invalid or already bonded to
+ * other device. If bonded_addr is not NULL, bond for that address is
+ * created before pairing and application ignores repeat pairing event.
+ */
+void
+ble_sm_test_util_peer_lgcy_id_addr_fail(struct ble_sm_test_params *params,
+                                        const ble_addr_t *bonded_addr,
+                                        uint8_t exp_reason)
+{
+    struct ble_store_value_sec value_sec;
+    struct ble_store_key_sec key_sec;
+    struct ble_sm_pair_fail fail;
+    int rc;
+
+    ble_sm_test_util_peer_lgcy_to_key_exch(params);
+
+    memset(&ble_sm_test_repeat_pairing, 0, sizeof ble_sm_test_repeat_pairing);
+    ble_sm_test_repeat_pairing.rp.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    ble_sm_test_repeat_pairing.params = *params;
+    ble_sm_test_repeat_pairing.rc = BLE_GAP_REPEAT_PAIRING_IGNORE;
+    ble_sm_test_repeat_pairing.next_rc = BLE_GAP_REPEAT_PAIRING_IGNORE;
+
+    if (bonded_addr != NULL) {
+        memset(&value_sec, 0, sizeof value_sec);
+        value_sec.peer_addr = *bonded_addr;
+        value_sec.key_size = 16;
+        value_sec.authenticated = 1;
+        value_sec.ltk_present = 1;
+        memset(value_sec.ltk, 0xaa, sizeof value_sec.ltk);
+        rc = ble_store_write_peer_sec(&value_sec);
+        TEST_ASSERT_FATAL(rc == 0);
+    }
 
     /* Receive key material from peer. */
     ble_sm_test_util_rx_enc_info(2, &params->enc_info_rsp, 0);
