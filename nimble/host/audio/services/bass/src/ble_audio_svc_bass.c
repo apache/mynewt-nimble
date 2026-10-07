@@ -569,7 +569,6 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
             .status = 0
         }
     };
-    uint8_t *metadata_ptr;
     uint8_t offset = 0;
     int rc = 0;
     int i;
@@ -646,17 +645,6 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
         goto done;
     }
 
-    for (i = 0; i < operation.modify_source.num_subgroups; i++) {
-        metadata_ptr = os_memblock_get(&ble_audio_svc_bass_metadata_pool);
-        if (metadata_ptr == NULL) {
-            rc = BLE_HS_ENOMEM;
-            ev.bass_operation_status.status = BLE_HS_ENOMEM;
-            goto done;
-    }
-    memcpy(metadata_ptr, operation.modify_source.subgroups[i].metadata,
-           operation.modify_source.subgroups[i].metadata_length);
-    }
-
     if (accept_fn.ctrl_point_ev_fn) {
         rc = accept_fn.ctrl_point_ev_fn(&operation, accept_fn.arg);
         if (rc != 0) {
@@ -664,6 +652,15 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
             ev.bass_operation_status.status = BLE_HS_EREJECT;
             goto done;
         }
+    }
+
+    rc = ble_svc_audio_bass_metadata_set(&rcv_state->state,
+                                         operation.modify_source.num_subgroups,
+                                         operation.modify_source.subgroups);
+    if (rc != 0) {
+        rc = BLE_HS_ENOMEM;
+        ev.bass_operation_status.status = BLE_HS_ENOMEM;
+        goto done;
     }
 
     ev.bass_operation_status.source_id = operation.modify_source.source_id;
