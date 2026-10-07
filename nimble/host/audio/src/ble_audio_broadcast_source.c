@@ -145,6 +145,7 @@ ble_audio_broadcast_create(const struct ble_broadcast_create_params *params,
 
     broadcast = os_memblock_get(&ble_audio_broadcast_pool);
 
+    memset(broadcast, 0, sizeof(*broadcast));
     broadcast->adv_instance = params->adv_instance;
     broadcast->base = params->base;
     broadcast->big_params = params->big_params;
