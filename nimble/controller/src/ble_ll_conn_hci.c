@@ -1013,6 +1013,10 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * connection update procedure.
      */
 
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* If no connection handle exit with error */
     handle = le16toh(cmd->conn_handle);
     connsm = ble_ll_conn_find_by_handle(handle);
