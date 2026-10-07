@@ -151,6 +151,15 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
 
         assert(h4sm->allocs && h4sm->allocs->evt);
 
+        h4sm->exp_len = h4sm->hdr[1] + 2;
+        if (h4sm->exp_len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
+            /* Event does not fit in event buffer. Don't allocate buffer so
+             * the payload is consumed and dropped.
+             */
+            h4sm->buf = NULL;
+            break;
+        }
+
         /* We can drop legacy advertising events if there's no free buffer in
          * discardable pool.
          */
@@ -165,11 +174,6 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
 
         if (h4sm->buf) {
             memcpy(h4sm->buf, h4sm->hdr, h4sm->len);
-        }
-
-        h4sm->exp_len = h4sm->hdr[1] + 2;
-        if (h4sm->exp_len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
-            return -1;
         }
         break;
     case HCI_H4_ISO:
