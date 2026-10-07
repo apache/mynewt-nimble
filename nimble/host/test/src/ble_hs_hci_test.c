@@ -141,6 +141,23 @@ TEST_CASE_SELF(ble_hs_hci_test_rssi_short)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_hs_hci_test_rand_short)
+{
+    uint8_t params[8] = { 0 };
+    uint8_t rand[8];
+    uint16_t opcode;
+    int rc;
+
+    opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RAND);
+
+    /*** Failure: params too short. */
+    ble_hs_test_util_hci_ack_set_params(opcode, 0, params, sizeof(params) - 1);
+    rc = ble_hs_hci_rand(rand, sizeof(rand));
+    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_hs_hci_acl_one_conn)
 {
     struct ble_hs_test_util_hci_num_completed_pkts_entry ncpe[2];
@@ -391,6 +408,7 @@ TEST_SUITE(ble_hs_hci_suite)
     ble_hs_hci_test_event_dir_adv_rpt_len();
     ble_hs_hci_test_rssi();
     ble_hs_hci_test_rssi_short();
+    ble_hs_hci_test_rand_short();
     ble_hs_hci_acl_one_conn();
     ble_hs_hci_acl_two_conn();
 }
