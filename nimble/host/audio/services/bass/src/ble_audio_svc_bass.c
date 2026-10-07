@@ -250,6 +250,69 @@ ble_svc_audio_bass_receive_state_free(struct ble_svc_audio_bass_rcv_state_entry 
     /* state->chr_val shall not be cleared */
 }
 
+static void
+ble_svc_audio_bass_metadata_put(struct ble_svc_audio_bass_receiver_state *state,
+                                uint8_t num_subgroups)
+{
+    int i;
+
+    /* Return metadata buffers of subgroups above num_subgroups */
+    for (i = num_subgroups; i < state->num_subgroups; i++) {
+        if (state->subgroups[i].metadata != NULL) {
+            os_memblock_put(&ble_audio_svc_bass_metadata_pool,
+                            state->subgroups[i].metadata);
+        }
+
+        memset(&state->subgroups[i], 0, sizeof(state->subgroups[i]));
+    }
+
+    state->num_subgroups = min(state->num_subgroups, num_subgroups);
+}
+
+static int
+ble_svc_audio_bass_metadata_set(struct ble_svc_audio_bass_receiver_state *state,
+                                uint8_t num_subgroups,
+                                const struct ble_svc_audio_bass_subgroup *subgroups)
+{
+    uint8_t metadata_length;
+    int i;
+
+    ble_svc_audio_bass_metadata_put(state, num_subgroups);
+
+    /* Metadata buffers already allocated for subgroups are reused */
+    for (i = 0; i < num_subgroups; i++) {
+        if (state->subgroups[i].metadata == NULL) {
+            state->subgroups[i].metadata =
+                os_memblock_get(&ble_audio_svc_bass_metadata_pool);
+            if (state->subgroups[i].metadata == NULL) {
+                state->num_subgroups = i;
+                return BLE_HS_ENOMEM;
+            }
+        }
+
+        if (subgroups[i].metadata == NULL) {
+            metadata_length = 0;
+        } else {
+            metadata_length = min(subgroups[i].metadata_length,
+                                  MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
+            memcpy(state->subgroups[i].metadata, subgroups[i].metadata, metadata_length);
+        }
+
+        state->subgroups[i].metadata_length = metadata_length;
+    }
+
+    state->num_subgroups = num_subgroups;
+
+    return 0;
+}
+
+static void
+ble_svc_audio_bass_receive_state_release(struct ble_svc_audio_bass_rcv_state_entry *state)
+{
+    ble_svc_audio_bass_metadata_put(&state->state, 0);
+    ble_svc_audio_bass_receive_state_free(state);
+}
+
 static int
 ble_svc_audio_bass_remote_scan_stopped(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
@@ -319,7 +382,6 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
     struct ble_svc_audio_bass_operation operation;
     struct ble_svc_audio_bass_rcv_state_entry *rcv_state = NULL;
     uint8_t offset = 0;
-    uint8_t *metadata_ptr;
     uint8_t source_id_new;
     uint8_t source_id_to_remove = BLE_SVC_AUDIO_BASS_RECEIVE_STATE_SRC_ID_NONE;
     int rc = 0;
@@ -447,22 +509,18 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
     memcpy(&rcv_state->state.source_addr.val, operation.add_source.adv_addr.val, 6);
     rcv_state->state.source_adv_sid = operation.add_source.adv_sid;
     rcv_state->state.broadcast_id = operation.add_source.broadcast_id;
-    rcv_state->state.num_subgroups = operation.add_source.num_subgroups;
 
-    for (i = 0; i < operation.add_source.num_subgroups; i++) {
-        metadata_ptr = os_memblock_get(&ble_audio_svc_bass_metadata_pool);
-        if (!metadata_ptr) {
-            rc = BLE_HS_ENOMEM;
-            ev.bass_operation_status.status = BLE_HS_ENOMEM;
-            goto done;
-        }
-        rcv_state->state.subgroups[i].metadata_length =
-            min(operation.add_source.subgroups[i].metadata_length,
-                MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ));
-        memcpy(metadata_ptr, operation.add_source.subgroups[i].metadata,
-               rcv_state->state.subgroups[i].metadata_length);
-
-        rcv_state->state.subgroups[i].metadata = metadata_ptr;
+    /* In case of swapped Receive State, metadata buffers of previous source
+     * are reused or freed.
+     */
+    rc = ble_svc_audio_bass_metadata_set(&rcv_state->state,
+                                         operation.add_source.num_subgroups,
+                                         operation.add_source.subgroups);
+    if (rc != 0) {
+        ble_svc_audio_bass_receive_state_release(rcv_state);
+        rc = BLE_HS_ENOMEM;
+        ev.bass_operation_status.status = BLE_HS_ENOMEM;
+        goto done;
     }
 
 done:
