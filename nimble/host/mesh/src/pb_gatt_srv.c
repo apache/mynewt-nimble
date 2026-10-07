@@ -106,6 +106,11 @@ static int gatt_recv_proxy(uint16_t conn_handle, uint16_t attr_handle,
 	uint16_t len = ctxt->om->om_len;
 	struct bt_mesh_proxy_client *client = find_client(conn_handle);
 
+	if (!client || !client->cli) {
+		BT_WARN("No Proxy Client found");
+		return -ENOTCONN;
+	}
+
 	if (len < 1) {
 		BT_WARN("Too small Proxy PDU");
 		return -EINVAL;
@@ -125,8 +130,8 @@ static int gatt_recv_prov(uint16_t conn_handle, uint16_t attr_handle,
 	const uint8_t *data = ctxt->om->om_data;
 	uint16_t len = ctxt->om->om_len;
 
-	if (conn_handle != cli->conn_handle) {
-		BT_WARN("conn_handle != cli->conn_handle");
+	if (!cli || conn_handle != cli->conn_handle) {
+		BT_WARN("No PB-GATT Client found");
 		return -ENOTCONN;
 	}
 
@@ -151,7 +156,7 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
 	conn = ble_hs_conn_find(conn_handle);
 	bt_conn_get_info(conn, &info);
 	if (info.role != BLE_GAP_ROLE_SLAVE ||
-	    !service_registered || bt_mesh_is_provisioned()) {
+	    !service_registered || bt_mesh_is_provisioned() || cli) {
 		return;
 	}
 
@@ -163,14 +168,13 @@ void gatt_connected_pb_gatt(uint16_t conn_handle, uint8_t err)
 void gatt_disconnected_pb_gatt(struct ble_gap_conn_desc conn, uint8_t reason)
 {
 	if (conn.role != BLE_GAP_ROLE_SLAVE ||
-	    !service_registered) {
+	    !service_registered || !cli ||
+	    cli->conn_handle != conn.conn_handle) {
 		return;
 	}
 
-	if (cli) {
-		bt_mesh_proxy_role_cleanup(cli);
-		cli = NULL;
-	}
+	bt_mesh_proxy_role_cleanup(cli);
+	cli = NULL;
 
 	BT_DBG("conn_handle %d reason 0x%02x", conn.conn_handle, reason);
 
@@ -183,7 +187,7 @@ void gatt_disconnected_pb_gatt(struct ble_gap_conn_desc conn, uint8_t reason)
 
 int prov_ccc_write(uint16_t conn_handle, uint8_t type)
 {
-	if (cli->conn_handle != conn_handle) {
+	if (!cli || cli->conn_handle != conn_handle) {
 		BT_ERR("No PB-GATT Client found");
 		return -ENOTCONN;
 	}

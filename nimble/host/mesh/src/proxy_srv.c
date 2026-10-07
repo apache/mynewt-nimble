@@ -634,6 +634,10 @@ static void proxy_ccc_write(uint16_t conn_handle)
 	BT_DBG("conn_handle %d", conn_handle);
 
 	client = find_client(conn_handle);
+	if (!client) {
+		BT_WARN("No Proxy Client found");
+		return;
+	}
 
 	if (client->filter_type == NONE) {
 		client->filter_type = ACCEPT;
@@ -852,23 +856,21 @@ static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
 		return;
 	}
 
-	if (!service_registered && bt_mesh_is_provisioned()) {
-		(void)bt_mesh_proxy_gatt_enable();
-		return;
+	client = find_client(conn.conn_handle);
+	if (client) {
+		conn_count--;
+
+		if (client->cli) {
+			bt_mesh_proxy_role_cleanup(client->cli);
+			client->cli = NULL;
+		}
+
+		client->conn_handle = 0xffff;
 	}
 
-	client = find_client(conn.conn_handle);
-          if (!client) {
-              return;
-          }
-
-          conn_count--;
-          if (client->cli) {
-              bt_mesh_proxy_role_cleanup(client->cli);
-              client->cli = NULL;
-          }
-
-          client->conn_handle = 0xffff;
+	if (!service_registered && bt_mesh_is_provisioned()) {
+		(void)bt_mesh_proxy_gatt_enable();
+	}
 }
 
 void notify_complete(void)
