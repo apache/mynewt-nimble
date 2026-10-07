@@ -754,6 +754,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
     uint8_t exp_value[16];
     ble_addr_t our_addr;
     ble_addr_t peer_addr;
+    uint8_t peer_oob_flag;
     uint8_t *iocap;
     uint8_t ioact;
     int rc;
@@ -763,26 +764,26 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
 
         pair_rsp  = (struct ble_sm_pair_cmd *) &proc->pair_rsp[1];
         iocap = &pair_rsp->io_cap;
-
-        if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
-            if (pair_rsp->oob_data_flag) {
-                memcpy(proc->tk, proc->oob_data_local->r, 16);
-            } else {
-                memset(proc->tk, 0, 16);
-            }
-        }
+        peer_oob_flag = pair_rsp->oob_data_flag;
     } else {
         struct ble_sm_pair_cmd *pair_req;
 
         pair_req  = (struct ble_sm_pair_cmd *) &proc->pair_req[1];
         iocap = &pair_req->io_cap;
+        peer_oob_flag = pair_req->oob_data_flag;
+    }
 
-        if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
-            if (pair_req->oob_data_flag) {
-                memcpy(proc->tk, proc->oob_data_local->r, 16);
-            } else {
-                memset(proc->tk, 0, 16);
-            }
+    if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
+        if (!peer_oob_flag) {
+            memset(proc->tk, 0, 16);
+        } else if (proc->oob_data_local == NULL) {
+            /* Peer claims to have our OOB data but we have none */
+            res->sm_err = BLE_SM_ERR_OOB;
+            res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB);
+            res->enc_cb = 1;
+            return;
+        } else {
+            memcpy(proc->tk, proc->oob_data_local->r, 16);
         }
     }
 
