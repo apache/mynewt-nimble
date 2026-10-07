@@ -516,9 +516,14 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
          * on BLE_L2CAP_EVENT_COC_TX_UNSTALLED event.
          */
         STAILQ_INSERT_HEAD(&eatt->eatt_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
+    } else if (rc == BLE_HS_EBADDATA) {
+        /* SDU too large, txom was not consumed */
+        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d\n", __func__, rc);
+        goto error;
     } else {
+        /* Transmission failed, txom was consumed */
         BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d ", __func__, rc);
-        assert(0);
+        return rc;
     }
 done:
     return 0;
