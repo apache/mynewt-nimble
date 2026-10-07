@@ -64,6 +64,7 @@ main(int argc, char **argv)
     ble_gatts_notify_suite();
     ble_gatts_read_test_suite();
     ble_gatts_reg_suite();
+    ble_hci_h4_test_suite();
     ble_hs_adv_test_suite();
     ble_hs_conn_suite();
     ble_hs_hci_suite();

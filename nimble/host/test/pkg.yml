@@ -32,6 +32,7 @@ pkg.deps.SELFTEST:
     - "@apache-mynewt-core/sys/log/full"
     - "@apache-mynewt-core/sys/stats/stub"
     - nimble/transport
+    - nimble/transport/common/hci_h4
 
 pkg.apis:
     - ble_driver

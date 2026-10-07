@@ -24,3 +24,4 @@ pkg.homepage: "https://mynewt.apache.org/"
 
 pkg.deps:
     - nimble
+    - nimble/transport
