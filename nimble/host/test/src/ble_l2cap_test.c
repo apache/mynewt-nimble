@@ -1558,6 +1558,74 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_mem)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct os_mbuf *hoard[BLE_L2CAP_TEST_COC_BUF_COUNT];
+    struct hci_data_hdr hci_hdr;
+    struct test_data t = {};
+    struct os_mbuf *sdu;
+    uint8_t buf[240] = { 0 };
+    uint8_t id;
+    int num;
+    int rc;
+    int i;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    /* LE frame with SDU which does not fit into single SDU buffer block */
+    sdu = os_msys_get_pkthdr(0, 0);
+    TEST_ASSERT_FATAL(sdu != NULL);
+
+    rc = os_mbuf_append(sdu, buf, sizeof(buf));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    sdu = os_mbuf_prepend_pullup(sdu, 2);
+    TEST_ASSERT_FATAL(sdu != NULL);
+    put_le16(sdu->om_data, sizeof(buf));
+
+    /* Exhaust SDU buffer pool */
+    for (num = 0; num < ARRAY_SIZE(hoard); num++) {
+        hoard[num] = os_mbuf_get(&sdu_os_mbuf_pool, 0);
+        if (hoard[num] == NULL) {
+            break;
+        }
+    }
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH, BLE_L2CAP_HDR_SZ + OS_MBUF_PKTLEN(sdu));
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(2, t.chan[0]->scid, &hci_hdr, sdu);
+    TEST_ASSERT(rc == BLE_HS_ENOMEM);
+
+    for (i = 0; i < num; i++) {
+        os_mbuf_free(hoard[i]);
+    }
+
+    /* Ensure channel is being disconnected */
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &req, sizeof(req));
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
 {
     struct test_data t;
@@ -1642,6 +1710,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
+    ble_l2cap_test_case_coc_recv_data_no_mem();
     ble_l2cap_test_case_sig_coc_conn_multi();
     ble_l2cap_test_case_server_create_remove();
 }
