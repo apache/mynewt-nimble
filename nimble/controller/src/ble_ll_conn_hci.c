@@ -1747,6 +1747,10 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
     const struct ble_hci_le_request_peer_sca_cp *params = (const void *)cmdbuf;
     struct ble_ll_conn_sm *connsm;
 
+    if (len != sizeof(*params)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     connsm = ble_ll_conn_find_by_handle(le16toh(params->conn_handle));
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
