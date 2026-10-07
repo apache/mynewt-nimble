@@ -2279,6 +2279,26 @@ TEST_CASE_SELF(ble_att_svr_test_large_value)
     ble_att_svr_test_assert_mbufs_freed();
 }
 
+TEST_CASE_SELF(ble_att_svr_test_notify_multi_bad_len)
+{
+    uint16_t conn_handle;
+    /* Tuple with value length exceeding remaining PDU length */
+    uint8_t buf[] = {
+        BLE_ATT_OP_NOTIFY_MULTI_REQ, 0x01, 0x00, 0x0a, 0x00, 0x01,
+    };
+
+    conn_handle = ble_att_svr_test_misc_init(0);
+
+    ble_att_svr_test_n_conn_handle = 0xffff;
+    ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_ATT, buf,
+                                           sizeof buf);
+
+    /* Notification is not reported and no mbuf is leaked */
+    TEST_ASSERT(ble_att_svr_test_n_conn_handle == 0xffff);
+
+    ble_att_svr_test_assert_mbufs_freed();
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     ble_att_svr_test_mtu();
@@ -2293,6 +2313,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_prep_write();
     ble_att_svr_test_prep_write_tmo();
     ble_att_svr_test_notify();
+    ble_att_svr_test_notify_multi_bad_len();
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();
     ble_att_svr_test_unsupported_req();
