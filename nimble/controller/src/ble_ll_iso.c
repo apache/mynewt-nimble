@@ -240,6 +240,11 @@ ble_ll_iso_data_in(struct os_mbuf *om)
     uint16_t ts_flag;
     uint32_t timestamp = 0;
 
+    if (om->om_len < sizeof(*hci_iso)) {
+        os_mbuf_free_chain(om);
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     hci_iso = (void *)om->om_data;
 
     handle = le16toh(hci_iso->handle);
@@ -257,6 +262,12 @@ ble_ll_iso_data_in(struct os_mbuf *om)
     data_hdr_len = 0;
     if ((pb_flag == BLE_HCI_ISO_PB_FIRST) ||
         (pb_flag == BLE_HCI_ISO_PB_COMPLETE)) {
+        if (om->om_len < sizeof(*hci_iso) + sizeof(*hci_iso_data) +
+                             (ts_flag ? sizeof(uint32_t) : 0)) {
+            os_mbuf_free_chain(om);
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
+
         blehdr = BLE_MBUF_HDR_PTR(om);
         blehdr->txiso.packet_seq_num = ++conn->mux.sdu_counter;
         blehdr->txiso.cpu_timestamp = ble_ll_tmr_get();
@@ -279,20 +290,33 @@ ble_ll_iso_data_in(struct os_mbuf *om)
 
     switch (pb_flag) {
     case BLE_HCI_ISO_PB_FIRST:
-        BLE_LL_ASSERT(!conn->frag);
+        /* Drop incomplete SDU, if any */
+        if (conn->frag) {
+            os_mbuf_free_chain(conn->frag);
+        }
         conn->frag = om;
         om = NULL;
         break;
     case BLE_HCI_ISO_PB_CONTINUATION:
-        BLE_LL_ASSERT(conn->frag);
+        if (!conn->frag) {
+            os_mbuf_free_chain(om);
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
         os_mbuf_concat(conn->frag, om);
         om = NULL;
         break;
     case BLE_HCI_ISO_PB_COMPLETE:
-        BLE_LL_ASSERT(!conn->frag);
+        /* Drop incomplete SDU, if any */
+        if (conn->frag) {
+            os_mbuf_free_chain(conn->frag);
+            conn->frag = NULL;
+        }
         break;
     case BLE_HCI_ISO_PB_LAST:
-        BLE_LL_ASSERT(conn->frag);
+        if (!conn->frag) {
+            os_mbuf_free_chain(om);
+            return BLE_ERR_INV_HCI_CMD_PARMS;
+        }
         os_mbuf_concat(conn->frag, om);
         om = conn->frag;
         conn->frag = NULL;
@@ -410,6 +434,11 @@ ble_ll_iso_conn_free(struct ble_ll_iso_conn *conn)
     OS_ENTER_CRITICAL(sr);
     STAILQ_REMOVE(&ll_iso_conn_q, conn, ble_ll_iso_conn, iso_conn_q_next);
     OS_EXIT_CRITICAL(sr);
+
+    if (conn->frag) {
+        os_mbuf_free_chain(conn->frag);
+        conn->frag = NULL;
+    }
 
     ble_ll_isoal_mux_free(&conn->mux);
 }
