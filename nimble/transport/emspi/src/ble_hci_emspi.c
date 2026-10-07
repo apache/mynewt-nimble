@@ -37,8 +37,6 @@
 #include "nimble/hci_common.h"
 #include "nimble/transport.h"
 
-#include "transport/emspi/ble_hci_emspi.h"
-
 #include "am_mcu_apollo.h"
 
 #define BLE_HCI_EMSPI_PKT_NONE          0x00
