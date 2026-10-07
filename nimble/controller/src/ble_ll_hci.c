@@ -166,6 +166,10 @@ ble_ll_hci_le_encrypt(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf,
     struct ble_encryption_block ecb;
     int rc;
 
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* Call the link layer to encrypt the data */
     swap_buf(ecb.key, cmd->key, BLE_ENC_BLOCK_SIZE);
     swap_buf(ecb.plain_text, cmd->data, BLE_ENC_BLOCK_SIZE);
