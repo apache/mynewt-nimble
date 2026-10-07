@@ -1856,7 +1856,7 @@ ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         connsm->acc_subrate_min = srp.subrate_min;
-        connsm->acc_subrate_min = srp.subrate_max;
+        connsm->acc_subrate_max = srp.subrate_max;
         connsm->acc_max_latency = srp.max_latency;
         connsm->acc_cont_num = srp.cont_num;
         connsm->acc_supervision_tmo = srp.supervision_tmo;
