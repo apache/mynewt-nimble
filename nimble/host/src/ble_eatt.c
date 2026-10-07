@@ -279,6 +279,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
              *  • The Signed Write Without Response sub-procedure shall only be
              *  supported on the LE Fixed Channel Unenhanced ATT bearer.
              */
+            os_mbuf_free_chain(event->receive.sdu_rx);
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
         }
@@ -294,6 +295,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
          * encryption.
          */
         if (rc != 0 || !desc.sec_state.encrypted) {
+            os_mbuf_free_chain(event->receive.sdu_rx);
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
         }
