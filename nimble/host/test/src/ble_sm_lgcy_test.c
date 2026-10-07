@@ -891,6 +891,160 @@ TEST_CASE_SELF(ble_sm_lgcy_us_pk_confirm_early)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+static void
+ble_sm_lgcy_test_peer_jw_params(struct ble_sm_test_params *params)
+{
+    *params = (struct ble_sm_test_params) {
+        .init_id_addr = {
+            0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c,
+        },
+        .resp_id_addr = {
+            0x33, 0x22, 0x11, 0x00, 0x45, 0x0a,
+        },
+        .pair_req = {
+            .io_cap = 0x04,
+            .oob_data_flag = 0x00,
+            .authreq = 0x05,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = {
+            .io_cap = 0x03,
+            .oob_data_flag = 0x00,
+            .authreq = 0x09,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .confirm_req[0] = {
+            .value = {
+                0xcd, 0x5b, 0x79, 0x29, 0x53, 0x31, 0x56, 0x23,
+                0x2c, 0x08, 0xed, 0x81, 0x16, 0x55, 0x8e, 0x01,
+            },
+        },
+        .confirm_rsp[0] = {
+            .value = {
+                0x49, 0x39, 0x22, 0x0f, 0x7b, 0x1b, 0x80, 0xcd,
+                0xbe, 0x89, 0xd1, 0x4c, 0xbd, 0x6f, 0xda, 0x2c,
+            },
+        },
+        .random_req[0] = {
+            .value = {
+                0x7f, 0x42, 0xc0, 0x2f, 0x1d, 0x07, 0x37, 0xfc,
+                0x04, 0x5b, 0x05, 0x9a, 0xed, 0x67, 0xa5, 0x68,
+            },
+        },
+        .random_rsp[0] = {
+            .value = {
+                0x42, 0x1a, 0x58, 0xa2, 0x3b, 0x80, 0xde, 0xef,
+                0x95, 0x0d, 0xf7, 0xca, 0x06, 0x05, 0x01, 0x3c,
+            },
+        },
+        .enc_info_req = {
+            .ltk = {
+                0x2f, 0x9b, 0x16, 0xff, 0xf3, 0x73, 0x30, 0x08,
+                0xa8, 0xe5, 0x01, 0xb1, 0x3b, 0xe1, 0x87, 0x00,
+            },
+        },
+        .master_id_req = {
+            .ediv = 0xf8e0,
+            .rand_val = 0xef7c818b00000000,
+        },
+        .id_info_req = {
+            .irk = {
+                0xef, 0x8d, 0xe2, 0x16, 0x4f, 0xec, 0x43, 0x0d,
+                0xbf, 0x5b, 0xdd, 0x34, 0xc0, 0x53, 0x1e, 0xb8,
+            },
+        },
+        .id_addr_info_req = {
+            .addr_type = 0,
+            .bd_addr = {
+                0x33, 0x22, 0x11, 0x00, 0x45, 0x0a,
+            },
+        },
+        .sign_info_req = {
+            .sig_key = {
+                0xc6, 0x17, 0xc0, 0x02, 0x40, 0x0d, 0x27, 0x51,
+                0x8a, 0x77, 0xb5, 0xae, 0xd8, 0xa9, 0x7a, 0x7a,
+            },
+        },
+        .enc_info_rsp = {
+            .ltk = {
+                0xd7, 0x07, 0x22, 0x79, 0x24, 0xc6, 0xcb, 0x4d,
+                0xa3, 0xdd, 0x01, 0xfb, 0x48, 0x87, 0xd4, 0xcf,
+            },
+        },
+        .master_id_rsp = {
+            .ediv = 0x9a39,
+            .rand_val = 0x8e76d9b00000000,
+        },
+        .id_info_rsp = {
+            .irk = {
+                0xeb, 0x8a, 0x06, 0xc4, 0x93, 0x51, 0x04, 0xb3,
+                0x8b, 0xbf, 0xe8, 0x1f, 0x0e, 0x96, 0x2a, 0x54,
+            },
+        },
+        .id_addr_info_rsp = {
+            .addr_type = 0,
+            .bd_addr = {
+                0xe1, 0xfc, 0xda, 0xf4, 0xb7, 0x6c,
+            },
+        },
+        .sign_info_rsp = {
+            .sig_key = {
+                0x14, 0x55, 0x93, 0xe1, 0xd1, 0xe7, 0xc4, 0x5d,
+                0x35, 0x97, 0xd3, 0x05, 0x30, 0xc8, 0x9d, 0x83,
+            },
+        },
+        .stk = {
+            0x1c, 0xd7, 0xb6, 0x35, 0x48, 0xfc, 0x9f, 0xef,
+            0x0e, 0x2f, 0x51, 0x77, 0xed, 0xdd, 0xbc, 0xaf,
+        },
+        .pair_alg = 0,
+        .authenticated = false,
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_IOACT_NONE,
+            },
+        },
+    };
+}
+
+/**
+ * Legacy pairing
+ * Master: peer
+ * Pair algorithm: just works
+ * Peer distributes identity address which is invalid or already bonded.
+ */
+TEST_CASE_SELF(ble_sm_lgcy_peer_jw_id_addr_fail)
+{
+    struct ble_sm_test_params params;
+    ble_addr_t bonded = {
+        .type = BLE_ADDR_PUBLIC,
+        .val = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 },
+    };
+
+    /* Identity address bonded to other device, application ignores. */
+    ble_sm_lgcy_test_peer_jw_params(&params);
+    params.id_addr_info_rsp.addr_type = bonded.type;
+    memcpy(params.id_addr_info_rsp.bd_addr, bonded.val, 6);
+    ble_sm_test_util_peer_lgcy_id_addr_fail(&params, &bonded, BLE_SM_ERR_UNSPECIFIED);
+
+    /* Random identity address which is not static. */
+    ble_sm_lgcy_test_peer_jw_params(&params);
+    params.id_addr_info_rsp.addr_type = BLE_ADDR_RANDOM;
+    params.id_addr_info_rsp.bd_addr[5] = 0x4c;
+    ble_sm_test_util_peer_lgcy_id_addr_fail(&params, NULL, BLE_SM_ERR_INVAL);
+
+    /* Invalid identity address type. */
+    ble_sm_lgcy_test_peer_jw_params(&params);
+    params.id_addr_info_rsp.addr_type = BLE_ADDR_PUBLIC_ID;
+    ble_sm_test_util_peer_lgcy_id_addr_fail(&params, NULL, BLE_SM_ERR_INVAL);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_sm_lgcy_test_suite)
 {
     /*** No privacy. */
@@ -905,6 +1059,8 @@ TEST_SUITE(ble_sm_lgcy_test_suite)
     ble_sm_lgcy_us_pk_iio4_rio2_b1_iat0_rat1_ik7_rk5();
     ble_sm_lgcy_us_ob_iio3_rio3_b1_iat0_rat0_ik7_rk7();
     ble_sm_lgcy_us_pk_confirm_early();
+
+    ble_sm_lgcy_peer_jw_id_addr_fail();
 }
 
 #endif
