@@ -306,6 +306,23 @@ check_bis_sync(uint16_t num_subgroups, struct ble_svc_audio_bass_subgroup *subgr
     return 0;
 }
 
+/* Metadata is LTV formatted so it can not be stored partially */
+static int
+check_metadata_len(uint16_t num_subgroups,
+                   const struct ble_svc_audio_bass_subgroup *subgroups)
+{
+    int i;
+
+    for (i = 0; i < num_subgroups; i++) {
+        if (subgroups[i].metadata_length >
+            MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)) {
+            return BLE_HS_EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 static int
 ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_handle)
 {
@@ -399,6 +416,13 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
         goto done;
     }
 
+    if (check_metadata_len(operation.add_source.num_subgroups,
+                           operation.add_source.subgroups)) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        ev.bass_operation_status.status = BLE_HS_ENOMEM;
+        goto done;
+    }
+
     source_id_new = ble_svc_audio_bass_get_new_source_id();
     operation.add_source.source_id = source_id_new;
 
@@ -456,10 +480,10 @@ ble_svc_audio_bass_add_source(uint8_t *data, uint16_t data_len, uint16_t conn_ha
             ev.bass_operation_status.status = BLE_HS_ENOMEM;
             goto done;
         }
-        rcv_state->state.subgroups[i].metadata_length = operation.add_source.subgroups[i].metadata_length;
+        rcv_state->state.subgroups[i].metadata_length =
+            operation.add_source.subgroups[i].metadata_length;
         memcpy(metadata_ptr, operation.add_source.subgroups[i].metadata,
-               min(operation.add_source.subgroups[i].metadata_length,
-                   MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)));
+               rcv_state->state.subgroups[i].metadata_length);
 
         rcv_state->state.subgroups[i].metadata = metadata_ptr;
     }
@@ -557,6 +581,13 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
         goto done;
     }
 
+    if (check_metadata_len(operation.modify_source.num_subgroups,
+                           operation.modify_source.subgroups)) {
+        rc = BLE_ATT_ERR_INSUFFICIENT_RES;
+        ev.bass_operation_status.status = BLE_HS_ENOMEM;
+        goto done;
+    }
+
     for (i = 0; i < operation.modify_source.num_subgroups; i++) {
         metadata_ptr = os_memblock_get(&ble_audio_svc_bass_metadata_pool);
         if (metadata_ptr == NULL) {
@@ -564,9 +595,8 @@ ble_svc_audio_bass_modify_source(uint8_t *data, uint16_t data_len, uint16_t conn
             ev.bass_operation_status.status = BLE_HS_ENOMEM;
             goto done;
     }
-        memcpy(metadata_ptr, operation.modify_source.subgroups[i].metadata,
-               min(operation.modify_source.subgroups[i].metadata_length,
-               MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ)));
+    memcpy(metadata_ptr, operation.modify_source.subgroups[i].metadata,
+           operation.modify_source.subgroups[i].metadata_length);
     }
 
     if (accept_fn.ctrl_point_ev_fn) {
