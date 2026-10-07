@@ -194,6 +194,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c)
         /* 5. The Upper Tester sends an HCI_LE_Setup_ISO_Data_Path command to the IUT.
          * 6. The IUT sends an HCI_Command_Complete event to the Upper Tester with Status set to 0x0C.
          */
+        memset(&setup_iso_data_path_cp, 0, sizeof(setup_iso_data_path_cp));
         setup_iso_data_path_cp.conn_handle = htole16(conn->handle);
         setup_iso_data_path_cp.data_path_dir = 0x00;
         setup_iso_data_path_cp.data_path_id = 0x00;
