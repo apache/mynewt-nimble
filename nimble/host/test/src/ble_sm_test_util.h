@@ -96,6 +96,7 @@ void ble_sm_test_util_rx_pair_rsp(uint16_t conn_handle,
                                   struct ble_sm_pair_cmd *rsp, int rx_status);
 void ble_sm_test_util_verify_tx_pair_fail(struct ble_sm_pair_fail *exp_cmd);
 void ble_sm_test_util_us_lgcy_good(struct ble_sm_test_params *params);
+void ble_sm_test_util_peer_lgcy_key_dup(struct ble_sm_test_params *params);
 void ble_sm_test_util_peer_lgcy_id_addr_fail(struct ble_sm_test_params *params,
                                              const ble_addr_t *bonded_addr,
                                              uint8_t exp_reason);
