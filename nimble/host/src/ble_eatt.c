@@ -283,7 +283,8 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
             return BLE_HS_EREJECT;
         }
 
-        assert (!ble_gap_conn_find(event->receive.conn_handle, &desc));
+        rc = ble_gap_conn_find(event->receive.conn_handle, &desc);
+        assert(rc == 0);
         /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
          * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
          * Channel Requirements):
@@ -292,7 +293,7 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
          * Disconnect peer with invalid behavior - ATT PDU received before
          * encryption.
          */
-        if (!desc.sec_state.encrypted) {
+        if (rc != 0 || !desc.sec_state.encrypted) {
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
         }
