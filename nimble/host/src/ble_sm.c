@@ -886,6 +886,7 @@ ble_sm_chk_repeat_pairing(uint16_t conn_handle,
 
         /* Peer is already bonded.  Ask the application what to do about it. */
         rp.conn_handle = conn_handle;
+        rp.peer_id_addr = bond.peer_addr;
         rp.cur_key_size = bond.key_size;
         rp.cur_authenticated = bond.authenticated;
         rp.cur_sc = bond.sc;
@@ -2466,12 +2467,99 @@ ble_sm_id_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     ble_hs_unlock();
 }
 
+static bool
+ble_sm_id_addr_is_valid(const ble_addr_t *addr)
+{
+    switch (addr->type) {
+    case BLE_ADDR_PUBLIC:
+        return true;
+    case BLE_ADDR_RANDOM:
+        /* Identity address must be static random address */
+        return BLE_ADDR_IS_STATIC(addr);
+    default:
+        return false;
+    }
+}
+
+/**
+ * Checks if identity address distributed by peer is already bonded to other
+ * device.  If it is, the application is queried about how to proceed: retry
+ * or ignore.  The application should only indicate a retry if it deleted the
+ * old bond.
+ *
+ * @return                      0 if the procedure should continue;
+ *                              nonzero if the pairing should fail.
+ */
+static int
+ble_sm_chk_id_addr_bonded(uint16_t conn_handle, const ble_addr_t *id_addr,
+                          ble_sm_proc_flags proc_flags, uint8_t key_size)
+{
+    struct ble_gap_repeat_pairing rp;
+    struct ble_store_value_sec bond;
+    struct ble_store_key_sec key_sec;
+    struct ble_gap_conn_desc desc;
+    int rc;
+
+    rc = ble_gap_conn_find(conn_handle, &desc);
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Peer distributed identity address it is already known by */
+    if (ble_addr_cmp(&desc.peer_id_addr, id_addr) == 0) {
+        return 0;
+    }
+
+    memset(&key_sec, 0, sizeof key_sec);
+    key_sec.peer_addr = *id_addr;
+
+    rc = ble_store_read_peer_sec(&key_sec, &bond);
+    if (rc == BLE_HS_ENOENT) {
+        return 0;
+    }
+    if (rc != 0) {
+        return rc;
+    }
+
+    /* Identity address is already bonded.  Ask the application what to do
+     * about it.
+     */
+    memset(&rp, 0, sizeof rp);
+    rp.conn_handle = conn_handle;
+    rp.peer_id_addr = *id_addr;
+    rp.cur_key_size = bond.key_size;
+    rp.cur_authenticated = bond.authenticated;
+    rp.cur_sc = bond.sc;
+
+    rp.new_key_size = key_size;
+    rp.new_authenticated = !!(proc_flags & BLE_SM_PROC_F_AUTHENTICATED);
+    rp.new_sc = !!(proc_flags & BLE_SM_PROC_F_SC);
+    rp.new_bonding = !!(proc_flags & BLE_SM_PROC_F_BONDING);
+
+    rc = ble_gap_repeat_pairing_event(&rp);
+    if (rc != BLE_GAP_REPEAT_PAIRING_RETRY) {
+        return BLE_HS_EALREADY;
+    }
+
+    /* Pairing can continue only if application deleted the old bond. */
+    rc = ble_store_read_peer_sec(&key_sec, &bond);
+    if (rc == BLE_HS_ENOENT) {
+        return 0;
+    }
+
+    return BLE_HS_EALREADY;
+}
+
 static void
 ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
                        struct ble_sm_result *res)
 {
     struct ble_sm_id_addr_info *cmd;
     struct ble_sm_proc *proc;
+    ble_sm_proc_flags proc_flags;
+    uint8_t key_size;
+    ble_addr_t id_addr;
+    int rc;
 
     res->app_status = ble_hs_mbuf_pullup_base(om, sizeof(*cmd));
     if (res->app_status != 0) {
@@ -2482,6 +2570,44 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     cmd = (struct ble_sm_id_addr_info *)(*om)->om_data;
 
+    id_addr.type = cmd->addr_type;
+    memcpy(id_addr.val, cmd->bd_addr, 6);
+
+    ble_hs_lock();
+
+    proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
+    if (proc == NULL) {
+        res->app_status = BLE_HS_ENOENT;
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        ble_hs_unlock();
+        return;
+    }
+
+    if (!ble_sm_id_addr_is_valid(&id_addr)) {
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_INVAL);
+        res->sm_err = BLE_SM_ERR_INVAL;
+        res->enc_cb = 1;
+        ble_hs_unlock();
+        return;
+    }
+
+    proc_flags = proc->flags;
+    key_size = proc->key_size;
+
+    ble_hs_unlock();
+
+    /* Check if distributed identity address is already bonded to other
+     * device.  If so, give the application an opportunity to delete the old
+     * bond.
+     */
+    rc = ble_sm_chk_id_addr_bonded(conn_handle, &id_addr, proc_flags, key_size);
+    if (rc != 0) {
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
     ble_hs_lock();
 
     proc = ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_KEY_EXCH, -1, NULL);
@@ -2491,8 +2617,8 @@ ble_sm_id_addr_info_rx(uint16_t conn_handle, struct os_mbuf **om,
     } else {
         proc->rx_key_flags &= ~BLE_SM_KE_F_ADDR_INFO;
         proc->peer_keys.addr_valid = 1;
-        proc->peer_keys.addr_type = cmd->addr_type;
-        memcpy(proc->peer_keys.addr, cmd->bd_addr, 6);
+        proc->peer_keys.addr_type = id_addr.type;
+        memcpy(proc->peer_keys.addr, id_addr.val, 6);
 
         ble_sm_key_rxed(proc, res);
     }

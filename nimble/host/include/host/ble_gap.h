@@ -625,6 +625,13 @@ struct ble_gap_repeat_pairing {
      * bonding,
      */
     uint8_t new_bonding:1;
+
+    /**
+     * Identity address of the existing bond. This may differ from the
+     * connection's peer identity address if the peer distributed, during
+     * pairing, an identity address that is already bonded.
+     */
+    ble_addr_t peer_id_addr;
 };
 
 /**
@@ -989,6 +996,12 @@ struct ble_gap_event {
          *              again.
          *     o Ignore: Return BLE_GAP_REPEAT_PAIRING_IGNORE.  The stack will
          *               silently ignore the pairing request.
+         *
+         * This event is also reported if, during key distribution, the peer
+         * distributes an identity address for which a bond already exists
+         * (peer_id_addr field). In that case, the pairing procedure fails
+         * if the application ignores the event or if the bond is still
+         * present after retry.
          *
          * Valid for the following event types:
          *     o BLE_GAP_EVENT_REPEAT_PAIRING
