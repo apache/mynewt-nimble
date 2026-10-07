@@ -45,6 +45,40 @@ TEST_CASE_SELF(ble_hs_hci_test_event_bad)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_hs_hci_test_event_dir_adv_rpt_len)
+{
+    uint8_t *buf;
+    int rc;
+
+    /*** Valid LE Directed Advertising Report with single report. */
+    buf = ble_transport_alloc_evt(0);
+    TEST_ASSERT_FATAL(buf != NULL);
+
+    memset(buf, 0, 20);
+    buf[0] = BLE_HCI_EVCODE_LE_META;
+    buf[1] = 18;                              /* parameter length */
+    buf[2] = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT; /* subevent code */
+    buf[3] = 1;                               /* num_reports */
+
+    rc = ble_hs_hci_evt_process((void *)buf);
+    TEST_ASSERT(rc == 0);
+
+    /*** Length not including subevent header. */
+    buf = ble_transport_alloc_evt(0);
+    TEST_ASSERT_FATAL(buf != NULL);
+
+    memset(buf, 0, 20);
+    buf[0] = BLE_HCI_EVCODE_LE_META;
+    buf[1] = 16;                              /* parameter length */
+    buf[2] = BLE_HCI_LE_SUBEV_DIRECT_ADV_RPT; /* subevent code */
+    buf[3] = 1;                               /* num_reports */
+
+    rc = ble_hs_hci_evt_process((void *)buf);
+    TEST_ASSERT(rc == BLE_HS_ECONTROLLER);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_hs_hci_test_rssi)
 {
     uint8_t params[BLE_HCI_READ_RSSI_ACK_PARAM_LEN + 1];
@@ -339,6 +373,7 @@ TEST_CASE_SELF(ble_hs_hci_acl_two_conn)
 TEST_SUITE(ble_hs_hci_suite)
 {
     ble_hs_hci_test_event_bad();
+    ble_hs_hci_test_event_dir_adv_rpt_len();
     ble_hs_hci_test_rssi();
     ble_hs_hci_acl_one_conn();
     ble_hs_hci_acl_two_conn();
