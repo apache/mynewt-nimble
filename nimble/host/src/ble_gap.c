@@ -6896,6 +6896,21 @@ ble_gap_repeat_pairing_event(const struct ble_gap_repeat_pairing *rp)
 #endif
 }
 
+int
+ble_gap_pairing_request_event(uint16_t conn_handle)
+{
+#if NIMBLE_BLE_SM && MYNEWT_VAL(BLE_ROLE_PERIPHERAL)
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_PAIRING_REQUEST;
+    event.pairing_request.conn_handle = conn_handle;
+    return ble_gap_call_conn_event_cb(&event, conn_handle);
+#else
+    return 0;
+#endif
+}
+
 void
 ble_gap_pairing_complete_event(uint16_t conn_handle, int status)
 {

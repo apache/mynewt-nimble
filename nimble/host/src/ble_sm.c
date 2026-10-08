@@ -1890,6 +1890,20 @@ ble_sm_pair_req_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     ble_hs_unlock();
 
+    /* Give the application an opportunity to reject the request. */
+    if (res->app_status == 0) {
+        rc = ble_gap_pairing_request_event(conn_handle);
+        if (rc != 0) {
+            if (rc != BLE_SM_ERR_PAIR_NOT_SUPP) {
+                rc = BLE_SM_ERR_UNSPECIFIED;
+            }
+            res->sm_err = rc;
+            res->app_status = BLE_HS_SM_US_ERR(rc);
+            res->execute = 0;
+            return;
+        }
+    }
+
     /* Check if we are already bonded to this peer.  If so, give the
      * application an opportunity to delete the old bond.
      */
