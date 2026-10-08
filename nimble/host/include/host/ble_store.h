@@ -48,6 +48,12 @@ extern "C" {
 /** Object type: Client Characteristic Configuration Descriptor. */
 #define BLE_STORE_OBJ_TYPE_CCCD         3
 
+/** Object type: Client Supported Features characteristic value. */
+#define BLE_STORE_OBJ_TYPE_CSFC         4
+
+/** Object type: local GATT database hash. */
+#define BLE_STORE_OBJ_TYPE_DB_HASH      5
+
 /** @} */
 
 /**
@@ -154,6 +160,57 @@ struct ble_store_value_cccd {
     unsigned value_changed:1;
 };
 
+/** Size of the stored Client Supported Features value, in bytes. */
+#define BLE_STORE_CSFC_SZ               1
+
+/**
+ * Used as a key for lookups of stored Client Supported Features characteristic
+ * (CSFC) values.  This struct corresponds to the BLE_STORE_OBJ_TYPE_CSFC store
+ * object type.
+ */
+struct ble_store_key_csfc {
+    /**
+     * Key by peer identity address;
+     * peer_addr=BLE_ADDR_NONE means don't key off peer.
+     */
+    ble_addr_t peer_addr;
+
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Represents a stored Client Supported Features characteristic (CSFC) value
+ * along with the associated GATT caching state.  This struct corresponds to
+ * the BLE_STORE_OBJ_TYPE_CSFC store object type.
+ */
+struct ble_store_value_csfc {
+    /** The peer address associated with the stored value. */
+    ble_addr_t peer_addr;
+    /** The Client Supported Features bits written by the peer. */
+    uint8_t csfc[BLE_STORE_CSFC_SZ];
+    /** Flag indicating whether the peer is change-aware. */
+    unsigned change_aware:1;
+};
+
+/**
+ * Used as a key for lookups of the stored local GATT database hash.  This
+ * struct corresponds to the BLE_STORE_OBJ_TYPE_DB_HASH store object type.
+ */
+struct ble_store_key_db_hash {
+    /** Number of results to skip; 0 means retrieve the first match. */
+    uint8_t idx;
+};
+
+/**
+ * Represents the stored local GATT database hash.  This struct corresponds to
+ * the BLE_STORE_OBJ_TYPE_DB_HASH store object type.
+ */
+struct ble_store_value_db_hash {
+    /** The database hash, in little-endian byte order. */
+    uint8_t hash[16];
+};
+
 /**
  * Used as a key for store lookups.  This union must be accompanied by an
  * object type code to indicate which field is valid.
@@ -163,6 +220,10 @@ union ble_store_key {
     struct ble_store_key_sec sec;
     /** Key for Client Characteristic Configuration Descriptor store lookups. */
     struct ble_store_key_cccd cccd;
+    /** Key for Client Supported Features store lookups. */
+    struct ble_store_key_csfc csfc;
+    /** Key for local GATT database hash store lookups. */
+    struct ble_store_key_db_hash db_hash;
 };
 
 /**
@@ -174,6 +235,10 @@ union ble_store_value {
     struct ble_store_value_sec sec;
     /** Stored Client Characteristic Configuration Descriptor. */
     struct ble_store_value_cccd cccd;
+    /** Stored Client Supported Features value. */
+    struct ble_store_value_csfc csfc;
+    /** Stored local GATT database hash. */
+    struct ble_store_value_db_hash db_hash;
 };
 
 /** Represents an event associated with the BLE Store. */
@@ -556,6 +621,53 @@ int ble_store_write_cccd(const struct ble_store_value_cccd *value);
  */
 int ble_store_delete_cccd(const struct ble_store_key_cccd *key);
 
+/**
+ * Reads a Client Supported Features characteristic (CSFC) value from storage.
+ *
+ * @param key                   The key identifying the CSFC value to read.
+ * @param out_value             On success, filled with the stored value.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int ble_store_read_csfc(const struct ble_store_key_csfc *key,
+                        struct ble_store_value_csfc *out_value);
+
+/**
+ * Writes a Client Supported Features characteristic (CSFC) value to storage.
+ *
+ * @param value                 The value to persist.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int ble_store_write_csfc(const struct ble_store_value_csfc *value);
+
+/**
+ * Deletes a Client Supported Features characteristic (CSFC) value from
+ * storage.
+ *
+ * @param key                   The key identifying the CSFC value to delete.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int ble_store_delete_csfc(const struct ble_store_key_csfc *key);
+
+/**
+ * Reads the stored local GATT database hash.
+ *
+ * @param out_value             On success, filled with the stored hash.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int ble_store_read_db_hash(struct ble_store_value_db_hash *out_value);
+
+/**
+ * Writes the local GATT database hash to storage.
+ *
+ * @param value                 The hash to persist.
+ *
+ * @return                      0 on success; nonzero on error.
+ */
+int ble_store_write_db_hash(const struct ble_store_value_db_hash *value);
 
 /**
  * @brief Generates a storage key for a security material entry from its value.
@@ -587,6 +699,15 @@ void ble_store_key_from_value_sec(struct ble_store_key_sec *out_key,
 void ble_store_key_from_value_cccd(struct ble_store_key_cccd *out_key,
                                    const struct ble_store_value_cccd *value);
 
+/**
+ * Generates a storage key for a Client Supported Features entry from its
+ * value.
+ *
+ * @param out_key               On return, the generated key.
+ * @param value                 The value to generate a key from.
+ */
+void ble_store_key_from_value_csfc(struct ble_store_key_csfc *out_key,
+                                   const struct ble_store_value_csfc *value);
 
 /**
  * @brief Generates a storage key from a value based on the object type.
