@@ -258,6 +258,9 @@ struct hci_conn_update;
 /** GAP event: BIG (Broadcast Isochronous Group) information report */
 #define BLE_GAP_EVENT_BIGINFO_REPORT        30
 
+/** GAP event: Pairing request received from peer */
+#define BLE_GAP_EVENT_PAIRING_REQUEST       31
+
 /** @} */
 
 /**
@@ -991,6 +994,24 @@ struct ble_gap_event {
          *     o BLE_GAP_EVENT_REPEAT_PAIRING
          */
         struct ble_gap_repeat_pairing repeat_pairing;
+
+        /**
+         * Represents a pairing request received from the peer. Only
+         * reported in the peripheral role. The request has already been
+         * validated against the local security configuration. Return 0 to
+         * continue the pairing procedure, or BLE_SM_ERR_PAIR_NOT_SUPP to
+         * reject it with a Pairing Failed command (e.g. when the device is
+         * not accepting new pairings). Any other non-zero value rejects it
+         * with BLE_SM_ERR_UNSPECIFIED. If the peer is already bonded, this
+         * event is reported before BLE_GAP_EVENT_REPEAT_PAIRING.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_PAIRING_REQUEST
+         */
+        struct {
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+        } pairing_request;
 
         /**
          * Represents a change of PHY. This is issue after successful
