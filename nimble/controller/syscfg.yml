@@ -270,9 +270,8 @@ syscfg.defs:
 
     BLE_LL_CFG_FEAT_LE_PING:
         description: >
-            This option allows a controller to send/receive LE pings.
-            Currently, this feature is not implemented by the controller so
-            turning it on or off has no effect.
+            This option enables/disables LE Ping procedure and
+            Authenticated Payload Timeout support in the controller.
         value: 'MYNEWT_VAL_BLE_LL_CFG_FEAT_LE_ENCRYPTION'
 
     BLE_LL_CFG_FEAT_DATA_LEN_EXT:
