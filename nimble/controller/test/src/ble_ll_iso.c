@@ -32,8 +32,8 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
-#define TSPX_max_tx_nse        3
-#define TSPX_max_tx_payload    32
+#define TSPX_max_tx_nse     3
+#define TSPX_max_tx_payload 32
 
 /* LL.TS.p24 4.11.2 Common Parameters */
 struct test_ll_common_params {
@@ -115,12 +115,11 @@ test_ll_iso_teardown(struct test_ll_iso_fixture *fixture)
     ble_ll_iso_conn_free(conn);
 }
 
-TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
-    const uint8_t payload_types[] = {
-        BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH,
-        BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH,
-        BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH
-    };
+TEST_CASE_SELF(test_ll_ist_brd_bv_01_c)
+{
+    const uint8_t payload_types[] = { BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH,
+                                      BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH,
+                                      BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH };
     const struct test_ll_common_params *params = &test_ll_common_params_bn_1;
     struct ble_hci_le_setup_iso_data_path_cp setup_iso_data_path_cp;
     struct ble_hci_le_setup_iso_data_path_rp setup_iso_data_path_rp;
@@ -149,7 +148,8 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
         rsplen = 0xFF;
         iso_transmit_test_cp.conn_handle = htole16(conn->handle);
         iso_transmit_test_cp.payload_type = payload_type;
-        rc = ble_ll_iso_transmit_test((uint8_t *)&iso_transmit_test_cp, sizeof(iso_transmit_test_cp),
+        rc = ble_ll_iso_transmit_test((uint8_t *)&iso_transmit_test_cp,
+                                      sizeof(iso_transmit_test_cp),
                                       (uint8_t *)&iso_transmit_test_rp, &rsplen);
         TEST_ASSERT(rc == 0);
         TEST_ASSERT(rsplen == sizeof(iso_transmit_test_rp));
@@ -188,8 +188,9 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
         setup_iso_data_path_cp.conn_handle = htole16(conn->handle);
         setup_iso_data_path_cp.data_path_dir = 0x00;
         setup_iso_data_path_cp.data_path_id = 0x00;
-        rc = ble_ll_iso_setup_iso_data_path((uint8_t *)&setup_iso_data_path_cp, sizeof(setup_iso_data_path_cp),
-                                            (uint8_t *)&setup_iso_data_path_rp, &rsplen);
+        rc = ble_ll_iso_setup_iso_data_path(
+            (uint8_t *)&setup_iso_data_path_cp, sizeof(setup_iso_data_path_cp),
+            (uint8_t *)&setup_iso_data_path_rp, &rsplen);
         TEST_ASSERT(rc == 0x0C);
 
         /* 7. The Upper Tester sends the HCI_LE_ISO_Test_End command to the IUT and receives an
@@ -211,7 +212,8 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c) {
     test_ll_iso_teardown(&fixture);
 }
 
-TEST_SUITE(ble_ll_iso_test_suite) {
+TEST_SUITE(ble_ll_iso_test_suite)
+{
     ble_ll_iso_init();
 
     test_ll_ist_brd_bv_01_c();
