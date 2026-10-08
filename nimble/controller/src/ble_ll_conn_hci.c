@@ -1013,6 +1013,10 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
      * connection update procedure.
      */
 
+    if (len != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     /* If no connection handle exit with error */
     handle = le16toh(cmd->conn_handle);
     connsm = ble_ll_conn_find_by_handle(handle);
@@ -1743,6 +1747,10 @@ ble_ll_conn_req_peer_sca(const uint8_t *cmdbuf, uint8_t len,
     const struct ble_hci_le_request_peer_sca_cp *params = (const void *)cmdbuf;
     struct ble_ll_conn_sm *connsm;
 
+    if (len != sizeof(*params)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     connsm = ble_ll_conn_find_by_handle(le16toh(params->conn_handle));
     if (!connsm) {
         return BLE_ERR_UNK_CONN_ID;
@@ -1775,6 +1783,10 @@ ble_ll_conn_hci_set_default_subrate(const uint8_t *cmdbuf, uint8_t len,
     uint16_t max_latency;
     uint16_t cont_num;
     uint16_t supervision_tmo;
+
+    if (len != sizeof(*cp)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
 
     subrate_min = le16toh(cp->subrate_min);
     subrate_max = le16toh(cp->subrate_max);
@@ -1820,6 +1832,10 @@ ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
     uint16_t conn_handle;
     int rc;
 
+    if (len != sizeof(*cp)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
     conn_handle = le16toh(cp->conn_handle);
     srp.subrate_min = le16toh(cp->subrate_min);
     srp.subrate_max = le16toh(cp->subrate_max);
@@ -1848,7 +1864,7 @@ ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
 #if MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
     if (connsm->conn_role == BLE_LL_CONN_ROLE_CENTRAL) {
         connsm->acc_subrate_min = srp.subrate_min;
-        connsm->acc_subrate_min = srp.subrate_max;
+        connsm->acc_subrate_max = srp.subrate_max;
         connsm->acc_max_latency = srp.max_latency;
         connsm->acc_cont_num = srp.cont_num;
         connsm->acc_supervision_tmo = srp.supervision_tmo;
