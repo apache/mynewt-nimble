@@ -481,8 +481,9 @@ ble_eatt_release_chan(uint16_t conn_handle, uint8_t op)
 
     eatt = ble_eatt_find_by_conn_handle_and_busy_op(conn_handle, op);
     if (!eatt) {
-        BLE_EATT_LOG_WARN("ble_eatt_release_chan:"
-                          "EATT not found for conn_handle 0x%04x, operation 0x%02\n", conn_handle, op);
+        BLE_EATT_LOG_WARN("%s: EATT not found for conn_handle 0x%04x, "
+                          "operation 0x%02x\n",
+                          __func__, conn_handle, op);
         return;
     }
 
@@ -495,10 +496,10 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     struct ble_eatt *eatt;
     int rc;
 
-    BLE_EATT_LOG_DEBUG("eatt: %s, size %d ", __func__, OS_MBUF_PKTLEN(txom));
+    BLE_EATT_LOG_DEBUG("eatt: %s, size %d\n", __func__, OS_MBUF_PKTLEN(txom));
     eatt = ble_eatt_find(conn_handle, cid);
     if (!eatt || !eatt->chan) {
-        BLE_EATT_LOG_ERROR("Eatt not available");
+        BLE_EATT_LOG_ERROR("Eatt not available\n");
         rc = BLE_HS_ENOENT;
         goto error;
     }
@@ -509,9 +510,9 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     }
 
     if (rc == BLE_HS_ESTALLED) {
-        BLE_EATT_LOG_DEBUG("ble_eatt_tx: Eatt stalled");
+        BLE_EATT_LOG_DEBUG("%s: Eatt stalled\n", __func__);
     } else if (rc == BLE_HS_EBUSY) {
-        BLE_EATT_LOG_DEBUG("ble_eatt_tx: Message queued");
+        BLE_EATT_LOG_DEBUG("%s: Message queued\n", __func__);
         /* Channel is stalled waiting for credits, queued PDU will be sent
          * on BLE_L2CAP_EVENT_COC_TX_UNSTALLED event.
          */
@@ -522,7 +523,7 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
         goto error;
     } else {
         /* Transmission failed, txom was consumed */
-        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d ", __func__, rc);
+        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d\n", __func__, rc);
         return rc;
     }
 done:
