@@ -33,6 +33,7 @@ ble_npl_mutex_init(struct ble_npl_mutex *mu)
     pthread_mutexattr_init(&mu->attr);
     pthread_mutexattr_settype(&mu->attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mu->lock, &mu->attr);
+    mu->depth = 0;
 
     return BLE_NPL_OK;
 }
@@ -42,6 +43,11 @@ ble_npl_mutex_release(struct ble_npl_mutex *mu)
 {
     if (!mu) {
         return BLE_NPL_INVALID_PARAM;
+    }
+
+    /* Update depth while mutex is still held by current thread */
+    if (ble_npl_mutex_locked_by_cur_task(mu)) {
+        __atomic_store_n(&mu->depth, mu->depth - 1, __ATOMIC_RELEASE);
     }
 
     if (pthread_mutex_unlock(&mu->lock)) {
@@ -85,5 +91,28 @@ ble_npl_mutex_pend(struct ble_npl_mutex *mu, uint32_t timeout)
         }
     }
 
-    return (err) ? BLE_NPL_ERROR : BLE_NPL_OK;
+    if (err) {
+        return BLE_NPL_ERROR;
+    }
+
+    __atomic_store_n(&mu->owner, pthread_self(), __ATOMIC_RELAXED);
+    __atomic_store_n(&mu->depth, mu->depth + 1, __ATOMIC_RELEASE);
+
+    return BLE_NPL_OK;
+}
+
+int
+ble_npl_mutex_locked_by_cur_task(struct ble_npl_mutex *mu)
+{
+    /* Owner and depth are modified only by thread holding the mutex. Owner
+     * is written before depth so if non-zero depth is observed, owner is
+     * up to date and can match current thread only if it holds the mutex.
+     * This makes it safe to call from any thread.
+     */
+    if (__atomic_load_n(&mu->depth, __ATOMIC_ACQUIRE) == 0) {
+        return 0;
+    }
+
+    return pthread_equal(__atomic_load_n(&mu->owner, __ATOMIC_RELAXED),
+                         pthread_self());
 }

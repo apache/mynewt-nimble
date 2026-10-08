@@ -56,6 +56,8 @@ struct ble_npl_mutex {
     pthread_mutex_t lock;
     pthread_mutexattr_t attr;
     struct timespec wait;
+    pthread_t owner;
+    unsigned int depth;
 };
 
 struct ble_npl_sem {
