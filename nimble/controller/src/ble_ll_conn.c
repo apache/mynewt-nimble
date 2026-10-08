@@ -1721,11 +1721,65 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
+ * Calculates delay after last received packet with valid MIC at which LE Ping
+ * procedure should be started so that peer response is received before
+ * authenticated payload timeout expires.
+ *
+ * Margin of 3 connection events (taking subrating and peripheral latency into
+ * account) is reserved for ping request and response. If timeout is too short
+ * for that, ping is sent after half of timeout.
+ *
+ * @param tmo_ms            Authenticated payload timeout in msecs
+ * @param event_spacing_ms  Max time between connection events in msecs
+ *
+ * @return uint32_t         Ping delay in msecs
+ */
+uint32_t
+ble_ll_conn_auth_pyld_ping_delay(uint32_t tmo_ms, uint32_t event_spacing_ms)
+{
+    uint32_t margin_ms;
+
+    margin_ms = 3 * event_spacing_ms;
+    if (tmo_ms < 2 * margin_ms) {
+        return tmo_ms / 2;
+    }
+
+    return tmo_ms - margin_ms;
+}
+
+static ble_npl_time_t
+ble_ll_conn_auth_pyld_ping_delay_ticks(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t spacing_us;
+
+    spacing_us = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    spacing_us *= connsm->subrate_factor;
+#endif
+    spacing_us *= (connsm->periph_latency + 1);
+
+    /* Timeout in is in 10 msec units */
+    return ble_npl_time_ms_to_ticks32(ble_ll_conn_auth_pyld_ping_delay(
+        connsm->auth_pyld_tmo * 10, (spacing_us + 999) / 1000));
+}
+
+static void
+ble_ll_conn_auth_pyld_ping(struct ble_ll_conn_sm *connsm)
+{
+    /* Ping only if encrypted (not paused) and not already pending */
+    if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) &&
+        !IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_LE_PING)) {
+        ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
+    }
+}
+
+/**
  * Callback for the Authenticated payload timer. Timer is not restarted on
- * every received packet with valid MIC, only time of reception is updated,
- * so if packet with valid MIC was received since timer was started, timer is
- * re-armed for remaining time. Otherwise authenticated payload timeout has
- * expired and we should
+ * every received packet with valid MIC, only time of reception is updated.
+ *
+ * Timer first fires before authenticated payload timeout expires and if no
+ * packet with valid MIC was received in meantime LE Ping procedure is started
+ * to make peer send such packet. If timeout expires anyway we should
  *  -> Send the authenticated payload timeout event.
  *  -> Start the LE ping procedure.
  *  -> Restart the timer.
@@ -1736,20 +1790,29 @@ void
 ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 {
     struct ble_ll_conn_sm *connsm;
+    ble_npl_time_t ping_delay;
     ble_npl_time_t elapsed;
     ble_npl_time_t tmo;
 
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
 
     tmo = BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
+    ping_delay = ble_ll_conn_auth_pyld_ping_delay_ticks(connsm);
     elapsed = ble_npl_time_get() - connsm->auth_pyld_rx_time;
+
+    if (elapsed < ping_delay) {
+        ble_npl_callout_reset(&connsm->auth_pyld_timer, ping_delay - elapsed);
+        return;
+    }
+
     if (elapsed < tmo) {
+        ble_ll_conn_auth_pyld_ping(connsm);
         ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo - elapsed);
         return;
     }
 
     ble_ll_auth_pyld_tmo_event_send(connsm);
-    ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
+    ble_ll_conn_auth_pyld_ping(connsm);
     ble_ll_conn_auth_pyld_timer_start(connsm);
 }
 
@@ -1761,12 +1824,9 @@ ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 void
 ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
 {
-    ble_npl_time_t tmo;
-
-    /* Timeout in is in 10 msec units */
-    tmo = BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
     connsm->auth_pyld_rx_time = ble_npl_time_get();
-    ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo);
+    ble_npl_callout_reset(&connsm->auth_pyld_timer,
+                          ble_ll_conn_auth_pyld_ping_delay_ticks(connsm));
 }
 #endif
 

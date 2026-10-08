@@ -249,6 +249,7 @@ int ble_ll_conn_hci_subrate_req(const uint8_t *cmdbuf, uint8_t len,
 #endif
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
+uint32_t ble_ll_conn_auth_pyld_ping_delay(uint32_t tmo_ms, uint32_t event_spacing_ms);
 void ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm);
 void ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev);
 #endif
