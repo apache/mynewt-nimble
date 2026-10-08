@@ -255,7 +255,6 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against/
  * @param id                    The identifier to match against.
- *                                  0=Ignore this criterion.
  *
  * @return                      1 if the proc matches; 0 otherwise.
  */
@@ -271,7 +270,7 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
         return 0;
     }
 
-    if (id != 0 && id != proc->id) {
+    if (id != proc->id) {
         return 0;
     }
 
@@ -286,7 +285,6 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against.
  * @param identifier            The identifier to match against;
- *                                  0=ignore this criterion.
  *
  * @return                      The matching proc entry on success;
  *                                  null on failure.
