@@ -38,6 +38,9 @@ extern "C" {
 struct ble_npl_eventq *ble_npl_eventq_dflt_get(void);
 void ble_npl_eventq_run(struct ble_npl_eventq *evq);
 
+#define BLE_NPL_MUTEX_LOCKED_BY_CUR_TASK 1
+int ble_npl_mutex_locked_by_cur_task(struct ble_npl_mutex *mu);
+
 #ifdef __cplusplus
 }
 #endif
