@@ -2097,7 +2097,6 @@ ble_ll_conn_sm_new(struct ble_ll_conn_sm *connsm)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     connsm->auth_pyld_tmo = BLE_LL_CONN_DEF_AUTH_PYLD_TMO;
-    connsm->flags.le_ping_supp = 1;
 #endif
 
     /* Add to list of active connections */
@@ -3573,8 +3572,7 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
      * check the MIC failure bit as that would have terminated the
      * connection
      */
-    if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) &&
-        connsm->flags.le_ping_supp && (acl_len != 0)) {
+    if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) && (acl_len != 0)) {
         ble_ll_conn_auth_pyld_timer_start(connsm);
     }
 #endif

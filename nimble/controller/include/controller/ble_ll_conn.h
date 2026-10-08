@@ -133,7 +133,6 @@ struct ble_ll_conn_sm_flags {
     uint32_t phy_update_peer_initiated : 1;
     uint32_t phy_update_host_initiated : 1;
     uint32_t phy_update_host_w4event : 1;
-    uint32_t le_ping_supp : 1;
 #if MYNEWT_VAL(BLE_LL_CONN_INIT_AUTO_DLE)
     uint32_t pending_initiate_dle : 1;
 #endif
