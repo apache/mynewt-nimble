@@ -1721,9 +1721,11 @@ ble_ll_conn_can_send_next_pdu(struct ble_ll_conn_sm *connsm, uint32_t begtime,
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
 /**
- * Callback for the Authenticated payload timer. This function is called
- * when the authenticated payload timer expires. When the authenticated
- * payload timeout expires, we should
+ * Callback for the Authenticated payload timer. Timer is not restarted on
+ * every received packet with valid MIC, only time of reception is updated,
+ * so if packet with valid MIC was received since timer was started, timer is
+ * re-armed for remaining time. Otherwise authenticated payload timeout has
+ * expired and we should
  *  -> Send the authenticated payload timeout event.
  *  -> Start the LE ping procedure.
  *  -> Restart the timer.
@@ -1734,8 +1736,18 @@ void
 ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 {
     struct ble_ll_conn_sm *connsm;
+    ble_npl_time_t elapsed;
+    ble_npl_time_t tmo;
 
     connsm = (struct ble_ll_conn_sm *)ble_npl_event_get_arg(ev);
+
+    tmo = BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
+    elapsed = ble_npl_time_get() - connsm->auth_pyld_rx_time;
+    if (elapsed < tmo) {
+        ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo - elapsed);
+        return;
+    }
+
     ble_ll_auth_pyld_tmo_event_send(connsm);
     ble_ll_ctrl_proc_start(connsm, BLE_LL_CTRL_PROC_LE_PING);
     ble_ll_conn_auth_pyld_timer_start(connsm);
@@ -1749,10 +1761,11 @@ ble_ll_conn_auth_pyld_timer_cb(struct ble_npl_event *ev)
 void
 ble_ll_conn_auth_pyld_timer_start(struct ble_ll_conn_sm *connsm)
 {
-    int32_t tmo;
+    ble_npl_time_t tmo;
 
     /* Timeout in is in 10 msec units */
-    tmo = (int32_t)BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
+    tmo = BLE_LL_CONN_AUTH_PYLD_OS_TMO(connsm->auth_pyld_tmo);
+    connsm->auth_pyld_rx_time = ble_npl_time_get();
     ble_npl_callout_reset(&connsm->auth_pyld_timer, tmo);
 }
 #endif
@@ -3570,10 +3583,11 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     /*
      * Reset authenticated payload timeout if valid MIC. NOTE: we dont
      * check the MIC failure bit as that would have terminated the
-     * connection
+     * connection. Only reception time is updated here, timer callback will
+     * re-arm timer as needed.
      */
     if ((connsm->enc_data.enc_state == CONN_ENC_S_ENCRYPTED) && (acl_len != 0)) {
-        ble_ll_conn_auth_pyld_timer_start(connsm);
+        connsm->auth_pyld_rx_time = ble_npl_time_get();
     }
 #endif
 

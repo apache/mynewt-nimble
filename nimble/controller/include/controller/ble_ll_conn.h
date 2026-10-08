@@ -366,6 +366,8 @@ struct ble_ll_conn_sm
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
     struct ble_npl_callout auth_pyld_timer;
+    /* Time of last received packet with valid MIC */
+    ble_npl_time_t auth_pyld_rx_time;
 #endif
 
     /*
