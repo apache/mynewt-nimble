@@ -285,7 +285,7 @@ static void proxy_msg_recv(struct bt_mesh_proxy_role *role)
 	switch (role->msg_type) {
 	case BT_MESH_PROXY_NET_PDU:
 		BT_DBG("Mesh Network PDU");
-		bt_mesh_net_recv(role->buf, 0, BT_MESH_NET_IF_PROXY);
+		bt_mesh_net_recv(&(role->buf), 0, BT_MESH_NET_IF_PROXY);
 		break;
 	case BT_MESH_PROXY_BEACON:
 		BT_DBG("Mesh Beacon PDU");
@@ -717,7 +717,7 @@ int bt_mesh_proxy_gatt_disable(void)
 	return 0;
 }
 
-void bt_mesh_proxy_addr_add(struct os_mbuf *buf, uint16_t addr)
+void bt_mesh_proxy_addr_add(struct os_mbuf **buf, uint16_t addr)
 {
 	struct bt_mesh_proxy_client *client;
 	struct bt_mesh_proxy_role *cli;
