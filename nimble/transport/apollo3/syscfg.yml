@@ -32,6 +32,16 @@ syscfg.defs:
             Maximum number of retries to boot radio when clock is found to be unstable.
         value: 10
 
+    BLE_HCI_APOLLO3_STACK_SIZE:
+      description: >
+        Stack size for the apollo3 hci task.
+      value: 1024
+
+    BLE_HCI_APOLLO3_TASK_PRIO:
+      description: The priority of the apollo3 hci task.
+      type: task_priority
+      value: 5
+
 syscfg.restrictions:
     - '!BLE_CONTROLLER'
     - '!BLE_HS_FLOW_CTRL'
