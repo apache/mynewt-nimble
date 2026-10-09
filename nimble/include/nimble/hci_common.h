@@ -1825,7 +1825,7 @@ struct ble_hci_ev_vs {
 struct ble_hci_ev_vs_css_slot_changed {
     uint16_t conn_handle;
     uint16_t slot_idx;
-};
+} __attribute__((packed));
 
 #define BLE_HCI_VS_SUBEV_ISO_HCI_FEEDBACK       (0x03)
 struct feedback_pkt {

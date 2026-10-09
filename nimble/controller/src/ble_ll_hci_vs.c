@@ -289,8 +289,12 @@ ble_ll_hci_vs_set_data_len(uint16_t ocf, const uint8_t *cmdbuf, uint8_t cmdlen,
     rx_octets = le16toh(cmd->rx_octets);
     rx_time = le16toh(cmd->rx_time);
 
-    if (!ble_ll_hci_check_dle(tx_octets, tx_time) ||
-        !ble_ll_hci_check_dle(rx_octets, rx_time)) {
+    if (!ble_ll_hci_check_dle(tx_octets, tx_time)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    /* Rx_Octets and Rx_Time both set to 0 leave current RX values unchanged */
+    if ((rx_octets || rx_time) && !ble_ll_hci_check_dle(rx_octets, rx_time)) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
