@@ -38,6 +38,11 @@ static uint32_t ble_hs_hci_sup_feat;
 
 static uint8_t ble_hs_hci_version;
 
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+static struct ble_hci_ip_rd_local_ver_rp ble_hs_hci_local_ver;
+static uint64_t ble_hs_hci_local_feat;
+#endif
+
 static struct ble_hs_hci_sup_cmd ble_hs_hci_sup_cmd;
 
 #if MYNEWT_VAL(BLE_CONTROLLER)
@@ -649,6 +654,41 @@ ble_hs_hci_get_hci_version(void)
 {
     return ble_hs_hci_version;
 }
+
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+void
+ble_hs_hci_set_local_ver(const struct ble_hci_ip_rd_local_ver_rp *ver)
+{
+    ble_hs_hci_local_ver = *ver;
+}
+
+void
+ble_hs_hci_set_local_supported_feat(uint64_t feat)
+{
+    ble_hs_hci_local_feat = feat;
+}
+
+int
+ble_hs_hci_get_local_info(struct ble_hs_hci_local_info *out_info)
+{
+    if (!ble_hs_synced()) {
+        return BLE_HS_ENOTSYNCED;
+    }
+
+    out_info->hci_version = ble_hs_hci_local_ver.hci_ver;
+    out_info->hci_revision = le16toh(ble_hs_hci_local_ver.hci_rev);
+    out_info->lmp_version = ble_hs_hci_local_ver.lmp_ver;
+    out_info->manufacturer = le16toh(ble_hs_hci_local_ver.manufacturer);
+    out_info->lmp_subversion = le16toh(ble_hs_hci_local_ver.lmp_subver);
+    out_info->lmp_features = ble_hs_hci_local_feat;
+    memcpy(out_info->supported_commands, ble_hs_hci_sup_cmd.commands,
+           sizeof(out_info->supported_commands));
+    out_info->acl_data_len = ble_hs_hci_buf_sz;
+    out_info->acl_num_pkts = ble_hs_hci_max_pkts;
+
+    return 0;
+}
+#endif
 
 void
 ble_hs_hci_set_hci_supported_cmd(struct ble_hs_hci_sup_cmd sup_cmd)

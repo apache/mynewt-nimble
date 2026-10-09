@@ -37,6 +37,10 @@ ble_hs_startup_read_sup_f_tx(void)
         return rc;
     }
 
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+    ble_hs_hci_set_local_supported_feat(le64toh(rsp.features));
+#endif
+
     /* for now we don't use it outside of init sequence so check this here
      * LE Supported (Controller) byte 4, bit 6
      */
@@ -64,6 +68,9 @@ ble_hs_startup_read_local_ver_tx(void)
 
     /* For now we are interested only in HCI Version */
     ble_hs_hci_set_hci_version(rsp.hci_ver);
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+    ble_hs_hci_set_local_ver(&rsp);
+#endif
 
     return 0;
 }

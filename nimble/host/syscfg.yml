@@ -21,6 +21,13 @@ syscfg.defs:
         description: 'Indicates that a BLE host is present.'
         value: 1
 
+    BLE_HS_LOCAL_INFO:
+        description: >
+            Retain the local controller information the host reads while
+            synchronizing (version, LMP features, supported commands and
+            buffer sizes) and expose it through ble_hs_hci_get_local_info().
+        value: 0
+
     BLE_HS_AUTO_START:
         description: >
                 Causes the BLE host to automatically start during system
