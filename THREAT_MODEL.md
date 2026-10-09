@@ -39,9 +39,9 @@
 - **Drafted:** 2026-06-13, ASF Security team (v0 draft from public artefacts).
 - **Companion repos this round:** `apache/mynewt-core` (the RTOS NimBLE
   runs on, and which provides the management transport that may sit *on
-  top of* a BLE L2CAP channel) and `apache/mynewt-mcumgr` (uses a BLE
-  connection as one SMP transport — so NimBLE is the carrier, mcumgr the
-  payload).
+  top of* a BLE L2CAP channel), including mcumgr (`mgmt/mcumgr/`, formerly
+  `apache/mynewt-mcumgr`; uses a BLE connection as one SMP transport — so
+  NimBLE is the carrier, mcumgr the payload).
 - **What triggers a revision:** a new Bluetooth spec feature
   (new PDU types, a new pairing method, a new LL control procedure);
   a change to the Security Manager's supported association models; a
@@ -98,7 +98,7 @@ host). *(documented: `nimble/{host,controller,transport}` layout; §14 Q1)*
    in `apache/mynewt-core` / the porting layer.
 5. **mcumgr / newtmgr management payloads** that *ride on top of* a BLE
    L2CAP channel — NimBLE is the carrier; the SMP server is modelled in
-   `apache/mynewt-mcumgr` and `apache/mynewt-core`'s `mgmt/`.
+   `apache/mynewt-core`'s `THREAT_MODEL.md`.
 6. **Physical / invasive and side-channel attacks** on the device.
 7. **Supply-chain / build hygiene.**
 
