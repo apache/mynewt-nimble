@@ -37,6 +37,9 @@ struct ble_eatt {
     uint16_t conn_handle;
     struct ble_l2cap_chan *chan;
     uint8_t client_op;
+    uint8_t flags;
+    /* Wanted number of channels, for retrying an outgoing request */
+    uint8_t chan_num;
 
     /* Packet transmit queue */
     STAILQ_HEAD(, os_mbuf_pkthdr) eatt_tx_q;
@@ -44,11 +47,19 @@ struct ble_eatt {
     struct ble_npl_event wakeup_ev;
 };
 
+/* Channel requested by us and not connected yet */
+#define BLE_EATT_F_OUTGOING  0x01
+/* Peer's request was rejected while ours was pending */
+#define BLE_EATT_F_COLLISION 0x02
+
 /* Request to open EATT channels on a connection. Requests are handled in the
  * host task, which owns the list of EATT channels.
  */
 struct ble_eatt_conn_req {
     struct ble_npl_event ev;
+    /* Delayed retry after a collision, see ble_eatt_retry() */
+    struct ble_npl_callout retry_co;
+    /* BLE_HS_CONN_HANDLE_NONE if the request is free */
     uint16_t conn_handle;
     /* Number of channels on the connection, including open ones, or number
      * of channels to add if add is set
@@ -85,9 +96,9 @@ static os_membuf_t ble_eatt_conn_mem[
     sizeof(struct ble_eatt))
 ];
 static struct os_mempool ble_eatt_conn_pool;
-static os_membuf_t ble_eatt_conn_req_mem[OS_MEMPOOL_SIZE(
-    MYNEWT_VAL(BLE_MAX_CONNECTIONS), sizeof(struct ble_eatt_conn_req))];
-static struct os_mempool ble_eatt_conn_req_pool;
+/* Static, as callouts are initialized only once */
+static struct ble_eatt_conn_req ble_eatt_conn_reqs[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
+static bool ble_eatt_retry_co_ready;
 static os_membuf_t ble_eatt_sdu_coc_mem[BLE_EATT_MEMPOOL_SIZE];
 struct os_mbuf_pool ble_eatt_sdu_os_mbuf_pool;
 static struct os_mempool ble_eatt_sdu_mbuf_mempool;
@@ -136,7 +147,7 @@ ble_eatt_find_pending(uint16_t conn_handle)
     struct ble_eatt *eatt;
 
     SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
-        if ((eatt->conn_handle == conn_handle) && !eatt->chan) {
+        if ((eatt->conn_handle == conn_handle) && (eatt->flags & BLE_EATT_F_OUTGOING)) {
             return eatt;
         }
     }
@@ -249,6 +260,8 @@ ble_eatt_alloc(void)
     eatt->conn_handle = BLE_HS_CONN_HANDLE_NONE;
     eatt->chan = NULL;
     eatt->client_op = 0;
+    eatt->flags = 0;
+    eatt->chan_num = 0;
 
     STAILQ_INIT(&eatt->eatt_tx_q);
     ble_npl_event_init(&eatt->wakeup_ev, ble_eatt_wakeup_cb, eatt);
@@ -270,24 +283,106 @@ ble_eatt_free(struct ble_eatt *eatt)
     os_memblock_put(&ble_eatt_conn_pool, eatt);
 }
 
-static int
-ble_eatt_conn_req_post(uint16_t conn_handle, uint8_t chan_num, bool add)
+/* The host event queue is not set yet in ble_eatt_init(), so the callouts are
+ * initialized on first use, in the host task.
+ */
+static void
+ble_eatt_retry_co_init(void)
 {
     struct ble_eatt_conn_req *req;
+    int i;
 
-    req = os_memblock_get(&ble_eatt_conn_req_pool);
+    if (ble_eatt_retry_co_ready) {
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(ble_eatt_conn_reqs); i++) {
+        req = &ble_eatt_conn_reqs[i];
+        ble_npl_callout_init(&req->retry_co, ble_hs_evq_get(), ble_eatt_setup_cb, req);
+    }
+
+    ble_eatt_retry_co_ready = true;
+}
+
+/* May be called from any task; delayed requests only from the host task */
+static int
+ble_eatt_conn_req_post(uint16_t conn_handle, uint8_t chan_num, bool add, uint32_t delay_ms)
+{
+    struct ble_eatt_conn_req *req;
+    int i;
+
+    req = NULL;
+
+    ble_hs_lock();
+    for (i = 0; i < ARRAY_SIZE(ble_eatt_conn_reqs); i++) {
+        if (ble_eatt_conn_reqs[i].conn_handle == BLE_HS_CONN_HANDLE_NONE) {
+            req = &ble_eatt_conn_reqs[i];
+            req->conn_handle = conn_handle;
+            req->chan_num = chan_num;
+            req->add = add;
+            break;
+        }
+    }
+    ble_hs_unlock();
+
     if (!req) {
         BLE_EATT_LOG_WARN("eatt: Failed to allocate connect request\n");
         return BLE_HS_ENOMEM;
     }
 
-    req->conn_handle = conn_handle;
-    req->chan_num = chan_num;
-    req->add = add;
-    ble_npl_event_init(&req->ev, ble_eatt_setup_cb, req);
-    ble_npl_eventq_put(ble_hs_evq_get(), &req->ev);
+    if (delay_ms) {
+        ble_eatt_retry_co_init();
+        ble_npl_callout_reset(&req->retry_co, ble_npl_time_ms_to_ticks32(delay_ms));
+    } else {
+        ble_npl_eventq_put(ble_hs_evq_get(), &req->ev);
+    }
 
     return 0;
+}
+
+/* Core Specification Vol 3, Part F, 5.4 (L2CAP collision mitigation): if
+ * both devices request EATT channels at the same time and both reject the
+ * other's request for lack of resources, the Central may retry immediately
+ * and the Peripheral shall wait at least 100 ms, or
+ * 2 * (connPeripheralLatency + 1) * connInterval if that is longer.
+ */
+static void
+ble_eatt_retry(uint16_t conn_handle, uint8_t chan_num)
+{
+    struct ble_gap_conn_desc desc;
+    uint32_t delay_ms;
+
+    if (ble_gap_conn_find(conn_handle, &desc)) {
+        return;
+    }
+
+    if (desc.role == BLE_GAP_ROLE_MASTER) {
+        delay_ms = 0;
+    } else {
+        /* conn_itvl is in 1.25 ms units */
+        delay_ms = 2 * (desc.conn_latency + 1) * desc.conn_itvl * 5 / 4;
+        if (delay_ms < 100) {
+            delay_ms = 100;
+        }
+    }
+
+    BLE_EATT_LOG_DEBUG("eatt: collision, retrying in %u ms (conn_handle=0x%04x)\n",
+                       (unsigned)delay_ms, conn_handle);
+
+    ble_eatt_conn_req_post(conn_handle, chan_num, false, delay_ms);
+}
+
+/* Called when a peer's request is rejected for lack of resources */
+static void
+ble_eatt_mark_collision(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if ((eatt->conn_handle == conn_handle) && (eatt->flags & BLE_EATT_F_OUTGOING)) {
+            eatt->flags |= BLE_EATT_F_COLLISION;
+        }
+    }
 }
 
 static int
@@ -295,7 +390,9 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    uint8_t chan_num;
     uint8_t opcode;
+    bool retry;
     int rc;
 
     switch (event->type) {
@@ -315,9 +412,19 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
             }
         }
         if (event->connect.status) {
+            retry = (eatt->flags & BLE_EATT_F_COLLISION) &&
+                    (event->connect.status ==
+                     BLE_HS_L2C_ERR(BLE_L2CAP_COC_ERR_NO_RESOURCES));
+            chan_num = eatt->chan_num;
             ble_eatt_free(eatt);
+
+            /* Retry once all channels of the request are resolved */
+            if (retry && !ble_eatt_find_pending(event->connect.conn_handle)) {
+                ble_eatt_retry(event->connect.conn_handle, chan_num);
+            }
             return 0;
         }
+        eatt->flags = 0;
         eatt->chan = event->connect.chan;
         eatt->chan->cb_arg = eatt;
         break;
@@ -330,11 +437,13 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
     case BLE_L2CAP_EVENT_COC_ACCEPT:
         BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
         if (ble_eatt_count(event->accept.conn_handle) >= BLE_EATT_CHAN_PER_CONN_MAX) {
+            ble_eatt_mark_collision(event->accept.conn_handle);
             return BLE_HS_ENOMEM;
         }
 
         eatt = ble_eatt_alloc();
         if (!eatt) {
+            ble_eatt_mark_collision(event->accept.conn_handle);
             return BLE_HS_ENOMEM;
         }
 
@@ -424,7 +533,10 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     conn_handle = req->conn_handle;
     chan_num = req->chan_num;
     add = req->add;
-    os_memblock_put(&ble_eatt_conn_req_pool, req);
+
+    ble_hs_lock();
+    req->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    ble_hs_unlock();
 
     if (ble_gap_conn_find(conn_handle, &desc)) {
         /* Disconnected in the meantime */
@@ -449,6 +561,8 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
             break;
         }
         eatt[i]->conn_handle = conn_handle;
+        eatt[i]->flags = BLE_EATT_F_OUTGOING;
+        eatt[i]->chan_num = chan_num;
 
         om[i] = os_mbuf_get_pkthdr(&ble_eatt_sdu_os_mbuf_pool, 0);
         if (!om[i]) {
@@ -660,7 +774,7 @@ ble_eatt_start(uint16_t conn_handle)
         return;
     }
 
-    ble_eatt_conn_req_post(conn_handle, BLE_EATT_CHAN_PER_CONN_MAX, false);
+    ble_eatt_conn_req_post(conn_handle, BLE_EATT_CHAN_PER_CONN_MAX, false, 0);
 }
 #endif
 
@@ -685,16 +799,19 @@ ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num)
     }
 
     if (chan_num == 0) {
-        return ble_eatt_conn_req_post(conn_handle, BLE_EATT_CHAN_PER_CONN_MAX, false);
+        return ble_eatt_conn_req_post(conn_handle, BLE_EATT_CHAN_PER_CONN_MAX,
+                                      false, 0);
     }
 
-    return ble_eatt_conn_req_post(conn_handle, chan_num, true);
+    return ble_eatt_conn_req_post(conn_handle, chan_num, true, 0);
 }
 
 void
 ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
 {
+    struct ble_eatt_conn_req *req;
     int rc;
+    int i;
 
     rc = mem_init_mbuf_pool(ble_eatt_sdu_coc_mem,
                             &ble_eatt_sdu_mbuf_mempool,
@@ -709,10 +826,11 @@ ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
                          ble_eatt_conn_mem, "ble_eatt_conn_pool");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-    rc = os_mempool_init(&ble_eatt_conn_req_pool, MYNEWT_VAL(BLE_MAX_CONNECTIONS),
-                         sizeof(struct ble_eatt_conn_req),
-                         ble_eatt_conn_req_mem, "ble_eatt_conn_req_pool");
-    BLE_HS_DBG_ASSERT_EVAL(rc == 0);
+    for (i = 0; i < ARRAY_SIZE(ble_eatt_conn_reqs); i++) {
+        req = &ble_eatt_conn_reqs[i];
+        req->conn_handle = BLE_HS_CONN_HANDLE_NONE;
+        ble_npl_event_init(&req->ev, ble_eatt_setup_cb, req);
+    }
 
     ble_gap_event_listener_register(&ble_eatt_listener, ble_eatt_gap_event, NULL);
     ble_l2cap_create_server(BLE_EATT_PSM, MYNEWT_VAL(BLE_EATT_MTU), ble_eatt_l2cap_event_fn, NULL);
