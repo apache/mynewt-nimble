@@ -742,7 +742,7 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
 
 #if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
         if (proc->cid != BLE_L2CAP_CID_ATT) {
-            ble_eatt_release_chan(proc->conn_handle, proc->op);
+            ble_eatt_release_chan(proc->conn_handle, proc->cid);
         }
 #endif
 
@@ -3632,7 +3632,7 @@ ble_gattc_write_no_rsp(uint16_t conn_handle, uint16_t attr_handle,
     if (rc != 0) {
         STATS_INC(ble_gattc_stats, write);
     }
-    ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
+    ble_eatt_release_chan(conn_handle, cid);
 
     return rc;
 }
