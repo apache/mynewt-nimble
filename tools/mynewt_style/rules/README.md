@@ -51,6 +51,9 @@ and just yield `Edit(start, end, text, message)` objects; see `expressions.py`.
 
 `python3 tools/mynewt_format.py --list-rules` prints them all and
 `--explain RULE` prints the full description of one.
+The standard they implement is described in
+[`../CODING_STANDARDS.md`](../CODING_STANDARDS.md); keep it in sync when adding or
+changing a rule.
 
 ## Design principles
 

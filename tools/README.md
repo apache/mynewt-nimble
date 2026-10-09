@@ -28,6 +28,8 @@ This directory contains developer utilities and helper scripts for Apache NimBLE
   files to skip are listed in [`newt-coding-rules-ignore`](../newt-coding-rules-ignore).
 - **`mynewt_style/`**: the engine, its rules (`mynewt_style/rules/`, see the
   [rules README](mynewt_style/rules/README.md)) and unit tests.
+- **[`mynewt_style/CODING_STANDARDS.md`](mynewt_style/CODING_STANDARDS.md)**: the
+  coding standard the tool checks, rule by rule.
 - **`hci_throughput/`**: tools for BLE HCI throughput testing.
 
 `mynewt_format.py` and `mynewt_style/` are maintained in
