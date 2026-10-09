@@ -1339,7 +1339,7 @@ struct ble_hci_vs_rd_static_addr_rp {
 } __attribute__((packed));
 
 /* Set default transmit power. Actual selected TX power is returned
- * in reply. Setting 0xff restores controller reset default.
+ * in reply. Setting 0x7f restores controller reset default.
  */
 #define BLE_HCI_OCF_VS_SET_TX_PWR                       (MYNEWT_VAL(BLE_HCI_VS_OCF_OFFSET) + (0x0002))
 struct ble_hci_vs_set_tx_pwr_cp {
