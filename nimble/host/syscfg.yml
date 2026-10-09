@@ -331,6 +331,22 @@ syscfg.defs:
         description: >
             MTU used for EATT channels.
         value: 128
+    BLE_EATT_CHAN_PER_CONN:
+        description: >
+            Maximum number of EATT channels on a single connection, limited
+            by BLE_EATT_CHAN_NUM. Channels are opened with one L2CAP
+            Credit Based Connection Request, which carries up to 5 channels.
+        value: 1
+        restrictions:
+            - 'BLE_EATT_CHAN_PER_CONN >= 1'
+            - 'BLE_EATT_CHAN_PER_CONN <= 5'
+    BLE_EATT_AUTO_CONNECT:
+        description: >
+            Open EATT channels automatically when a connection gets encrypted
+            in the central role. If disabled, channels are opened only with
+            ble_eatt_connect() or by the peer. The Client Supported Features
+            characteristic of the peer is written in both cases.
+        value: 1
 
     # Supported server ATT commands. (0/1)
     BLE_ATT_SVR_FIND_INFO:

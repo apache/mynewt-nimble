@@ -1420,7 +1420,7 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     int rc;
     int i;
 
-    if (!sdu_rx || !cb) {
+    if (!sdu_rx || !cb || num == 0 || num > BLE_L2CAP_MAX_COC_CONN_REQ) {
         return BLE_HS_EINVAL;
     }
 
@@ -1477,9 +1477,15 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     return 0;
 
 failed:
-    /* clean up on failure, ble_l2cap_chan_free() handles NULL as well */
+    /* Clean up on failure. The caller keeps ownership of sdu_rx, so detach
+     * the buffers before freeing the channels.
+     */
     for (i = 0; i < num; i++) {
+        if (!proc->connect.chan[i]) {
+            continue;
+        }
         proc->connect.chan[i]->cb = NULL;
+        proc->connect.chan[i]->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, proc->connect.chan[i]);
     }
 

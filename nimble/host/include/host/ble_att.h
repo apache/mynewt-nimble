@@ -355,6 +355,27 @@ uint16_t ble_att_preferred_mtu(void);
  */
 int ble_att_set_preferred_mtu(uint16_t mtu);
 
+/**
+ * Opens additional EATT channels on a connection. Channels are opened
+ * asynchronously in the host task, never more than BLE_EATT_CHAN_PER_CONN on
+ * the connection in total; fewer are opened if resources run out.
+ *
+ * @param conn_handle           The connection to open the channels on. It
+ *                                  must be encrypted.
+ * @param chan_num              Number of channels to open, at most
+ *                                  BLE_EATT_CHAN_PER_CONN. 0 opens as many
+ *                                  as the limit allows.
+ *
+ * @return                      0 if the request was queued;
+ *                              BLE_HS_ENOTCONN if there is no such connection;
+ *                              BLE_HS_EENCRYPT if the connection is not
+ *                                  encrypted;
+ *                              BLE_HS_EINVAL if chan_num is too large;
+ *                              BLE_HS_ENOMEM if there are no free requests;
+ *                              BLE_HS_ENOTSUP if EATT is disabled.
+ */
+int ble_eatt_connect(uint16_t conn_handle, uint8_t chan_num);
+
 #ifdef __cplusplus
 }
 #endif

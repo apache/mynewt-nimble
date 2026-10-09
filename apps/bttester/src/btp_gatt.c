@@ -1956,6 +1956,36 @@ change_database(const void *cmd, uint16_t cmd_len,
 }
 
 static uint8_t
+eatt_connect(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    const struct btp_gatt_eatt_connect_cmd *cp = cmd;
+    struct ble_gap_conn_desc conn;
+    uint8_t num;
+    int rc;
+
+    SYS_LOG_DBG("")
+
+    rc = ble_gap_conn_find_by_addr(&cp->address, &conn);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+
+    /* Open as many channels as the build allows if more are requested */
+    num = cp->num_channels;
+    if (num > MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN)) {
+        num = MYNEWT_VAL(BLE_EATT_CHAN_PER_CONN);
+    }
+
+    rc = ble_eatt_connect(conn.conn_handle, num);
+    if (rc) {
+        SYS_LOG_ERR("Failed to connect EATT channels; rc=%d", rc);
+        return BTP_STATUS_FAILED;
+    }
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 supported_commands(const void *cmd, uint16_t cmd_len,
                    void *rsp, uint16_t *rsp_len)
 {
@@ -2096,6 +2126,11 @@ static const struct btp_handler handlers[] = {
      .opcode = BTP_GATT_GET_ATTRIBUTE_VALUE,
      .expect_len = sizeof(struct btp_gatt_get_attribute_value_cmd),
      .func = get_attr_val,
+     },
+    {
+     .opcode = BTP_GATT_EATT_CONNECT,
+     .expect_len = sizeof(struct btp_gatt_eatt_connect_cmd),
+     .func = eatt_connect,
      },
     {
      .opcode = BTP_GATT_NOTIFY_MULTIPLE,
