@@ -163,7 +163,6 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
     struct ble_eatt *eatt;
     struct os_mbuf *txom;
     struct os_mbuf_pkthdr *omp;
-    struct ble_l2cap_chan_info info;
 
     eatt = ble_npl_event_get_arg(ev);
     assert(eatt);
@@ -173,8 +172,7 @@ ble_eatt_wakeup_cb(struct ble_npl_event *ev)
         STAILQ_REMOVE_HEAD(&eatt->eatt_tx_q, omp_next);
 
         txom = OS_MBUF_PKTHDR_TO_MBUF(omp);
-        ble_l2cap_get_chan_info(eatt->chan, &info);
-        ble_eatt_tx(eatt->conn_handle, info.dcid, txom);
+        ble_eatt_tx(eatt->conn_handle, eatt->chan->scid, txom);
     }
 }
 
@@ -239,6 +237,19 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         break;
     case BLE_L2CAP_EVENT_COC_ACCEPT:
         BLE_EATT_LOG_DEBUG("eatt: Accept request\n");
+
+        /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
+         * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
+         * Channel Requirements):
+         * The channel shall be encrypted.
+         *
+         * Reject with Insufficient Encryption if link is not encrypted.
+         */
+        rc = ble_gap_conn_find(event->accept.conn_handle, &desc);
+        if (rc != 0 || !desc.sec_state.encrypted) {
+            return BLE_HS_EENCRYPT;
+        }
+
         eatt = ble_eatt_find_by_conn_handle(event->accept.conn_handle);
         if (eatt) {
             /* For now we accept only one additional coc channel per ACL
@@ -267,6 +278,13 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
         break;
     case BLE_L2CAP_EVENT_COC_DATA_RECEIVED:
         assert(eatt->chan == event->receive.chan);
+        if (OS_MBUF_PKTLEN(event->receive.sdu_rx) < sizeof(opcode)) {
+            /* Empty SDU is not a valid ATT PDU */
+            os_mbuf_free_chain(event->receive.sdu_rx);
+            ble_l2cap_disconnect(eatt->chan);
+            return BLE_HS_EREJECT;
+        }
+
         opcode = event->receive.sdu_rx->om_data[0];
         if (ble_eatt_supported_rsp(opcode)) {
             ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
@@ -279,11 +297,13 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
              *  • The Signed Write Without Response sub-procedure shall only be
              *  supported on the LE Fixed Channel Unenhanced ATT bearer.
              */
+            os_mbuf_free_chain(event->receive.sdu_rx);
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
         }
 
-        assert (!ble_gap_conn_find(event->receive.conn_handle, &desc));
+        rc = ble_gap_conn_find(event->receive.conn_handle, &desc);
+        assert(rc == 0);
         /* As per BLE 5.4 Standard, Vol. 3, Part F, section 5.3.2
          * (ENHANCED ATT BEARER L2CAP INTEROPERABILITY REQUIREMENTS:
          * Channel Requirements):
@@ -292,7 +312,8 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
          * Disconnect peer with invalid behavior - ATT PDU received before
          * encryption.
          */
-        if (!desc.sec_state.encrypted) {
+        if (rc != 0 || !desc.sec_state.encrypted) {
+            os_mbuf_free_chain(event->receive.sdu_rx);
             ble_l2cap_disconnect(eatt->chan);
             return BLE_HS_EREJECT;
         }
@@ -460,8 +481,9 @@ ble_eatt_release_chan(uint16_t conn_handle, uint8_t op)
 
     eatt = ble_eatt_find_by_conn_handle_and_busy_op(conn_handle, op);
     if (!eatt) {
-        BLE_EATT_LOG_WARN("ble_eatt_release_chan:"
-                          "EATT not found for conn_handle 0x%04x, operation 0x%02\n", conn_handle, op);
+        BLE_EATT_LOG_WARN("%s: EATT not found for conn_handle 0x%04x, "
+                          "operation 0x%02x\n",
+                          __func__, conn_handle, op);
         return;
     }
 
@@ -474,10 +496,10 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     struct ble_eatt *eatt;
     int rc;
 
-    BLE_EATT_LOG_DEBUG("eatt: %s, size %d ", __func__, OS_MBUF_PKTLEN(txom));
+    BLE_EATT_LOG_DEBUG("eatt: %s, size %d\n", __func__, OS_MBUF_PKTLEN(txom));
     eatt = ble_eatt_find(conn_handle, cid);
     if (!eatt || !eatt->chan) {
-        BLE_EATT_LOG_ERROR("Eatt not available");
+        BLE_EATT_LOG_ERROR("Eatt not available\n");
         rc = BLE_HS_ENOENT;
         goto error;
     }
@@ -488,14 +510,21 @@ ble_eatt_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     }
 
     if (rc == BLE_HS_ESTALLED) {
-        BLE_EATT_LOG_DEBUG("ble_eatt_tx: Eatt stalled");
+        BLE_EATT_LOG_DEBUG("%s: Eatt stalled\n", __func__);
     } else if (rc == BLE_HS_EBUSY) {
-        BLE_EATT_LOG_DEBUG("ble_eatt_tx: Message queued");
+        BLE_EATT_LOG_DEBUG("%s: Message queued\n", __func__);
+        /* Channel is stalled waiting for credits, queued PDU will be sent
+         * on BLE_L2CAP_EVENT_COC_TX_UNSTALLED event.
+         */
         STAILQ_INSERT_HEAD(&eatt->eatt_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
-        ble_npl_eventq_put(ble_hs_evq_get(), &eatt->wakeup_ev);
+    } else if (rc == BLE_HS_EBADDATA) {
+        /* SDU too large, txom was not consumed */
+        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d\n", __func__, rc);
+        goto error;
     } else {
-        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d ", __func__, rc);
-        assert(0);
+        /* Transmission failed, txom was consumed */
+        BLE_EATT_LOG_ERROR("eatt: %s, ERROR %d\n", __func__, rc);
+        return rc;
     }
 done:
     return 0;
