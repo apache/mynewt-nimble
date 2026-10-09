@@ -238,6 +238,8 @@ Requires `BLE_LL_CFG_FEAT_DATA_LEN_EXT` enabled <br>
 Command completes immediately and Data Length Update procedure is started
 if needed. LE Data Length Change event is sent when procedure completes and
 values have changed. <br>
+Setting both Rx_Octets and Rx_Time to 0 leaves current RX values
+unchanged. <br>
 
 | Command      | OCF    | Params          | Return params |
 |--------------|--------|-----------------|---------------|
