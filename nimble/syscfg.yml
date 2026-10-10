@@ -119,6 +119,8 @@ syscfg.defs:
         description: >
             This enables Channel Sounding feature
         value: 0
+        restrictions:
+            - '(BLE_VERSION >= 60) if 1'
 
     BLE_HCI_VS:
         description: >
