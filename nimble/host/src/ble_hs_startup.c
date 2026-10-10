@@ -314,7 +314,7 @@ ble_hs_startup_le_set_evmask_tx(void)
 #endif
 
 #if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
-    if (version >= BLE_HCI_VER_BCS_5_4) {
+    if (version >= BLE_HCI_VER_BCS_6_0) {
         /**
          * Enable the following LE events:
          * 0x0000080000000000 LE CS Read Remote Supported Capabilities Complete event
