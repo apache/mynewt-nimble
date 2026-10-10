@@ -577,7 +577,7 @@ syscfg.defs:
         description: >
             Enable support for Channel Sounding feature.
         restrictions:
-            - (BLE_VERSION >= 54) if 1
+            - (BLE_VERSION >= 60) if 1
         value: MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
         state: experimental
 
