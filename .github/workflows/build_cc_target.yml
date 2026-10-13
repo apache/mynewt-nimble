@@ -69,4 +69,4 @@ jobs:
              newt target set cc_test bsp="@apache-mynewt-core/hw/bsp/nordic_pca10056"
              newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
              cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
-             newt build -j 1 cc_test
+             newt build cc_test
