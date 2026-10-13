@@ -1,0 +1,65 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Restore newt project
+description: >
+  Restore newt and newt project prepared by prepare job of the same
+  workflow run, so that external repositories are downloaded only once
+  per run. Project contains only .git directories of repositories,
+  working trees are checked out after restore. Project file is replaced
+  with one provided by job.
+
+inputs:
+  project:
+    description: Project file to use (relative to repository root)
+    required: false
+    default: .github/project.yml
+  path:
+    description: Directory to restore project to
+    required: false
+    default: build
+
+runs:
+  using: composite
+  steps:
+    - name: Download project
+      uses: actions/download-artifact@v8
+      with:
+        name: newt-project
+        path: ${{ runner.temp }}/newt-project
+
+    - name: Extract project
+      shell: bash
+      run: |
+        mkdir -p "${{ inputs.path }}"
+        zstd -d -c "$RUNNER_TEMP/newt-project/newt-project.tar.zst" | tar -x -C "${{ inputs.path }}"
+        rm -rf "$RUNNER_TEMP/newt-project"
+        mv "${{ inputs.path }}/.newt-bin" "$GITHUB_WORKSPACE/.newt-bin"
+        echo "$GITHUB_WORKSPACE/.newt-bin" >> "$GITHUB_PATH"
+        bash "$GITHUB_WORKSPACE/.github/scripts/checkout_repos.sh" "${{ inputs.path }}"
+
+    # Repositories were set up by prepare job for tested commit, so
+    # only project file needs to be updated. Project file may limit
+    # repositories used by newt (e.g. for unit tests).
+    - name: Set up project file
+      shell: bash
+      run: |
+        cp -f "${{ inputs.project }}" "${{ inputs.path }}/project.yml"
+        cd "${{ inputs.path }}"
+        newt info

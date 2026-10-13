@@ -1,0 +1,359 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Builds newt once per run for all platforms used by jobs of this
+  # workflow, other jobs take newt from artifact uploaded by this job.
+  newt:
+    name: Build newt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build newt
+        id: newt
+        uses: ./.github/actions/newt-install
+        with:
+          platforms: windows/amd64 darwin/arm64
+      - name: Upload newt
+        uses: actions/upload-artifact@v7
+        with:
+          name: newt
+          path: ${{ steps.newt.outputs.dist }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Downloads external repositories once per run, all Linux jobs use
+  # project prepared by this job.
+  prepare:
+    name: Prepare project
+    needs: newt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install newt
+        uses: ./.github/actions/newt-install
+        with:
+          artifact: newt
+      - name: Set up project
+        uses: ./.github/actions/newt-project
+        with:
+          save-cache: true
+      # Only .git directories of repositories are packed, working trees
+      # are checked out by jobs restoring project
+      - name: Pack project
+        shell: bash
+        run: |
+             cp -r .newt-bin build/.newt-bin
+             cd build
+             {
+               find . -mindepth 1 -maxdepth 1 ! -name repos
+               find repos -mindepth 1 -maxdepth 1 -name '.*'
+               find repos -mindepth 2 -maxdepth 2 -name .git
+             } | tar -cf - -T - | zstd -T0 -3 -o ../newt-project.tar.zst
+             ls -lh ../newt-project.tar.zst
+      - name: Upload project
+        uses: actions/upload-artifact@v7
+        with:
+          name: newt-project
+          path: newt-project.tar.zst
+          compression-level: 0
+          retention-days: 1
+
+  apps:
+    name: Build all apps
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '15.2.Rel1'
+      - name: Install Dependencies
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib ccache
+      - name: Restore project
+        uses: ./.github/actions/newt-project-restore
+      - name: Remove project targets
+        shell: bash
+        run: rm -rf build/targets
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: apps-${{ matrix.shard }}
+      - name: Build applications
+        shell: bash
+        env:
+          SHARD_INDEX: ${{ matrix.shard }}
+          SHARD_TOTAL: 2
+        run: |
+             cd build
+             bash ../.github/test_build_apps.sh
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: apps-${{ matrix.shard }}
+
+  targets:
+    name: Build all test targets
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '15.2.Rel1'
+      - name: Install Dependencies
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib ccache
+      - name: Restore project
+        uses: ./.github/actions/newt-project-restore
+      - name: Remove project targets
+        shell: bash
+        run: rm -rf build/targets
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: targets
+      - name: Build targets
+        shell: bash
+        run: |
+             cp -r .github/targets build/targets
+             cd build
+             ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+             rm -rf targets
+      - name: Build Linux-only targets
+        shell: bash
+        run: |
+             cp -r .github/targets_linux build/targets
+             cd build
+             ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q  $0'
+             rm -rf targets
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: targets
+
+  targets-other-os:
+    name: Build all test targets
+    needs: newt
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '15.2.Rel1'
+      - name: Install newt
+        uses: ./.github/actions/newt-install
+        with:
+          artifact: newt
+      - name: Set up project
+        uses: ./.github/actions/newt-project
+      - name: Remove project targets
+        shell: bash
+        run: rm -rf build/targets
+      - name: Build targets
+        shell: bash
+        run: |
+             cp -r .github/targets build/targets
+             cd build
+             ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q $0'
+             rm -rf targets
+
+  gcc-target:
+    name: Build GCC test target
+    needs: prepare
+    strategy:
+      fail-fast: false
+      # Limit number of parallel jobs, ASF policy limits job concurrency
+      # level per workflow
+      max-parallel: 4
+      matrix:
+        gcc: ['15.2.Rel1', '14.2.Rel1', '13.2.Rel1', '12.2.Rel1', '11.3.Rel1', '10.3-2021.10', '9-2020-q2', '8-2019-q3']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: ${{ matrix.gcc }}
+      - name: Restore project
+        uses: ./.github/actions/newt-project-restore
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: gcc-target-${{ matrix.gcc }}
+      - name: Build test target
+        shell: bash
+        run: |
+             cd build
+             newt target create cc_test
+             newt target set cc_test bsp="@apache-mynewt-core/hw/bsp/nordic_pca10056"
+             newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
+             cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
+             newt build cc_test
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: gcc-target-${{ matrix.gcc }}
+
+  unit-tests:
+    name: Run unit tests
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Dependencies
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib ccache
+      # Unit tests project limits repositories to those which tests
+      # should be run for
+      - name: Restore project
+        uses: ./.github/actions/newt-project-restore
+        with:
+          project: .github/project_newt_test_all.yml
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: unit-tests
+      - name: Switch to main mcuboot
+        # This is temporary until next mcuboot release is available
+        shell: bash
+        run: |
+             cd build/repos/mcuboot
+             git fetch --depth=1 origin main
+             git checkout --detach FETCH_HEAD
+      - name: newt test all
+        run: |
+             cd build
+             newt test all
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: unit-tests
+
+  ports:
+    name: Build ports
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+        with:
+          release: '15.2.Rel1'
+      - name: Install Dependencies
+        shell: bash
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y make ccache gcc-multilib g++-multilib kconfig-frontends libmbedtls-dev cmake build-essential
+      - name: Cache 32-bit Mbed TLS 3.6
+        id: cache-mbedtls
+        uses: actions/cache@v6
+        with:
+          path: ${{ github.workspace }}/mbedtls_install
+          key: ${{ runner.os }}-mbedtls-3.6.5
+      - name: Compile Mbed TLS 3.6 (On Cache Miss)
+        if: steps.cache-mbedtls.outputs.cache-hit != 'true'
+        run: |
+            git clone --depth 1 --branch mbedtls-3.6.5 --recursive https://github.com/Mbed-TLS/mbedtls.git
+            cd mbedtls
+            cmake -B build \
+              -DCMAKE_C_FLAGS="-m32" \
+              -DCMAKE_SHARED_LINKER_FLAGS="-m32" \
+              -DCMAKE_EXE_LINKER_FLAGS="-m32" \
+              -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/mbedtls_install \
+              -DUSE_SHARED_MBEDTLS_LIBRARY=On \
+              -DENABLE_TESTING=Off
+            cmake --build build --target install
+      - name: Export Mbed TLS Environment Paths
+        run: |
+            echo "CPATH=${{ github.workspace }}/mbedtls_install/include" >> $GITHUB_ENV
+            echo "LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
+            echo "LD_LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
+            echo "MBEDTLS_DIR=${{ github.workspace }}/mbedtls_install" >> $GITHUB_ENV
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: ports
+      - name: Build example ports
+        shell: bash
+        run: |
+             make -C porting/examples/dummy/ clean all
+             make -C porting/examples/linux/ clean all
+             make -C porting/examples/linux_blemesh/ clean all
+             make -C porting/examples/linux_blemesh_shell/ clean all
+             make -C porting/npl/linux/test/ clean all test
+      - name: Build RIOT port
+        shell: bash
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+             git clone --depth=1 https://github.com/RIOT-OS/RIOT
+             rm RIOT/pkg/nimble/patches/ -rf
+             sed -i 's|PKG_URL.*|PKG_URL = '$(pwd)'|' RIOT/pkg/nimble/Makefile
+             sed -i 's|PKG_VERSION.*|PKG_VERSION = '${{ github.sha }}'|' RIOT/pkg/nimble/Makefile
+             make -C RIOT/examples/networking/ble/nimble/nimble_gatt
+      - name: Build Nuttx port
+        shell: bash
+        if: success() || failure()
+        continue-on-error: true
+        run: |
+             mkdir nuttx-build
+             git clone --depth=1 https://github.com/apache/nuttx.git nuttx-build/nuttx
+             git clone --depth=1 https://github.com/apache/nuttx-apps nuttx-build/apps
+             ./nuttx-build/nuttx/tools/configure.sh -l nrf52840-dk:sdc_nimble
+             kconfig-tweak --file nuttx-build/nuttx/.config --set-str NIMBLE_REF ${{ github.sha }}
+             kconfig-tweak --file nuttx-build/nuttx/.config --enable NIMBLE_PORTING_EXAMPLE
+             echo '#include "../../../../mynewt-nimble/porting/examples/nuttx/include/syscfg/syscfg.h"'\
+               >> nuttx-build/apps/wireless/bluetooth/nimble/include/syscfg/syscfg.h
+             make -C nuttx-build/nuttx olddefconfig
+             make -C nuttx-build/nuttx
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: ports
