@@ -68,6 +68,10 @@ jobs:
             echo "LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
             echo "LD_LIBRARY_PATH=${{ github.workspace }}/mbedtls_install/lib" >> $GITHUB_ENV
             echo "MBEDTLS_DIR=${{ github.workspace }}/mbedtls_install" >> $GITHUB_ENV
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: ports
       - name: Build example ports
         shell: bash
         run: |
@@ -101,3 +105,8 @@ jobs:
                >> nuttx-build/apps/wireless/bluetooth/nimble/include/syscfg/syscfg.h
              make -C nuttx-build/nuttx olddefconfig
              make -C nuttx-build/nuttx
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: ports

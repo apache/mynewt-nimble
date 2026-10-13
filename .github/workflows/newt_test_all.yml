@@ -39,13 +39,17 @@ jobs:
         shell: bash
         run: |
              sudo apt-get update
-             sudo apt-get install -y gcc-multilib
+             sudo apt-get install -y gcc-multilib ccache
       - name: Install newt
         uses: ./.github/actions/newt-install
       - name: Set up project
         uses: ./.github/actions/newt-project
         with:
           project: .github/project_newt_test_all.yml
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: unit-tests
       - name: Switch to main mcuboot
         # This is temporary until next mcuboot release is available
         shell: bash
@@ -58,3 +62,8 @@ jobs:
         run: |
              cd build
              newt test all
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: unit-tests

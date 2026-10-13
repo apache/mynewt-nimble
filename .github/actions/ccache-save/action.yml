@@ -1,0 +1,67 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Save ccache
+description: >
+  Show ccache statistics, drop cache entries not used by current job and
+  save ccache directory to cache. Cache is saved only from master branch
+  since only caches from default branch are available to pull requests,
+  and only if there were cache misses, since otherwise restored cache
+  already contains everything used by job.
+  Supported only on Linux, does nothing on other systems.
+
+inputs:
+  key:
+    description: Cache key, same as used for ccache-restore
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Show ccache statistics
+      id: stats
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        ccache --show-stats
+        misses=$(ccache --print-stats | awk '$1 == "cache_miss" { print $2 }')
+        echo "misses=${misses:-unknown}" >> "$GITHUB_OUTPUT"
+
+    - name: Remove unused ccache entries
+      if: >-
+        runner.os == 'Linux' && github.ref == 'refs/heads/master' &&
+        github.event_name != 'pull_request' &&
+        steps.stats.outputs.misses != '0'
+      shell: bash
+      run: |
+        # Keep only entries used by this job so that cache size does not
+        # grow over time with stale entries.
+        age=$(( $(date +%s) - CCACHE_JOB_START + 60 ))
+        ccache --evict-older-than "${age}s"
+        ccache --show-stats | grep -i 'cache size' || true
+
+    - name: Save ccache directory
+      if: >-
+        runner.os == 'Linux' && github.ref == 'refs/heads/master' &&
+        github.event_name != 'pull_request' &&
+        steps.stats.outputs.misses != '0'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: ccache-${{ inputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
