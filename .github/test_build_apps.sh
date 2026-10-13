@@ -19,6 +19,12 @@
 
 EXIT_CODE=0
 
+# Build only items assigned to this shard (for splitting build between
+# CI jobs), by default everything is built.
+SHARD_INDEX=${SHARD_INDEX:-0}
+SHARD_TOTAL=${SHARD_TOTAL:-1}
+ITEM_INDEX=0
+
 APPS=$(basename -a `ls -d repos/apache-mynewt-nimble/apps/*/`)
 
 IGNORED_APPS="mesh_badge"
@@ -28,6 +34,11 @@ for app in ${APPS}; do
     #       match against the first and last entries
     if [[ " ${IGNORED_APPS} " =~ [[:blank:]]${app}[[:blank:]] ]]; then
         echo "Skipping $app"
+        continue
+    fi
+
+    ITEM_INDEX=$((ITEM_INDEX + 1))
+    if [ $(( (ITEM_INDEX - 1) % SHARD_TOTAL )) -ne $SHARD_INDEX ]; then
         continue
     fi
 
