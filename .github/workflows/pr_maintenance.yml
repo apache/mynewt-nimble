@@ -1,0 +1,79 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+
+# Maintenance of open pull requests (labels and workflows status check).
+# This runs periodically from master instead of pull_request_target, so
+# no pull request code or configuration is used with elevated privileges.
+
+name: Pull request maintenance
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  maintenance:
+    if: github.repository == 'apache/mynewt-nimble'
+    runs-on: ubuntu-slim
+    # Shorter than schedule interval, so that hung run doesn't delay
+    # following ones
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Check pull requests
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/pr_maintenance.py check
+
+      # Following steps run also if previous step failed, so that error in
+      # one pull request doesn't block processing of others
+
+      - name: Assign labels based on paths
+        if: ${{ !cancelled() && steps.check.outputs.pr-numbers != '' }}
+        uses: actions/labeler@v7
+        with:
+          pr-number: ${{ steps.check.outputs.pr-numbers }}
+          sync-labels: true
+          configuration-path: .github/labeler_cfg.yml
+
+      - name: Report workflows status
+        if: >-
+          ${{ !cancelled() && steps.check.outputs.statuses != '' &&
+              steps.check.outputs.statuses != '[]' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUSES: ${{ steps.check.outputs.statuses }}
+        run: python3 .github/scripts/pr_maintenance.py report
