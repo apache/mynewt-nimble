@@ -46,6 +46,10 @@ jobs:
         uses: ./.github/actions/newt-install
       - name: Set up project
         uses: ./.github/actions/newt-project
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: gcc-target-${{ matrix.gcc }}
       - name: Build test target
         shell: bash
         run: |
@@ -55,3 +59,8 @@ jobs:
              newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
              cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
              newt build cc_test
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: gcc-target-${{ matrix.gcc }}

@@ -47,7 +47,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
              sudo apt-get update
-             sudo apt-get install -y gcc-multilib
+             sudo apt-get install -y gcc-multilib ccache
       - name: Install newt
         uses: ./.github/actions/newt-install
       - name: Set up project
@@ -55,6 +55,10 @@ jobs:
       - name: Remove project targets
         shell: bash
         run: rm -rf build/targets
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: targets
       - name: Build targets
         shell: bash
         run: |
@@ -72,3 +76,8 @@ jobs:
              ls targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q  $0'
              rm -rf targets
              cd ..
+      - name: Save ccache
+        if: always()
+        uses: ./.github/actions/ccache-save
+        with:
+          key: targets
