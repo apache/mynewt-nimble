@@ -130,6 +130,28 @@ const uint8_t g_ble_ll_ctrl_pkt_lengths[BLE_LL_CTRL_OPCODES] =
     BLE_LL_CTRL_CHAN_STATUS_IND_LEN,
 };
 
+static int
+ble_ll_ctrl_instant_pending(struct ble_ll_conn_sm *connsm)
+{
+    return connsm->flags.conn_update_sched ||
+           connsm->flags.chanmap_update_sched ||
+           connsm->flags.phy_update_sched;
+}
+
+static int
+ble_ll_ctrl_proc_must_wait(struct ble_ll_conn_sm *connsm, int ctrl_proc)
+{
+    switch (ctrl_proc) {
+    case BLE_LL_CTRL_PROC_CONN_UPDATE:
+    case BLE_LL_CTRL_PROC_CONN_PARAM_REQ:
+    case BLE_LL_CTRL_PROC_CHAN_MAP_UPD:
+    case BLE_LL_CTRL_PROC_PHY_UPDATE:
+        return ble_ll_ctrl_instant_pending(connsm);
+    default:
+        return 0;
+    }
+}
+
 /**
  * Called to determine if a LL control procedure with an instant has
  * been initiated.
@@ -2765,7 +2787,8 @@ ble_ll_ctrl_proc_start(struct ble_ll_conn_sm *connsm, int ctrl_proc)
     BLE_LL_ASSERT(ctrl_proc != BLE_LL_CTRL_PROC_TERMINATE);
 
     om = NULL;
-    if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) {
+    if ((connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE) &&
+        !ble_ll_ctrl_proc_must_wait(connsm, ctrl_proc)) {
         /* Initiate the control procedure. */
         om = ble_ll_ctrl_proc_init(connsm, ctrl_proc);
         if (om) {
@@ -2844,6 +2867,14 @@ ble_ll_ctrl_chk_proc_start(struct ble_ll_conn_sm *connsm)
          */
         for (i = 0; i < BLE_LL_CTRL_PROC_NUM; ++i) {
             if (IS_PENDING_CTRL_PROC(connsm, i)) {
+                /*
+                 * Procedures with instant have to wait until the instant of
+                 * the one in progress has passed.
+                 */
+                if (ble_ll_ctrl_proc_must_wait(connsm, i)) {
+                    continue;
+                }
+
                 /*
                  * The version exchange is a special case. If we have already
                  * received the information dont start it.
