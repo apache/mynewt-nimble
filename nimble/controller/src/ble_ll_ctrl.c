@@ -2065,6 +2065,17 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
         #endif
         #if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
             case BLE_LL_CONN_ROLE_PERIPHERAL:
+                /*
+                 * The central rejected the request because of its own
+                 * procedure with instant, retry once that instant has passed.
+                 */
+                if ((ble_error == BLE_ERR_DIFF_TRANS_COLL) &&
+                    ble_ll_ctrl_instant_pending(connsm)) {
+                    ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
+                    connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
+                    break;
+                }
+
                 ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
                 ble_ll_hci_ev_conn_update(connsm, ble_error);
                 break;
