@@ -30,11 +30,14 @@ concurrency:
 jobs:
   style_check:
     name: Coding style
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
       - name: Install Dependencies
         shell: bash
         run: |
@@ -80,11 +83,15 @@ jobs:
 
   style_license:
     name: Licensing
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '21'
       - name: Install Dependencies
         shell: bash
         run: |
@@ -100,7 +107,7 @@ jobs:
 
   style_doxygen:
     name: Doxygen Style
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
         with:
@@ -117,7 +124,7 @@ jobs:
 
   commits-check:
     name: Check commit messages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v7
         with:
