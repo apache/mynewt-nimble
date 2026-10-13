@@ -34,8 +34,8 @@ jobs:
     name: Build ports
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.12.3
+      - uses: actions/checkout@v7
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
         with:
           release: '15.2.Rel1'
       - name: Install Dependencies
@@ -45,7 +45,7 @@ jobs:
              sudo apt-get install -y make ccache gcc-multilib g++-multilib kconfig-frontends libmbedtls-dev cmake build-essential
       - name: Cache 32-bit Mbed TLS 3.6
         id: cache-mbedtls
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/mbedtls_install
           key: ${{ runner.os }}-mbedtls-3.6.5

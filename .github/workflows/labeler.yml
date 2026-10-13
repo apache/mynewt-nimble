@@ -30,16 +30,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Assign labels based on paths
-        uses: actions/labeler@v5
+        uses: actions/labeler@v7
         with:
           sync-labels: true
           configuration-path: .github/labeler_cfg.yml
 
       - name: Assign labels based on the PR's size
-        uses: codelytv/pr-size-labeler@v1.10.0
+        uses: codelytv/pr-size-labeler@v1.12.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ignore_file_deletions: true
