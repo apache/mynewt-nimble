@@ -32,18 +32,13 @@ concurrency:
 jobs:
   newt_test:
     name: Run newt test all
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
           go-version: 'stable'
       - name: Install Dependencies
-        if: matrix.os == 'ubuntu-latest'
         shell: bash
         run: |
              sudo apt-get update
