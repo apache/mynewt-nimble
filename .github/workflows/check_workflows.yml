@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   check-workflows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Check out master branch (base)
         uses: actions/checkout@v4
