@@ -1,0 +1,92 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Install newt
+description: >
+  Install newt built from master branch of apache/mynewt-newt. Built
+  binary is cached per newt commit, so newt is rebuilt only when newt
+  master branch changes.
+
+runs:
+  using: composite
+  steps:
+    - name: Get newt master commit
+      id: newt
+      shell: bash
+      run: |
+        sha=$(git ls-remote https://github.com/apache/mynewt-newt.git refs/heads/master | cut -f1)
+        if [ -z "$sha" ]; then
+          echo "::error::Failed to get newt master commit"
+          exit 1
+        fi
+        echo "newt master is at $sha"
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+    - name: Restore newt from cache
+      id: cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ github.workspace }}/.newt-bin
+        key: newt-${{ runner.os }}-${{ runner.arch }}-${{ steps.newt.outputs.sha }}
+
+    - name: Report newt cache status
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+        CACHE_KEY: ${{ steps.cache.outputs.cache-primary-key }}
+      run: |
+        if [ "$CACHE_HIT" = "true" ]; then
+          echo "newt cache hit: using cached build ($CACHE_KEY)"
+        else
+          echo "newt cache miss: building newt from source ($CACHE_KEY)"
+        fi
+
+    - name: Set up Go
+      if: steps.cache.outputs.cache-hit != 'true'
+      uses: actions/setup-go@v7
+      with:
+        go-version: 'stable'
+        cache: false
+
+    - name: Build newt
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GOBIN: ${{ github.workspace }}/.newt-bin
+      run: |
+        go version
+        go install mynewt.apache.org/newt/newt@${{ steps.newt.outputs.sha }}
+
+    # Only master saves cache, so that it is shared with all pull
+    # requests instead of being duplicated in each pull request scope
+    - name: Save newt to cache
+      if: >-
+        steps.cache.outputs.cache-hit != 'true' &&
+        github.ref == 'refs/heads/master' &&
+        github.event_name != 'pull_request'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ github.workspace }}/.newt-bin
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Add newt to PATH
+      shell: bash
+      run: |
+        echo "${{ github.workspace }}/.newt-bin" >> "$GITHUB_PATH"
+        "${{ github.workspace }}/.newt-bin/newt" version
