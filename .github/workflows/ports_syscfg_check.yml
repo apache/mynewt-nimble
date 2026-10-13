@@ -35,11 +35,12 @@ jobs:
       pull-requests: write
     if: github.event.repository.fork == false
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v3
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version: 'stable'
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.12.3
+          cache: false
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
         with:
           release: '15.2.Rel1'
       - name: Install Dependencies
@@ -91,7 +92,7 @@ jobs:
           cd ../../..
           rm -rf build
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           author: Mynewt Bot <dev@mynewt.apache.org>
           token: ${{ secrets.GITHUB_TOKEN }}

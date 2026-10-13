@@ -32,7 +32,7 @@ jobs:
     name: Coding style
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install Dependencies
@@ -42,7 +42,7 @@ jobs:
 
       - name: Check label
         id: label_check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const labelName = 'skip-style-check';
@@ -82,7 +82,7 @@ jobs:
     name: Licensing
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install Dependencies
@@ -102,7 +102,7 @@ jobs:
     name: Doxygen Style
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install Dependencies
@@ -119,7 +119,7 @@ jobs:
     name: Check commit messages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

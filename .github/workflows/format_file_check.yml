@@ -33,7 +33,7 @@ jobs:
     if: github.event.repository.fork == false
     steps:
       - name: Checkout current repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download .clang-format from source
         run: |
@@ -55,7 +55,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.changed.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           author: Mynewt Bot <dev@mynewt.apache.org>
           token: ${{ secrets.GITHUB_TOKEN }}
