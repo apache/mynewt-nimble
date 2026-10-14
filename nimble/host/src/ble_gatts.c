@@ -2156,6 +2156,144 @@ ble_gatts_find_dsc(const ble_uuid_t *svc_uuid, const ble_uuid_t *chr_uuid,
 }
 
 int
+ble_gatts_authorize_pending_att_req(uint16_t conn_handle, uint16_t cid, uint8_t att_err)
+{
+    struct ble_att_prep_write_cmd *prep_req;
+    struct ble_att_write_req *write_req;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *om;
+    uint16_t pend_attr_handle;
+    uint16_t pend_offset;
+    uint16_t attr_handle;
+    uint8_t att_opcode;
+    int rc;
+
+    rc = 0;
+
+    ble_hs_lock();
+    rc = ble_att_conn_chan_find(conn_handle, cid, &conn, &chan);
+    if (rc != 0 || chan->att_svr_rxom == NULL) {
+        ble_hs_unlock();
+        return BLE_HS_ENOENT;
+    }
+
+    om = chan->att_svr_rxom;
+    chan->att_svr_rxom = NULL;
+    pend_attr_handle = chan->att_svr_attr_handle;
+    pend_offset = chan->att_svr_offset;
+    att_opcode = chan->att_svr_att_op;
+    ble_hs_unlock();
+
+    if (att_err != 0) {
+        rc = BLE_HS_EAUTHOR;
+        ble_att_svr_tx_rsp(conn_handle, cid, rc, om,
+                           att_opcode, att_err, pend_attr_handle);
+        return rc;
+    }
+
+    switch (att_opcode) {
+    case BLE_ATT_OP_READ_REQ:
+        rc = ble_att_svr_create_read_rsp(conn_handle, cid, om, rc,
+                                         BLE_ATT_OP_READ_REQ, pend_attr_handle,
+                                         pend_offset, &att_err);
+        break;
+
+    case BLE_ATT_OP_READ_BLOB_REQ:
+        rc = ble_att_svr_create_read_rsp(
+            conn_handle, cid, om, rc, BLE_ATT_OP_READ_BLOB_REQ,
+            pend_attr_handle, pend_offset, &att_err);
+        break;
+
+    case BLE_ATT_OP_WRITE_REQ:
+        write_req = (struct ble_att_write_req *)om->om_data;
+        rc = ble_att_svr_create_write_rsp(conn_handle, cid, &om, rc,
+                                          write_req, pend_offset,
+                                          pend_attr_handle, &att_err);
+        os_mbuf_free_chain(om);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_REQ:
+        /* iterate through remaining requested handles */
+        while ((OS_MBUF_PKTLEN(om) - pend_offset) >= 2) {
+            os_mbuf_copydata(om, pend_offset, 2, &attr_handle);
+            pend_offset += 2;
+            rc = ble_att_svr_check_author_perm(conn_handle, attr_handle, &att_err,
+                                               BLE_ATT_ACCESS_OP_READ, cid);
+            if (rc == BLE_HS_EPENDING) {
+                ble_hs_lock();
+                if (ble_att_conn_chan_find(conn_handle, cid, &conn, &chan) == 0) {
+                    chan->att_svr_attr_handle = 0;
+                    chan->att_svr_offset = pend_offset;
+                    chan->att_svr_rxom = om;
+                    chan->att_svr_access_op = BLE_ATT_ACCESS_OP_READ;
+                    chan->att_svr_att_op = BLE_ATT_OP_READ_MULT_REQ;
+                    om = NULL;
+                } else {
+                    os_mbuf_free_chain(om);
+                }
+                ble_hs_unlock();
+                return rc;
+            }
+            if (rc != 0) {
+                break;
+            }
+        }
+
+        rc = ble_att_svr_create_read_mult_rsp(conn_handle, cid, &om,
+                                              rc, &att_err, &attr_handle);
+        os_mbuf_free_chain(om);
+        break;
+
+    case BLE_ATT_OP_READ_MULT_VAR_REQ:
+        /* iterate through remaining requested handles */
+        while ((OS_MBUF_PKTLEN(om) - pend_offset) >= 2) {
+            os_mbuf_copydata(om, pend_offset, 2, &attr_handle);
+            pend_offset += 2;
+            rc = ble_att_svr_check_author_perm(conn_handle, attr_handle, &att_err,
+                                               BLE_ATT_ACCESS_OP_READ, cid);
+            if (rc == BLE_HS_EPENDING) {
+                ble_hs_lock();
+                if (ble_att_conn_chan_find(conn_handle, cid, &conn, &chan) == 0) {
+                    chan->att_svr_attr_handle = 0;
+                    chan->att_svr_offset = pend_offset;
+                    chan->att_svr_rxom = om;
+                    chan->att_svr_access_op = BLE_ATT_ACCESS_OP_READ;
+                    chan->att_svr_att_op = BLE_ATT_OP_READ_MULT_VAR_REQ;
+                    om = NULL;
+                } else {
+                    os_mbuf_free_chain(om);
+                }
+                ble_hs_unlock();
+                return rc;
+            }
+            if (rc != 0) {
+                break;
+            }
+        }
+
+        rc = ble_att_svr_create_read_mult_var_len_rsp(
+            conn_handle, cid, &om, rc, &att_err, &attr_handle);
+        os_mbuf_free_chain(om);
+        break;
+
+    case BLE_ATT_OP_PREP_WRITE_REQ:
+        prep_req = (struct ble_att_prep_write_cmd *)om->om_data;
+        rc = ble_att_svr_create_prep_write_rsp(conn_handle, cid, &om,
+                                               prep_req, rc, att_err, pend_attr_handle);
+        os_mbuf_free_chain(om);
+        break;
+
+    default:
+        os_mbuf_free_chain(om);
+        rc = BLE_HS_EINVAL;
+        break;
+    }
+
+    return rc;
+}
+
+int
 ble_gatts_add_svcs(const struct ble_gatt_svc_def *svcs)
 {
     void *p;
