@@ -408,10 +408,10 @@ static int gatt_send(uint16_t conn_handle,
 	notify_complete();
 
 	if (!err) {
-		bt_mesh_atomic_inc(&pending_notifications);
-	}
+              bt_mesh_atomic_inc(&pending_notifications);
+          }
 
-	return err;
+          return err;
 }
 
 int bt_mesh_pb_gatt_adv_start(void)

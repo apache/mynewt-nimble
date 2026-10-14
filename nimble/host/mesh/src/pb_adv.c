@@ -77,42 +77,42 @@ enum {
 struct pb_adv {
 	uint32_t id; /* Link ID */
 
-	BT_MESH_ATOMIC_DEFINE(flags, ADV_NUM_FLAGS);
+          BT_MESH_ATOMIC_DEFINE(flags, ADV_NUM_FLAGS);
 
-	const struct prov_bearer_cb *cb;
-	void *cb_data;
+          const struct prov_bearer_cb *cb;
+          void *cb_data;
 
-	struct {
-		uint8_t id;       /* Most recent transaction ID */
-		uint8_t seg;      /* Bit-field of unreceived segments */
-		uint8_t last_seg; /* Last segment (to check length) */
-		uint8_t fcs;      /* Expected FCS value */
-		struct os_mbuf *buf;
-	} rx;
+          struct {
+              uint8_t id;       /* Most recent transaction ID */
+              uint8_t seg;      /* Bit-field of unreceived segments */
+              uint8_t last_seg; /* Last segment (to check length) */
+              uint8_t fcs;      /* Expected FCS value */
+              struct os_mbuf *buf;
+          } rx;
 
-	struct {
-		/* Start timestamp of the transaction */
-		int64_t start;
+          struct {
+              /* Start timestamp of the transaction */
+              int64_t start;
 
-		/* Transaction id */
-		uint8_t id;
+              /* Transaction id */
+              uint8_t id;
 
-		/* Current ack id */
-		uint8_t pending_ack;
+              /* Current ack id */
+              uint8_t pending_ack;
 
-		/* Pending outgoing buffer(s) */
-		struct os_mbuf *buf[3];
+              /* Pending outgoing buffer(s) */
+              struct os_mbuf *buf[3];
 
-		prov_bearer_send_complete_t cb;
+              prov_bearer_send_complete_t cb;
 
-		void *cb_data;
+              void *cb_data;
 
-		/* Retransmit timer */
-		struct k_work_delayable retransmit;
-	} tx;
+              /* Retransmit timer */
+              struct k_work_delayable retransmit;
+          } tx;
 
-	/* Protocol timeout */
-	struct k_work_delayable prot_timer;
+          /* Protocol timeout */
+          struct k_work_delayable prot_timer;
 };
 
 struct prov_rx {
