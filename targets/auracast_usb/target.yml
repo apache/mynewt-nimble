@@ -17,7 +17,7 @@
 # under the License.
 #
 
-target.app: "@apache-mynewt-nimble/apps/auracast_usb"
+target.app: "@apache-mynewt-nimble/apps/auracast"
 target.bsp: "@apache-mynewt-core/hw/bsp/nordic_pca10121"
 target.build_profile: speed
 
