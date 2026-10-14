@@ -26,33 +26,48 @@ enum {
 	BT_MESH_CDB_NODE_FLAG_COUNT
 };
 
+/** Provisioned node entry. */
 struct bt_mesh_cdb_node {
+	/** Device UUID. */
 	uint8_t  uuid[16];
+	/** Primary element unicast address. */
 	uint16_t addr;
+	/** Network key index. */
 	uint16_t net_idx;
+	/** Number of elements. */
 	uint8_t  num_elem;
+	/** Device key. */
 	uint8_t  dev_key[16];
 
+	/** Node flags. */
 	ATOMIC_DEFINE(flags, BT_MESH_CDB_NODE_FLAG_COUNT);
 };
 
+/** Subnet entry. */
 struct bt_mesh_cdb_subnet {
+	/** Network key index. */
 	uint16_t net_idx;
 
+	/** Key Refresh phase. */
 	uint8_t kr_phase;
 
 	struct {
+		/** Network key. */
 		uint8_t net_key[16];
-	} keys[2];
+	} keys[2]; /**< Current and updated keys. */
 };
 
+/** Application key entry. */
 struct bt_mesh_cdb_app_key {
+	/** Bound network key index. */
 	uint16_t net_idx;
+	/** Application key index. */
 	uint16_t app_idx;
 
 	struct {
+		/** Application key. */
 		uint8_t app_key[16];
-	} keys[2];
+	} keys[2]; /**< Current and updated keys. */
 };
 
 enum {
@@ -65,13 +80,19 @@ enum {
 	BT_MESH_CDB_FLAG_COUNT,
 };
 
+/** Mesh Configuration Database. */
 struct bt_mesh_cdb {
+	/** IV index. */
 	uint32_t iv_index;
 
+	/** Database flags. */
 	ATOMIC_DEFINE(flags, BT_MESH_CDB_FLAG_COUNT);
 
+	/** Provisioned nodes. */
 	struct bt_mesh_cdb_node nodes[NODE_COUNT];
+	/** Subnets. */
 	struct bt_mesh_cdb_subnet subnets[SUBNET_COUNT];
+	/** Application keys. */
 	struct bt_mesh_cdb_app_key app_keys[APP_KEY_COUNT];
 };
 

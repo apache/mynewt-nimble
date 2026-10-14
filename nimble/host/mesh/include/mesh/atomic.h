@@ -19,7 +19,6 @@ typedef atomic_t atomic_val_t;
 
 /**
  * @defgroup atomic_apis Atomic Services APIs
- * @ingroup kernel_apis
  * @{
  */
 
