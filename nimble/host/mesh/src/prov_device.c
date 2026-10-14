@@ -131,7 +131,7 @@ static void prov_start(const uint8_t *data)
 		return;
 	}
 
-	atomic_set_bit_to(bt_mesh_prov_link.flags, OOB_PUB_KEY, data[1] == PUB_KEY_OOB);
+	bt_mesh_atomic_set_bit_to(bt_mesh_prov_link.flags, OOB_PUB_KEY, data[1] == PUB_KEY_OOB);
 
 	memcpy(bt_mesh_prov_link.conf_inputs.start, data, PDU_LEN_START);
 
@@ -147,7 +147,7 @@ static void prov_start(const uint8_t *data)
 		prov_fail(PROV_ERR_NVAL_FMT);
 	}
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, OOB_STATIC_KEY)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_STATIC_KEY)) {
 		memcpy(bt_mesh_prov_link.auth + 16 - bt_mesh_prov->static_val_len,
 		       bt_mesh_prov->static_val, bt_mesh_prov->static_val_len);
 		(void)memset(bt_mesh_prov_link.auth, 0,
@@ -221,9 +221,9 @@ static void send_input_complete(void)
 
 static void public_key_sent(int err, void *cb_data)
 {
-	atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
+	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, INPUT_COMPLETE)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, INPUT_COMPLETE)) {
 		send_input_complete();
 		return;
 	}
@@ -231,8 +231,8 @@ static void public_key_sent(int err, void *cb_data)
 
 static void start_auth(void)
 {
-	if (atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
-	atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
+	bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
 		bt_mesh_prov_link.expect = PROV_NO_PDU; /* Wait for input */
 	} else {
 		bt_mesh_prov_link.expect = PROV_CONFIRM;
@@ -274,10 +274,10 @@ static void dh_key_gen_complete(void)
 {
 	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, BT_DH_KEY_LEN));
 
-	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY) &&
-	atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+	if (!bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY) &&
+	bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		send_confirm();
-	} else if (!atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+	} else if (!bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		send_pub_key();
 	}
 }
@@ -360,7 +360,7 @@ static void prov_dh_key_gen(void)
 
 	remote_pk = bt_mesh_prov_link.conf_inputs.pub_key_provisioner;
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
-	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 
 		if (bt_mesh_dhkey_gen(remote_pk, bt_mesh_prov->private_key_be,
 				      bt_mesh_prov_link.dhkey)) {
@@ -396,7 +396,7 @@ static void prov_pub_key(const uint8_t *data)
 	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_provisioner, data, PDU_LEN_PUB_KEY);
 
 	if (MYNEWT_VAL(BLE_MESH_PROV_OOB_PUBLIC_KEY) &&
-	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		if (!bt_mesh_prov->public_key_be || !bt_mesh_prov->private_key_be) {
 			BT_ERR("Public or private key is not ready");
 			prov_fail(PROV_ERR_UNEXP_ERR);
@@ -407,13 +407,13 @@ static void prov_pub_key(const uint8_t *data)
 		memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, bt_mesh_prov->public_key_be,
 		       PDU_LEN_PUB_KEY);
 
-		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY);
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY);
 
 		start_auth();
 	} else if (!bt_pub_key_get()) {
 		/* Clear retransmit timer */
 		bt_mesh_prov_link.bearer->clear_tx();
-		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
 		BT_WARN("Waiting for local public key");
 		return;
 	}
@@ -430,14 +430,14 @@ static void pub_key_ready(const uint8_t *pkey)
 
 	BT_DBG("Local public key ready");
 
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
 		prov_dh_key_gen();
 	}
 }
 
 static void notify_input_complete(void)
 {
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags,
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags,
 				      NOTIFY_INPUT_COMPLETE) &&
 	    bt_mesh_prov->input_complete) {
 		bt_mesh_prov->input_complete();
@@ -505,7 +505,7 @@ static void prov_confirm(const uint8_t *data)
 
 	notify_input_complete();
 
-	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY)) {
+	if (!bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_DH_KEY)) {
 		send_confirm();
 	}
 }
@@ -609,11 +609,11 @@ static void prov_data(const uint8_t *data)
 
 static void local_input_complete(void)
 {
-	if (atomic_test_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT) ||
-	    atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT) ||
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY)) {
 		send_input_complete();
 	} else {
-		atomic_set_bit(bt_mesh_prov_link.flags, INPUT_COMPLETE);
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, INPUT_COMPLETE);
 	}
 }
 

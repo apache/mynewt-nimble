@@ -53,7 +53,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 	BT_DBG("net_idx 0x%04x flags 0x%02x iv_index 0x%04x",
 	       net_idx, flags, (unsigned) iv_index);
 
-	if (atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (bt_mesh_atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return -EALREADY;
 	}
 
@@ -62,7 +62,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 	 * Should net_key and iv_index be over-ridden?
 	 */
 	if (IS_ENABLED(CONFIG_BT_MESH_CDB) &&
-	    atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
+	    bt_mesh_atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
 		const struct bt_mesh_comp *comp;
 		const struct bt_mesh_prov *prov;
 		struct bt_mesh_cdb_node *node;
@@ -70,13 +70,13 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 		comp = bt_mesh_comp_get();
 		if (comp == NULL) {
 			BT_ERR("Failed to get node composition");
-			atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+			bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
 			return -EINVAL;
 		}
 
 		if (!bt_mesh_cdb_subnet_get(net_idx)) {
 			BT_ERR("No subnet with idx %d", net_idx);
-			atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+			bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
 			return -ENOENT;
 		}
 
@@ -85,7 +85,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 					      comp->elem_count, net_idx);
 		if (node == NULL) {
 			BT_ERR("Failed to allocate database node");
-			atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+			bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
 			return -ENOMEM;
 		}
 
@@ -100,7 +100,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 
 	err = bt_mesh_net_create(net_idx, flags, net_key, iv_index);
 	if (err) {
-		atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
+		bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_VALID);
 
 		return err;
 	}
@@ -128,7 +128,7 @@ int bt_mesh_provision(const uint8_t net_key[16], uint16_t net_idx,
 int bt_mesh_provision_adv(const uint8_t uuid[16], uint16_t net_idx, uint16_t addr,
 			  uint8_t attention_duration)
 {
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ int bt_mesh_provision_adv(const uint8_t uuid[16], uint16_t net_idx, uint16_t add
 
 void bt_mesh_reset(void)
 {
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return;
 	}
 
@@ -203,7 +203,7 @@ void bt_mesh_reset(void)
 
 bool bt_mesh_is_provisioned(void)
 {
-	return atomic_test_bit(bt_mesh.flags, BT_MESH_VALID);
+	return bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID);
 }
 
 
@@ -234,17 +234,17 @@ int bt_mesh_suspend(void)
 {
 	int err;
 
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return -EINVAL;
 	}
 
-	if (atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+	if (bt_mesh_atomic_test_and_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
 		return -EALREADY;
 	}
 
 	err = bt_mesh_scan_disable();
 	if (err) {
-		atomic_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
+		bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
 		BT_WARN("Disabling scanning failed (err %d)", err);
 		return err;
 	}
@@ -277,18 +277,18 @@ int bt_mesh_resume(void)
 {
 	int err;
 
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		return -EINVAL;
 	}
 
-	if (!atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+	if (!bt_mesh_atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
 		return -EALREADY;
 	}
 
 	err = bt_mesh_scan_enable();
 	if (err) {
 		BT_WARN("Re-enabling scanning failed (err %d)", err);
-		atomic_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
+		bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_SUSPENDED);
 		return err;
 	}
 

@@ -170,9 +170,9 @@ struct bt_mesh_lpn {
 	struct bt_mesh_net_cred cred[2];
 
 	/* Bit fields for tracking which groups the Friend knows about */
-	ATOMIC_DEFINE(added, LPN_GROUPS);
-	ATOMIC_DEFINE(pending, LPN_GROUPS);
-	ATOMIC_DEFINE(to_remove, LPN_GROUPS);
+	BT_MESH_ATOMIC_DEFINE(added, LPN_GROUPS);
+	BT_MESH_ATOMIC_DEFINE(pending, LPN_GROUPS);
+	BT_MESH_ATOMIC_DEFINE(to_remove, LPN_GROUPS);
 };
 
 /* bt_mesh_net.flags */
@@ -198,7 +198,7 @@ struct bt_mesh_net {
 	uint32_t iv_index; /* Current IV Index */
 	uint32_t seq;      /* Next outgoing sequence number (24 bits) */
 
-	ATOMIC_DEFINE(flags, BT_MESH_FLAG_COUNT);
+	BT_MESH_ATOMIC_DEFINE(flags, BT_MESH_FLAG_COUNT);
 
 	/* Local network interface */
 	struct ble_npl_callout local_work;
@@ -263,7 +263,7 @@ struct bt_mesh_net_tx {
 extern struct bt_mesh_net bt_mesh;
 
 #define BT_MESH_NET_IVI_TX (bt_mesh.iv_index - \
-			    atomic_test_bit(bt_mesh.flags, \
+			    bt_mesh_atomic_test_bit(bt_mesh.flags, \
 					    BT_MESH_IVU_IN_PROGRESS))
 #define BT_MESH_NET_IVI_RX(rx) (bt_mesh.iv_index - (rx)->old_iv)
 

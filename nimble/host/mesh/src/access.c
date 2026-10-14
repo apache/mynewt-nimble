@@ -231,7 +231,7 @@ static void mod_publish(struct ble_npl_event *work)
 	int err;
 
 	if (pub->addr == BT_MESH_ADDR_UNASSIGNED ||
-	atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+	bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
 		/* Publication is no longer active, but the cancellation of the
 		 * delayed work failed. Abandon recurring timer.
 		 */

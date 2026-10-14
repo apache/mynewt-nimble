@@ -40,7 +40,7 @@ struct bt_mesh_cdb_node {
 	uint8_t  dev_key[16];
 
 	/** Node flags. */
-	ATOMIC_DEFINE(flags, BT_MESH_CDB_NODE_FLAG_COUNT);
+	BT_MESH_ATOMIC_DEFINE(flags, BT_MESH_CDB_NODE_FLAG_COUNT);
 };
 
 /** Subnet entry. */
@@ -86,7 +86,7 @@ struct bt_mesh_cdb {
 	uint32_t iv_index;
 
 	/** Database flags. */
-	ATOMIC_DEFINE(flags, BT_MESH_CDB_FLAG_COUNT);
+	BT_MESH_ATOMIC_DEFINE(flags, BT_MESH_CDB_FLAG_COUNT);
 
 	/** Provisioned nodes. */
 	struct bt_mesh_cdb_node nodes[NODE_COUNT];

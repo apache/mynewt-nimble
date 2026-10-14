@@ -46,7 +46,7 @@ enum {
 };
 
 static struct {
-	ATOMIC_DEFINE(flags, ADV_FLAGS_NUM);
+	BT_MESH_ATOMIC_DEFINE(flags, ADV_FLAGS_NUM);
 	struct bt_le_ext_adv *instance;
 	struct os_mbuf *buf;
 	int64_t timestamp;
@@ -59,13 +59,13 @@ static void schedule_send(void)
 	int64_t timestamp = adv.timestamp;
 	int64_t delta;
 
-	if (atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
+	if (bt_mesh_atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
 		ble_gap_ext_adv_stop(BT_ID_DEFAULT);
-		atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 	}
 
-	if (atomic_test_bit(adv.flags, ADV_FLAG_ACTIVE) ||
-	atomic_test_and_set_bit(adv.flags, ADV_FLAG_SCHEDULED)) {
+	if (bt_mesh_atomic_test_bit(adv.flags, ADV_FLAG_ACTIVE) ||
+	bt_mesh_atomic_test_and_set_bit(adv.flags, ADV_FLAG_SCHEDULED)) {
 		return;
 	}
 
@@ -84,8 +84,8 @@ ble_mesh_ext_adv_event_handler(struct ble_gap_event *event, void *arg)
 
 	switch (event->type) {
 	case BLE_GAP_EVENT_CONNECT:
-		if (atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
-			atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		if (bt_mesh_atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
+			bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 			schedule_send();
 		}
 		break;
@@ -98,9 +98,9 @@ ble_mesh_ext_adv_event_handler(struct ble_gap_event *event, void *arg)
 
 		BT_DBG("Advertising stopped after %u ms", (uint32_t)duration);
 
-		atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 
-		if (!atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
+		if (!bt_mesh_atomic_test_and_clear_bit(adv.flags, ADV_FLAG_PROXY)) {
 			net_buf_unref(adv.buf);
 		}
 
@@ -131,22 +131,22 @@ static int adv_start(const struct ble_gap_ext_adv_params *param,
 		goto error;
 	}
 
-	if (atomic_test_and_set_bit(adv.flags, ADV_FLAG_ACTIVE)) {
+	if (bt_mesh_atomic_test_and_set_bit(adv.flags, ADV_FLAG_ACTIVE)) {
 		BT_ERR("Advertiser is busy");
 		err = -EBUSY;
 		goto error;
 	}
 
-	if (atomic_test_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS)) {
+	if (bt_mesh_atomic_test_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS)) {
 		err = ble_gap_ext_adv_configure(BT_ID_DEFAULT, param, NULL,
 			       ble_mesh_ext_adv_event_handler, NULL);
 		if (err) {
 			BT_ERR("Failed updating adv params: %d", err);
-			atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+			bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 			goto error;
 		}
 
-		atomic_set_bit_to(adv.flags, ADV_FLAG_UPDATE_PARAMS,
+		bt_mesh_atomic_set_bit_to(adv.flags, ADV_FLAG_UPDATE_PARAMS,
 				  param != &adv_param);
 	}
 
@@ -159,7 +159,7 @@ static int adv_start(const struct ble_gap_ext_adv_params *param,
 	err = ble_gap_ext_adv_set_data(BT_ID_DEFAULT, ad_data);
 	if (err) {
 		BT_ERR("Failed setting adv data: %d", err);
-		atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 		goto error;
 	}
 
@@ -170,7 +170,7 @@ static int adv_start(const struct ble_gap_ext_adv_params *param,
 	err = ble_gap_ext_adv_rsp_set_data(BT_ID_DEFAULT, sd_data);
 	if (err) {
 		BT_ERR("Failed setting scan response data: %d", err);
-		atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 		goto error;
 	}
 
@@ -179,7 +179,7 @@ static int adv_start(const struct ble_gap_ext_adv_params *param,
 	err = ble_gap_ext_adv_start(BT_ID_DEFAULT, timeout, 0);
 	if (err) {
 		BT_ERR("Advertising failed: err %d", err);
-		atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
+		bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_ACTIVE);
 	}
 
 error:
@@ -229,7 +229,7 @@ static int buf_send(struct os_mbuf *buf)
 	if (adv_param.itvl_min != BT_MESH_ADV_SCAN_UNIT(adv_int)) {
 		adv_param.itvl_min = BT_MESH_ADV_SCAN_UNIT(adv_int);
 		adv_param.itvl_max = adv_param.itvl_min;
-		atomic_set_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS);
+		bt_mesh_atomic_set_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS);
 	}
 
 	err = adv_start(&adv_param, duration, &ad, 1, NULL, 0);
@@ -247,7 +247,7 @@ static void send_pending_adv(struct ble_npl_event *work)
 	struct os_mbuf *buf;
 	int err;
 
-	atomic_clear_bit(adv.flags, ADV_FLAG_SCHEDULED);
+	bt_mesh_atomic_clear_bit(adv.flags, ADV_FLAG_SCHEDULED);
 
 	while ((buf = net_buf_get(&bt_mesh_adv_queue, K_NO_WAIT))) {
 		/* busy == 0 means this was canceled */
@@ -282,7 +282,7 @@ static void send_pending_adv(struct ble_npl_event *work)
 	}
 
 	if (!err) {
-		atomic_set_bit(adv.flags, ADV_FLAG_PROXY);
+		bt_mesh_atomic_set_bit(adv.flags, ADV_FLAG_PROXY);
 	}
 }
 
@@ -338,7 +338,7 @@ int bt_mesh_adv_start(const struct ble_gap_adv_params *param, int32_t duration,
 
 	BT_DBG("Start advertising %d ms", duration);
 
-	atomic_set_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS);
+	bt_mesh_atomic_set_bit(adv.flags, ADV_FLAG_UPDATE_PARAMS);
 
 	return adv_start(&params, adv_timeout, ad, ad_len, sd, sd_len);
 }
