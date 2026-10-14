@@ -43,87 +43,87 @@ static struct prov_link gatt_link;
 
 static void reset_state(void)
 {
-	gatt_link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
+    gatt_link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
 
-	/* If this fails, the protocol timeout handler will exit early. */
-	(void)k_work_cancel_delayable(&gatt_link.prot_timer);
+    /* If this fails, the protocol timeout handler will exit early. */
+    (void)k_work_cancel_delayable(&gatt_link.prot_timer);
 }
 
 static void link_closed(enum prov_bearer_link_status status)
 {
-	const struct prov_bearer_cb *cb = gatt_link.cb;
+    const struct prov_bearer_cb *cb = gatt_link.cb;
 
-	void *cb_data = gatt_link.cb_data;
+    void *cb_data = gatt_link.cb_data;
 
-	reset_state();
+    reset_state();
 
-	cb->link_closed(&pb_gatt, cb_data, status);
+    cb->link_closed(&pb_gatt, cb_data, status);
 }
 
 static void protocol_timeout(struct ble_npl_event *work)
 {
-	if (!gatt_link.conn_handle) {
-		/* Already disconnected */
-		return;
-	}
+    if (!gatt_link.conn_handle) {
+        /* Already disconnected */
+        return;
+    }
 
-	BT_DBG("Protocol timeout");
+    BT_DBG("Protocol timeout");
 
-	link_closed(PROV_BEARER_LINK_STATUS_TIMEOUT);
+    link_closed(PROV_BEARER_LINK_STATUS_TIMEOUT);
 }
 
 int bt_mesh_pb_gatt_recv(uint16_t conn_handle, struct os_mbuf *buf)
 {
 	BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
-	if (gatt_link.conn_handle != conn_handle || !gatt_link.cb) {
-		BT_WARN("Data for unexpected connection");
-		return -ENOTCONN;
-	}
+          if (gatt_link.conn_handle != conn_handle || !gatt_link.cb) {
+              BT_WARN("Data for unexpected connection");
+              return -ENOTCONN;
+          }
 
-	if (buf->om_len < 1) {
-		BT_WARN("Too short provisioning packet (len %u)", buf->om_len);
-		return -EINVAL;
-	}
+          if (buf->om_len < 1) {
+              BT_WARN("Too short provisioning packet (len %u)", buf->om_len);
+              return -EINVAL;
+          }
 
-	k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
+          k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	gatt_link.cb->recv(&pb_gatt, gatt_link.cb_data, buf);
+          gatt_link.cb->recv(&pb_gatt, gatt_link.cb_data, buf);
 
-	return 0;
+          return 0;
 }
 
 int bt_mesh_pb_gatt_open(uint16_t conn_handle)
 {
 	BT_DBG("conn %p", conn_handle);
 
-	if (gatt_link.conn_handle) {
-		return -EBUSY;
-	}
+          if (gatt_link.conn_handle) {
+              return -EBUSY;
+          }
 
-	gatt_link.conn_handle = conn_handle;
-	k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
+          gatt_link.conn_handle = conn_handle;
+          k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	gatt_link.cb->link_opened(&pb_gatt, gatt_link.cb_data);
+          gatt_link.cb->link_opened(&pb_gatt, gatt_link.cb_data);
 
-	return 0;
+          return 0;
 }
 
 int bt_mesh_pb_gatt_close(uint16_t conn_handle)
 {
 	BT_DBG("conn %p", conn_handle);
 
-	if (gatt_link.conn_handle != conn_handle) {
-		BT_DBG("Not connected");
-		return -ENOTCONN;
-	}
+          if (gatt_link.conn_handle != conn_handle) {
+              BT_DBG("Not connected");
+              return -ENOTCONN;
+          }
 
-	gatt_link.cb->link_closed(&pb_gatt, gatt_link.cb_data,
-			     PROV_BEARER_LINK_STATUS_SUCCESS);
+          gatt_link.cb->link_closed(&pb_gatt, gatt_link.cb_data,
+                                    PROV_BEARER_LINK_STATUS_SUCCESS);
 
-	reset_state();
+          reset_state();
 
-	return 0;
+          return 0;
 }
 
 static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
@@ -131,25 +131,25 @@ static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 	(void)bt_mesh_pb_gatt_enable();
 	bt_mesh_adv_update();
 
-	gatt_link.cb = cb;
-	gatt_link.cb_data = cb_data;
+          gatt_link.cb = cb;
+          gatt_link.cb_data = cb_data;
 
-	return 0;
+          return 0;
 }
 
 static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		    void *cb_data)
 {
-	if (!gatt_link.conn_handle) {
-		return -ENOTCONN;
-	}
+    if (!gatt_link.conn_handle) {
+        return -ENOTCONN;
+    }
 
-	gatt_link.comp.cb = cb;
-	gatt_link.comp.cb_data = cb_data;
+    gatt_link.comp.cb = cb;
+    gatt_link.comp.cb_data = cb_data;
 
-	k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
+    k_work_reschedule(&gatt_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	return bt_mesh_pb_gatt_send(gatt_link.conn_handle, buf);
+    return bt_mesh_pb_gatt_send(gatt_link.conn_handle, buf);
 }
 
 static void clear_tx(void)
@@ -159,7 +159,7 @@ static void clear_tx(void)
 
 void pb_gatt_init(void)
 {
-	k_work_init_delayable(&gatt_link.prot_timer, protocol_timeout);
+    k_work_init_delayable(&gatt_link.prot_timer, protocol_timeout);
 }
 
 void pb_gatt_reset(void)
