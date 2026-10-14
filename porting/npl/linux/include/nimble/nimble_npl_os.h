@@ -26,6 +26,7 @@
 #include <limits.h>
 
 #include "os_types.h"
+#include "nimble/nimble_npl_atomic_builtin.h"
 
 #ifdef __cplusplus
 extern "C" {
