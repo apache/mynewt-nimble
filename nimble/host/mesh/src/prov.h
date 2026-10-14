@@ -109,32 +109,32 @@ struct bt_mesh_prov_role {
 };
 
 struct bt_mesh_prov_link {
-	BT_MESH_ATOMIC_DEFINE(flags, NUM_FLAGS);
+    BT_MESH_ATOMIC_DEFINE(flags, NUM_FLAGS);
 
-	const struct prov_bearer *bearer;
-	const struct bt_mesh_prov_role *role;
+    const struct prov_bearer *bearer;
+    const struct bt_mesh_prov_role *role;
 
-	uint8_t oob_method;             /* Authen method */
-	uint8_t oob_action;             /* Authen action */
-	uint8_t oob_size;               /* Authen size */
-	uint8_t auth[16];               /* Authen value */
+    uint8_t oob_method; /* Authen method */
+    uint8_t oob_action; /* Authen action */
+    uint8_t oob_size;   /* Authen size */
+    uint8_t auth[16];   /* Authen value */
 
-	uint8_t dhkey[BT_DH_KEY_LEN];   /* Calculated DHKey */
-	uint8_t expect;                 /* Next expected PDU */
-	uint8_t conf[16];               /* Local/Remote Confirmation */
-	uint8_t rand[16];               /* Local Random */
+    uint8_t dhkey[BT_DH_KEY_LEN]; /* Calculated DHKey */
+    uint8_t expect;               /* Next expected PDU */
+    uint8_t conf[16];             /* Local/Remote Confirmation */
+    uint8_t rand[16];             /* Local Random */
 
-	uint8_t conf_salt[16];          /* ConfirmationSalt */
-	uint8_t conf_key[16];           /* ConfirmationKey */
-	/* ConfirmationInput fields: */
-	struct {
-		uint8_t invite[PDU_LEN_INVITE];
-		uint8_t capabilities[PDU_LEN_CAPABILITIES];
-		uint8_t start[PDU_LEN_START];
-		uint8_t pub_key_provisioner[PDU_LEN_PUB_KEY]; /* big-endian */
-		uint8_t pub_key_device[PDU_LEN_PUB_KEY]; /* big-endian */
-	} conf_inputs;
-	uint8_t prov_salt[16];          /* Provisioning Salt */
+    uint8_t conf_salt[16]; /* ConfirmationSalt */
+    uint8_t conf_key[16];  /* ConfirmationKey */
+    /* ConfirmationInput fields: */
+    struct {
+        uint8_t invite[PDU_LEN_INVITE];
+        uint8_t capabilities[PDU_LEN_CAPABILITIES];
+        uint8_t start[PDU_LEN_START];
+        uint8_t pub_key_provisioner[PDU_LEN_PUB_KEY]; /* big-endian */
+        uint8_t pub_key_device[PDU_LEN_PUB_KEY];      /* big-endian */
+    } conf_inputs;
+    uint8_t prov_salt[16]; /* Provisioning Salt */
 };
 
 extern struct bt_mesh_prov_link bt_mesh_prov_link;
