@@ -23,27 +23,6 @@ typedef atomic_t atomic_val_t;
  */
 
 /**
- * @brief Atomic compare-and-set.
- *
- * This routine performs an atomic compare-and-set on @a target. If the current
- * value of @a target equals @a old_value, @a target is set to @a new_value.
- * If the current value of @a target does not equal @a old_value, @a target
- * is left unchanged.
- *
- * @param target Address of atomic variable.
- * @param old_value Original value to compare against.
- * @param new_value New value to store.
- * @return 1 if @a new_value is written, 0 otherwise.
- */
-static inline int atomic_cas(atomic_t *target, atomic_val_t old_value,
-        atomic_val_t new_value)
-{
-    return __atomic_compare_exchange_n(target, &old_value, new_value,
-            0, __ATOMIC_SEQ_CST,
-            __ATOMIC_SEQ_CST);
-}
-
-/**
  *
  * @brief Atomic addition.
  *
@@ -183,24 +162,6 @@ static inline atomic_val_t atomic_or(atomic_t *target, atomic_val_t value)
 
 /**
  *
- * @brief Atomic bitwise exclusive OR (XOR).
- *
- * This routine atomically sets @a target to the bitwise exclusive OR (XOR) of
- * @a target and @a value.
- *
- * @param target Address of atomic variable.
- * @param value Value to XOR
- *
- * @return Previous value of @a target.
- */
-
-static inline atomic_val_t atomic_xor(atomic_t *target, atomic_val_t value)
-{
-    return __atomic_fetch_xor(target, value, __ATOMIC_SEQ_CST);
-}
-
-/**
- *
  * @brief Atomic bitwise AND.
  *
  * This routine atomically sets @a target to the bitwise AND of @a target
@@ -215,24 +176,6 @@ static inline atomic_val_t atomic_xor(atomic_t *target, atomic_val_t value)
 static inline atomic_val_t atomic_and(atomic_t *target, atomic_val_t value)
 {
     return __atomic_fetch_and(target, value, __ATOMIC_SEQ_CST);
-}
-
-/**
- *
- * @brief Atomic bitwise NAND.
- *
- * This routine atomically sets @a target to the bitwise NAND of @a target
- * and @a value. (This operation is equivalent to target = ~(target & value).)
- *
- * @param target Address of atomic variable.
- * @param value Value to NAND.
- *
- * @return Previous value of @a target.
- */
-
-static inline atomic_val_t atomic_nand(atomic_t *target, atomic_val_t value)
-{
-    return __atomic_fetch_nand(target, value, __ATOMIC_SEQ_CST);
 }
 
     /**
