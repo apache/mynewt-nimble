@@ -17,7 +17,7 @@
 #include "mesh_priv.h"
 
 #include "crypto.h"
-#include "atomic.h"
+#include "mesh/atomic.h"
 #include "net.h"
 #include "access.h"
 #include "foundation.h"
