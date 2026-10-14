@@ -130,7 +130,7 @@ enum {
                              CFG_TUD_MSC * TUD_MSC_DESC_LEN + \
                              CFG_TUD_HID * TUD_HID_DESC_LEN + \
                              CFG_TUD_BTH * TUD_BTH_DESC_LEN + \
-                             CFG_TUD_AUDIO_IN * TUD_AUDIO_MIC_ONE_CH_DESC_LEN + \
+                             CFG_TUD_AUDIO_IN * TUD_AUDIO20_MIC_ONE_CH_DESC_LEN + \
                              (1 + CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
                              (TUD_AUDIO_SPEAKER_MONO_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) + \
                              (1 - CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
@@ -177,7 +177,7 @@ const uint8_t desc_configuration[] = {
 #endif
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 1
     #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
-    TUD_AUDIO_SPEAKER_MONO_FB_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, 2, 16, ISO_EP, 100, 0x80 | ISO_EP),
+    TUD_AUDIO20_SPEAKER_MONO_FB_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, 2, 16, ISO_EP, 100, 0x80 | ISO_EP),
 #else
     TUD_AUDIO_SPEAKER_MONO_DESCRIPTOR(ITF_NUM_AUDIO_AC, 0, CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX,
     8 * CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_RX, ISO_EP, CFG_TUD_AUDIO_EPSIZE_OUT),
@@ -206,7 +206,7 @@ static uint16_t desc_string[MYNEWT_VAL(USBD_STRING_DESCRIPTOR_MAX_LENGTH) + 1];
 const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_MIC2_DESC_LEN};
 #elif CFG_TUD_AUDIO_OUT && CFG_TUD_AUDIO_N_CHANNELS_RX == 1
 #if CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP
-const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_MONO_FB_DESC_LEN};
+const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO20_SPEAKER_MONO_FB_DESC_LEN};
 #else
 const uint16_t tud_audio_desc_lengths[] = {TUD_AUDIO_SPEAKER_MONO_DESC_LEN};
 #endif
@@ -226,18 +226,19 @@ bool
 tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_request, uint8_t *pBuff)
 {
     uint32_t new_sample_rate;
+    uint8_t entity_id = TU_U16_HIGH(p_request->wIndex);
+    uint8_t ctrl_sel = TU_U16_HIGH(p_request->wValue);
 
     (void) rhport;
-    audio_control_request_t *request = (audio_control_request_t *) p_request;
 
-    if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_VOLUME &&
-        request->bRequest == AUDIO_CS_REQ_CUR) {
+    if (entity_id == 2 && ctrl_sel == AUDIO20_FU_CTRL_VOLUME &&
+        p_request->bRequest == AUDIO20_CS_REQ_CUR) {
         /* Ignore value but accept request */
         return true;
-    } else if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ &&
-               request->bRequest == AUDIO_CS_REQ_CUR) {
+    } else if (entity_id == 4 && ctrl_sel == AUDIO20_CS_CTRL_SAM_FREQ &&
+               p_request->bRequest == AUDIO20_CS_REQ_CUR) {
         /* Ignore value but accept request */
-        new_sample_rate = ((audio_control_cur_4_t *)(pBuff))->bCur;
+        new_sample_rate = ((audio20_control_cur_4_t *)(pBuff))->bCur;
         if (new_sample_rate != g_sample_rate) {
             g_sample_rate = new_sample_rate;
             if (sample_rate_cb) {
@@ -254,20 +255,22 @@ tud_audio_set_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_req
 bool
 tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_request)
 {
+    uint8_t entity_id = TU_U16_HIGH(p_request->wIndex);
+    uint8_t ctrl_sel = TU_U16_HIGH(p_request->wValue);
+
     (void) rhport;
-    audio_control_request_t *request = (audio_control_request_t *) p_request;
-    if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_SAM_FREQ) {
-        if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_4_t curf = {g_sample_rate};
+    if (entity_id == 4 && ctrl_sel == AUDIO20_CS_CTRL_SAM_FREQ) {
+        if (p_request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_4_t curf = {g_sample_rate};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &curf, sizeof(curf));
-        } else if (request->bRequest == AUDIO_CS_REQ_RANGE) {
+        } else if (p_request->bRequest == AUDIO20_CS_REQ_RANGE) {
 #if 1
-            audio_control_range_4_n_t(1) rangef = {
+            audio20_control_range_4_n_t(1) rangef = {
                 .wNumSubRanges = 1,
                 .subrange[0] = {g_sample_rate, g_sample_rate, 0},
             };
 #else
-            audio_control_range_4_n_t(2) rangef = {
+            audio20_control_range_4_n_t(2) rangef = {
                 .wNumSubRanges = 2,
                 .subrange[0] = {16000, 16000, 0},
                 .subrange[1] = {48000, 48000, 0},
@@ -275,28 +278,28 @@ tud_audio_get_req_entity_cb(uint8_t rhport, tusb_control_request_t const * p_req
 #endif
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &rangef, sizeof(rangef));
         }
-    } else if (request->bEntityID == 5 && request->bControlSelector == AUDIO_CX_CTRL_CONTROL) {
-        if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_1_t cur_clk = {1};
+    } else if (entity_id == 5 && ctrl_sel == AUDIO20_CX_CTRL_CONTROL) {
+        if (p_request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_1_t cur_clk = {1};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_clk, sizeof(cur_clk));
         }
-    } else if (request->bEntityID == 4 && request->bControlSelector == AUDIO_CS_CTRL_CLK_VALID &&
-               request->bRequest == AUDIO_CS_REQ_CUR) {
-        audio_control_cur_1_t cur_valid = {.bCur = 1};
+    } else if (entity_id == 4 && ctrl_sel == AUDIO20_CS_CTRL_CLK_VALID &&
+               p_request->bRequest == AUDIO20_CS_REQ_CUR) {
+        audio20_control_cur_1_t cur_valid = {.bCur = 1};
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_valid, sizeof(cur_valid));
-    } else if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_MUTE &&
-               request->bRequest == AUDIO_CS_REQ_CUR) {
-        audio_control_cur_1_t mute = {.bCur = 0};
+    } else if (entity_id == 2 && ctrl_sel == AUDIO20_FU_CTRL_MUTE &&
+               p_request->bRequest == AUDIO20_CS_REQ_CUR) {
+        audio20_control_cur_1_t mute = {.bCur = 0};
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute, sizeof(mute));
-    } else if (request->bEntityID == 2 && request->bControlSelector == AUDIO_FU_CTRL_VOLUME) {
-        if (request->bRequest == AUDIO_CS_REQ_RANGE) {
-            audio_control_range_2_n_t(1) range_vol = {
+    } else if (entity_id == 2 && ctrl_sel == AUDIO20_FU_CTRL_VOLUME) {
+        if (p_request->bRequest == AUDIO20_CS_REQ_RANGE) {
+            audio20_control_range_2_n_t(1) range_vol = {
                 .wNumSubRanges = 1,
                 .subrange[0] = {0, 1000, 10}
             };
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &range_vol, sizeof(range_vol));
-        } else if (request->bRequest == AUDIO_CS_REQ_CUR) {
-            audio_control_cur_2_t cur_vol = {.bCur = 1280};
+        } else if (p_request->bRequest == AUDIO20_CS_REQ_CUR) {
+            audio20_control_cur_2_t cur_vol = {.bCur = 1280};
             return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &cur_vol, sizeof(cur_vol));
         }
     } else {

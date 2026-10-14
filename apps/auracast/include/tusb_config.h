@@ -79,12 +79,12 @@ extern "C" {
                                   MYNEWT_VAL(USBD_AUDIO_IN_OUT))
 
 /* Audio format type */
-#define CFG_TUD_AUDIO_FORMAT_TYPE_TX        AUDIO_FORMAT_TYPE_I
-#define CFG_TUD_AUDIO_FORMAT_TYPE_RX        AUDIO_FORMAT_TYPE_I
+#define CFG_TUD_AUDIO_FORMAT_TYPE_TX        AUDIO20_FORMAT_TYPE_I
+#define CFG_TUD_AUDIO_FORMAT_TYPE_RX        AUDIO20_FORMAT_TYPE_I
 
 /* Audio format type I specifications */
-#define CFG_TUD_AUDIO_FORMAT_TYPE_I_TX      AUDIO_DATA_FORMAT_TYPE_I_PCM
-#define CFG_TUD_AUDIO_FORMAT_TYPE_I_RX      AUDIO_DATA_FORMAT_TYPE_I_PCM
+#define CFG_TUD_AUDIO_FORMAT_TYPE_I_TX      AUDIO20_DATA_FORMAT_TYPE_I_PCM
+#define CFG_TUD_AUDIO_FORMAT_TYPE_I_RX      AUDIO20_DATA_FORMAT_TYPE_I_PCM
 #define CFG_TUD_AUDIO_N_CHANNELS_TX         2
 #define CFG_TUD_AUDIO_N_BYTES_PER_SAMPLE_TX 2
 #define CFG_TUD_AUDIO_N_CHANNELS_RX         MYNEWT_VAL(USB_AUDIO_OUT_CHANNELS)
@@ -128,76 +128,75 @@ extern "C" {
 /* HID buffer size Should be sufficient to hold ID (if any) + Data */
 #define CFG_TUD_HID_BUFSIZE      16
 
-#define TUD_AUDIO_SPEAKER_MONO_DESC_LEN (TUD_AUDIO_DESC_IAD_LEN \
-                                         + TUD_AUDIO_DESC_STD_AC_LEN \
-                                         + TUD_AUDIO_DESC_CS_AC_LEN \
-                                         + TUD_AUDIO_DESC_CLK_SRC_LEN \
-                                         + TUD_AUDIO_DESC_INPUT_TERM_LEN \
-                                         + TUD_AUDIO_DESC_OUTPUT_TERM_LEN \
-                                         + TUD_AUDIO_DESC_FEATURE_UNIT_ONE_CHANNEL_LEN \
-                                         + TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                         + TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                         + TUD_AUDIO_DESC_CS_AS_INT_LEN \
-                                         + TUD_AUDIO_DESC_TYPE_I_FORMAT_LEN \
-                                         + TUD_AUDIO_DESC_STD_AS_ISO_EP_LEN \
-                                         + TUD_AUDIO_DESC_CS_AS_ISO_EP_LEN)
+#define TUD_AUDIO_SPEAKER_MONO_DESC_LEN (TUD_AUDIO20_DESC_IAD_LEN \
+                                         + TUD_AUDIO20_DESC_STD_AC_LEN \
+                                         + TUD_AUDIO20_DESC_CS_AC_LEN \
+                                         + TUD_AUDIO20_DESC_CLK_SRC_LEN \
+                                         + TUD_AUDIO20_DESC_INPUT_TERM_LEN \
+                                         + TUD_AUDIO20_DESC_OUTPUT_TERM_LEN \
+                                         + TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(1) \
+                                         + TUD_AUDIO20_DESC_STD_AS_LEN \
+                                         + TUD_AUDIO20_DESC_STD_AS_LEN \
+                                         + TUD_AUDIO20_DESC_CS_AS_INT_LEN \
+                                         + TUD_AUDIO20_DESC_TYPE_I_FORMAT_LEN \
+                                         + TUD_AUDIO20_DESC_STD_AS_ISO_EP_LEN \
+                                         + TUD_AUDIO20_DESC_CS_AS_ISO_EP_LEN)
 
 #define TUD_AUDIO_SPEAKER_MONO_DESCRIPTOR(_itfnum, _stridx, _nBytesPerSample, _nBitsUsedPerSample, _epout, _epsize) \
     /* Standard Interface Association Descriptor (IAD) */ \
-    TUD_AUDIO_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
     /* Standard AC Interface Descriptor(4.7.1) */ \
-    TUD_AUDIO_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
+    TUD_AUDIO20_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
     /* Class-Specific AC Interface Header Descriptor(4.7.2) */ \
-    TUD_AUDIO_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO_FUNC_DESKTOP_SPEAKER, \
-                         /*_totallen*/ TUD_AUDIO_DESC_CLK_SRC_LEN+TUD_AUDIO_DESC_INPUT_TERM_LEN+ \
-    TUD_AUDIO_DESC_OUTPUT_TERM_LEN+TUD_AUDIO_DESC_FEATURE_UNIT_ONE_CHANNEL_LEN, \
-                         /*_ctrl*/ AUDIO_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
+    TUD_AUDIO20_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO20_FUNC_DESKTOP_SPEAKER, \
+                         /*_totallen*/ TUD_AUDIO20_DESC_CLK_SRC_LEN+TUD_AUDIO20_DESC_INPUT_TERM_LEN+ \
+    TUD_AUDIO20_DESC_OUTPUT_TERM_LEN+TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(1), \
+                         /*_ctrl*/ AUDIO20_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
     /* Clock Source Descriptor(4.7.2.1) */ \
-    TUD_AUDIO_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
-                           /*_ctrl*/ (AUDIO_CTRL_R << AUDIO_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO20_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
+                           /*_ctrl*/ (AUDIO20_CTRL_R << AUDIO20_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
                            /*_stridx*/ 0x00), \
     /* Input Terminal Descriptor(4.7.2.4) */ \
-    TUD_AUDIO_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
                               /*_clkid*/ 0x04, /*_nchannelslogical*/ 0x01, \
-                              /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, /*_idxchannelnames*/ 0x00, \
-                              /*_ctrl*/ 0 * (AUDIO_CTRL_R << AUDIO_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
+                              /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_NON_PREDEFINED, /*_idxchannelnames*/ 0x00, \
+                              /*_ctrl*/ 0 * (AUDIO20_CTRL_R << AUDIO20_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
     /* Output Terminal Descriptor(4.7.2.5) */ \
-    TUD_AUDIO_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
+    TUD_AUDIO20_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
                                /*_assocTerm*/ 0x00, /*_srcid*/ 0x02, /*_clkid*/ 0x04, /*_ctrl*/ 0x0000, \
                                /*_stridx*/ 0x00), \
     /* Feature Unit Descriptor(4.7.2.8) */ \
-    TUD_AUDIO_DESC_FEATURE_UNIT_ONE_CHANNEL(/*_unitid*/ 0x02, /*_srcid*/ 0x01, \
-                                            /*_ctrlch0master*/ 0 * (AUDIO_CTRL_RW << \
-                                                                    AUDIO_FEATURE_UNIT_CTRL_MUTE_POS | \
-                                                                    AUDIO_CTRL_RW << \
-                                                                    AUDIO_FEATURE_UNIT_CTRL_VOLUME_POS), \
-                                            /*_ctrlch1*/ 0 * (AUDIO_CTRL_RW << \
-                                                              AUDIO_FEATURE_UNIT_CTRL_MUTE_POS | AUDIO_CTRL_RW << \
-                                                              AUDIO_FEATURE_UNIT_CTRL_VOLUME_POS), \
-                                            /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_FEATURE_UNIT(/*_unitid*/ 0x02, /*_srcid*/ 0x01, /*_stridx*/ 0x00, \
+                                  /*_ctrlch0master*/ 0 * (AUDIO20_CTRL_RW << \
+                                                          AUDIO20_FEATURE_UNIT_CTRL_MUTE_POS | \
+                                                          AUDIO20_CTRL_RW << \
+                                                          AUDIO20_FEATURE_UNIT_CTRL_VOLUME_POS), \
+                                  /*_ctrlch1*/ 0 * (AUDIO20_CTRL_RW << \
+                                                    AUDIO20_FEATURE_UNIT_CTRL_MUTE_POS | AUDIO20_CTRL_RW << \
+                                                    AUDIO20_FEATURE_UNIT_CTRL_VOLUME_POS)), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 0 - default alternate setting with 0 bandwidth */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
                               /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 1 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x01, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_NON_PREDEFINED, /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x01, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_NON_PREDEFINED, /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000) \
 
 /* XXXXX
@@ -208,235 +207,235 @@ extern "C" {
 #define TUD_AUDIO_SPEAKER3_DESCRIPTOR(_itfnum, _stridx, _nBytesPerSample, _nBitsUsedPerSample, _epout, _epsize1, \
                                       _epsize2, _epsize3) \
     /* Standard Interface Association Descriptor (IAD) */ \
-    TUD_AUDIO_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
     /* Standard AC Interface Descriptor(4.7.1) */ \
-    TUD_AUDIO_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
+    TUD_AUDIO20_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
     /* Class-Specific AC Interface Header Descriptor(4.7.2) */ \
-    TUD_AUDIO_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO_FUNC_DESKTOP_SPEAKER, \
-                         /*_totallen*/ TUD_AUDIO_DESC_CLK_SRC_LEN+TUD_AUDIO_DESC_INPUT_TERM_LEN+ \
-    TUD_AUDIO_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN, \
-                         /*_ctrl*/ AUDIO_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
+    TUD_AUDIO20_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO20_FUNC_DESKTOP_SPEAKER, \
+                         /*_totallen*/ TUD_AUDIO20_DESC_CLK_SRC_LEN+TUD_AUDIO20_DESC_INPUT_TERM_LEN+ \
+    TUD_AUDIO20_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(2), \
+                         /*_ctrl*/ AUDIO20_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
     /* Clock Source Descriptor(4.7.2.1) */ \
-    TUD_AUDIO_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
-                           /*_ctrl*/ (AUDIO_CTRL_RW << AUDIO_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO20_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
+                           /*_ctrl*/ (AUDIO20_CTRL_RW << AUDIO20_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
                            /*_stridx*/ 0x00), \
     /* Input Terminal Descriptor(4.7.2.4) */ \
-    TUD_AUDIO_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
                               /*_clkid*/ 0x04, /*_nchannelslogical*/ 0x02, \
-                              /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+                              /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                               /*_idxchannelnames*/ 0x00, \
-                              /*_ctrl*/ 0 * (AUDIO_CTRL_R << AUDIO_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
+                              /*_ctrl*/ 0 * (AUDIO20_CTRL_R << AUDIO20_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
     /* Output Terminal Descriptor(4.7.2.5) */ \
-    TUD_AUDIO_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
+    TUD_AUDIO20_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
                                /*_assocTerm*/ 0x00, /*_srcid*/ 0x01, /*_clkid*/ 0x04, /*_ctrl*/ 0x0000, \
                                /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 0 - default alternate setting with 0 bandwidth */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
                               /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
                                                                                                                                  \
     /* Interface 1, Alternate 1 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                              /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize1, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000), \
                                                                                                                                  \
     /* Interface 1, Alternate 2 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x02, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x02, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                              /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize2, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000), \
                                                                                                                                  \
     /* Interface 1, Alternate 1 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x03, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x03, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                              /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize3, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000) \
 
-#define TUD_AUDIO_SPK3_DESC_LEN (TUD_AUDIO_DESC_IAD_LEN \
-                                 + TUD_AUDIO_DESC_STD_AC_LEN \
-                                 + TUD_AUDIO_DESC_CS_AC_LEN \
-                                 + TUD_AUDIO_DESC_CLK_SRC_LEN \
-                                 + TUD_AUDIO_DESC_INPUT_TERM_LEN \
-                                 + TUD_AUDIO_DESC_OUTPUT_TERM_LEN \
-                                 + 0 * TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN \
-                                 + TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                 + (TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                    + TUD_AUDIO_DESC_CS_AS_INT_LEN \
-                                    + TUD_AUDIO_DESC_TYPE_I_FORMAT_LEN \
-                                    + TUD_AUDIO_DESC_STD_AS_ISO_EP_LEN \
-                                    + TUD_AUDIO_DESC_CS_AS_ISO_EP_LEN) * 3)
+#define TUD_AUDIO_SPK3_DESC_LEN (TUD_AUDIO20_DESC_IAD_LEN \
+                                 + TUD_AUDIO20_DESC_STD_AC_LEN \
+                                 + TUD_AUDIO20_DESC_CS_AC_LEN \
+                                 + TUD_AUDIO20_DESC_CLK_SRC_LEN \
+                                 + TUD_AUDIO20_DESC_INPUT_TERM_LEN \
+                                 + TUD_AUDIO20_DESC_OUTPUT_TERM_LEN \
+                                 + 0 * TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(2) \
+                                 + TUD_AUDIO20_DESC_STD_AS_LEN \
+                                 + (TUD_AUDIO20_DESC_STD_AS_LEN \
+                                    + TUD_AUDIO20_DESC_CS_AS_INT_LEN \
+                                    + TUD_AUDIO20_DESC_TYPE_I_FORMAT_LEN \
+                                    + TUD_AUDIO20_DESC_STD_AS_ISO_EP_LEN \
+                                    + TUD_AUDIO20_DESC_CS_AS_ISO_EP_LEN) * 3)
 
 
 #define TUD_AUDIO_SPEAKER_DESCRIPTOR_FLOAT(_itfnum, _stridx, _epout, _epsize) \
     /* Standard Interface Association Descriptor (IAD) */ \
-    TUD_AUDIO_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
     /* Standard AC Interface Descriptor(4.7.1) */ \
-    TUD_AUDIO_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
+    TUD_AUDIO20_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
     /* Class-Specific AC Interface Header Descriptor(4.7.2) */ \
-    TUD_AUDIO_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO_FUNC_DESKTOP_SPEAKER, \
-                         /*_totallen*/ TUD_AUDIO_DESC_CLK_SRC_LEN+TUD_AUDIO_DESC_INPUT_TERM_LEN+ \
-    TUD_AUDIO_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN, \
-                         /*_ctrl*/ AUDIO_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
+    TUD_AUDIO20_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO20_FUNC_DESKTOP_SPEAKER, \
+                         /*_totallen*/ TUD_AUDIO20_DESC_CLK_SRC_LEN+TUD_AUDIO20_DESC_INPUT_TERM_LEN+ \
+    TUD_AUDIO20_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(2), \
+                         /*_ctrl*/ AUDIO20_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
     /* Clock Source Descriptor(4.7.2.1) */ \
-    TUD_AUDIO_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
-                           /*_ctrl*/ (AUDIO_CTRL_RW << AUDIO_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO20_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
+                           /*_ctrl*/ (AUDIO20_CTRL_RW << AUDIO20_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
                            /*_stridx*/ 0x00), \
     /* Input Terminal Descriptor(4.7.2.4) */ \
-    TUD_AUDIO_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
                               /*_clkid*/ 0x04, /*_nchannelslogical*/ 0x02, \
-                              /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+                              /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                               /*_idxchannelnames*/ 0x00, \
-                              /*_ctrl*/ 0 * (AUDIO_CTRL_R << AUDIO_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
+                              /*_ctrl*/ 0 * (AUDIO20_CTRL_R << AUDIO20_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
     /* Output Terminal Descriptor(4.7.2.5) */ \
-    TUD_AUDIO_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
+    TUD_AUDIO20_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
                                /*_assocTerm*/ 0x00, /*_srcid*/ 0x01, /*_clkid*/ 0x04, /*_ctrl*/ 0x0000, \
                                /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 0 - default alternate setting with 0 bandwidth */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
                               /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 1 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_IEEE_FLOAT, /*_nchannelsphysical*/ 0x02, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_IEEE_FLOAT, /*_nchannelsphysical*/ 0x02, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                              /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(4, 32), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(4, 32), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000) \
 
-#define TUD_AUDIO_SPEAKER_STEREO_DESC_LEN (TUD_AUDIO_DESC_IAD_LEN \
-                                           + TUD_AUDIO_DESC_STD_AC_LEN \
-                                           + TUD_AUDIO_DESC_CS_AC_LEN \
-                                           + TUD_AUDIO_DESC_CLK_SRC_LEN \
-                                           + TUD_AUDIO_DESC_INPUT_TERM_LEN \
-                                           + TUD_AUDIO_DESC_OUTPUT_TERM_LEN \
-                                           + 0 * TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN \
-                                           + TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                           + (TUD_AUDIO_DESC_STD_AS_INT_LEN \
-                                              + TUD_AUDIO_DESC_CS_AS_INT_LEN \
-                                              + TUD_AUDIO_DESC_TYPE_I_FORMAT_LEN \
-                                              + TUD_AUDIO_DESC_STD_AS_ISO_EP_LEN \
-                                              + TUD_AUDIO_DESC_CS_AS_ISO_EP_LEN) * 1)
+#define TUD_AUDIO_SPEAKER_STEREO_DESC_LEN (TUD_AUDIO20_DESC_IAD_LEN \
+                                           + TUD_AUDIO20_DESC_STD_AC_LEN \
+                                           + TUD_AUDIO20_DESC_CS_AC_LEN \
+                                           + TUD_AUDIO20_DESC_CLK_SRC_LEN \
+                                           + TUD_AUDIO20_DESC_INPUT_TERM_LEN \
+                                           + TUD_AUDIO20_DESC_OUTPUT_TERM_LEN \
+                                           + 0 * TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(2) \
+                                           + TUD_AUDIO20_DESC_STD_AS_LEN \
+                                           + (TUD_AUDIO20_DESC_STD_AS_LEN \
+                                              + TUD_AUDIO20_DESC_CS_AS_INT_LEN \
+                                              + TUD_AUDIO20_DESC_TYPE_I_FORMAT_LEN \
+                                              + TUD_AUDIO20_DESC_STD_AS_ISO_EP_LEN \
+                                              + TUD_AUDIO20_DESC_CS_AS_ISO_EP_LEN) * 1)
 
 #define TUD_AUDIO_SPEAKER_STEREO_DESCRIPTOR(_itfnum, _stridx, _nBytesPerSample, _nBitsUsedPerSample, _epout, _epsize) \
     /* Standard Interface Association Descriptor (IAD) */ \
-    TUD_AUDIO_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
+    TUD_AUDIO20_DESC_IAD(/*_firstitfs*/ _itfnum, /*_nitfs*/ 0x02, /*_stridx*/ 0x00), \
     /* Standard AC Interface Descriptor(4.7.1) */ \
-    TUD_AUDIO_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
+    TUD_AUDIO20_DESC_STD_AC(/*_itfnum*/ _itfnum, /*_nEPs*/ 0x00, /*_stridx*/ _stridx), \
     /* Class-Specific AC Interface Header Descriptor(4.7.2) */ \
-    TUD_AUDIO_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO_FUNC_DESKTOP_SPEAKER, \
-                         /*_totallen*/ TUD_AUDIO_DESC_CLK_SRC_LEN+TUD_AUDIO_DESC_INPUT_TERM_LEN+ \
-    TUD_AUDIO_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO_DESC_FEATURE_UNIT_TWO_CHANNEL_LEN, \
-                         /*_ctrl*/ AUDIO_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
+    TUD_AUDIO20_DESC_CS_AC(/*_bcdADC*/ 0x0200, /*_category*/ AUDIO20_FUNC_DESKTOP_SPEAKER, \
+                         /*_totallen*/ TUD_AUDIO20_DESC_CLK_SRC_LEN+TUD_AUDIO20_DESC_INPUT_TERM_LEN+ \
+    TUD_AUDIO20_DESC_OUTPUT_TERM_LEN+0*TUD_AUDIO20_DESC_FEATURE_UNIT_LEN(2), \
+                         /*_ctrl*/ AUDIO20_CS_AS_INTERFACE_CTRL_LATENCY_POS), \
     /* Clock Source Descriptor(4.7.2.1) */ \
-    TUD_AUDIO_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
-                           /*_ctrl*/ (AUDIO_CTRL_RW << AUDIO_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_CLK_SRC(/*_clkid*/ 0x04, /*_attr*/ AUDIO20_CLOCK_SOURCE_ATT_INT_FIX_CLK, \
+                           /*_ctrl*/ (AUDIO20_CTRL_RW << AUDIO20_CLOCK_SOURCE_CTRL_CLK_FRQ_POS), /*_assocTerm*/ 0x00, \
                            /*_stridx*/ 0x00), \
     /* Input Terminal Descriptor(4.7.2.4) */ \
-    TUD_AUDIO_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
+    TUD_AUDIO20_DESC_INPUT_TERM(/*_termid*/ 0x01, /*_termtype*/ AUDIO_TERM_TYPE_USB_STREAMING, /*_assocTerm*/ 0x00, \
                               /*_clkid*/ 0x04, /*_nchannelslogical*/ 0x02, \
-                              /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+                              /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                               /*_idxchannelnames*/ 0x00, \
-                              /*_ctrl*/ 0 * (AUDIO_CTRL_R << AUDIO_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
+                              /*_ctrl*/ 0 * (AUDIO20_CTRL_R << AUDIO20_IN_TERM_CTRL_CONNECTOR_POS), /*_stridx*/ 0x00), \
     /* Output Terminal Descriptor(4.7.2.5) */ \
-    TUD_AUDIO_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
+    TUD_AUDIO20_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, \
                                /*_assocTerm*/ 0x00, /*_srcid*/ 0x01, /*_clkid*/ 0x04, /*_ctrl*/ 0x0000, \
                                /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 0 - default alternate setting with 0 bandwidth */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, \
                               /*_stridx*/ 0x00), \
     /* Standard AS Interface Descriptor(4.9.1) */ \
     /* Interface 1, Alternate 1 - alternate interface for data streaming */ \
-    TUD_AUDIO_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
+    TUD_AUDIO20_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum) + 1), /*_altset*/ 0x01, /*_nEPs*/ 0x01, \
                               /*_stridx*/ 0x00), \
     /* Class-Specific AS Interface Descriptor(4.9.2) */ \
-    TUD_AUDIO_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO_CTRL_NONE, /*_formattype*/ AUDIO_FORMAT_TYPE_I, \
-                             /*_formats*/ AUDIO_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
-                             /*_channelcfg*/ AUDIO_CHANNEL_CONFIG_FRONT_LEFT | AUDIO_CHANNEL_CONFIG_FRONT_RIGHT, \
+    TUD_AUDIO20_DESC_CS_AS_INT(/*_termid*/ 0x01, /*_ctrl*/ AUDIO20_CTRL_NONE, /*_formattype*/ AUDIO20_FORMAT_TYPE_I, \
+                             /*_formats*/ AUDIO20_DATA_FORMAT_TYPE_I_PCM, /*_nchannelsphysical*/ 0x02, \
+                             /*_channelcfg*/ AUDIO20_CHANNEL_CONFIG_FRONT_LEFT | AUDIO20_CHANNEL_CONFIG_FRONT_RIGHT, \
                              /*_stridx*/ 0x00), \
     /* Type I Format Type Descriptor(2.3.1.6 - Audio Formats) */ \
-    TUD_AUDIO_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
+    TUD_AUDIO20_DESC_TYPE_I_FORMAT(_nBytesPerSample, _nBitsUsedPerSample), \
     /* Standard AS Isochronous Audio Data Endpoint Descriptor(4.10.1.1) */ \
-    TUD_AUDIO_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
+    TUD_AUDIO20_DESC_STD_AS_ISO_EP(/*_ep*/ _epout, \
                                  /*_attr*/ (TUSB_XFER_ISOCHRONOUS | TUSB_ISO_EP_ATT_SYNCHRONOUS | \
                                             TUSB_ISO_EP_ATT_DATA), /*_maxEPsize*/ _epsize, \
                                  /*_interval*/ (CFG_TUSB_RHPORT0_MODE & OPT_MODE_HIGH_SPEED) ? 0x04 : 0x01), \
     /* Class-Specific AS Isochronous Audio Data Endpoint Descriptor(4.10.1.2) */ \
-    TUD_AUDIO_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
-                                /*_ctrl*/ AUDIO_CTRL_NONE, \
-                                /*_lockdelayunit*/ AUDIO_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
+    TUD_AUDIO20_DESC_CS_AS_ISO_EP(/*_attr*/ AUDIO20_CS_AS_ISO_DATA_EP_ATT_NON_MAX_PACKETS_OK, \
+                                /*_ctrl*/ AUDIO20_CTRL_NONE, \
+                                /*_lockdelayunit*/ AUDIO20_CS_AS_ISO_DATA_EP_LOCK_DELAY_UNIT_UNDEFINED, \
                                 /*_lockdelay*/ 0x0000) \
 
 #define CFG_TUD_AUDIO_FUNC_1_DESC_LEN ( \
         (1 - CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
         (TUD_AUDIO_SPEAKER_MONO_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) + \
         (0 + CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
-        (TUD_AUDIO_SPEAKER_MONO_FB_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) + \
+        (TUD_AUDIO20_SPEAKER_MONO_FB_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 1 ? 1 : 0)) + \
         (1 - CFG_TUD_AUDIO_ENABLE_FEEDBACK_EP) * CFG_TUD_AUDIO_OUT * \
         (TUD_AUDIO_SPEAKER_STEREO_DESC_LEN * (CFG_TUD_AUDIO_N_CHANNELS_RX == 2 ? 1 : 0)))
 #define CFG_TUD_AUDIO_FUNC_1_N_AS_INT 1
-#define CFG_TUD_AUDIO_FUNC_1_CTRL_BUF_SZ 64
+#define CFG_TUD_AUDIO_CTRL_BUF_SZ 64
 
 #ifdef __cplusplus
 }
