@@ -231,7 +231,7 @@ usb_data_func(struct os_event *ev)
 }
 
 bool
-tud_audio_rx_done_post_read_cb(uint8_t rhport, uint16_t n_bytes_received,
+tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received,
                                uint8_t func_id, uint8_t ep_out,
                                uint8_t cur_alt_setting)
 {
@@ -254,7 +254,7 @@ audio_usb_init(void)
     /* Need to reference those explicitly, so they are always pulled by linker
      * instead of weak symbols in tinyusb.
      */
-    (void)tud_audio_rx_done_post_read_cb;
+    (void)tud_audio_rx_done_isr;
 
     usb_desc_sample_rate_set(AUDIO_PCM_SAMPLE_RATE);
 
