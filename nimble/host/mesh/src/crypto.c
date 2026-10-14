@@ -40,16 +40,16 @@ int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
 	}
 
 	for (; sg_len; sg_len--, sg++) {
-		if (sg->len && mbedtls_cipher_cmac_update(&ctx, sg->data, sg->len)) {
-			goto done;
-		}
-	}
+              if (sg->len && mbedtls_cipher_cmac_update(&ctx, sg->data, sg->len)) {
+                  goto done;
+              }
+          }
 
-	if (mbedtls_cipher_cmac_finish(&ctx, mac)) {
-		goto done;
-	}
+          if (mbedtls_cipher_cmac_finish(&ctx, mac)) {
+              goto done;
+          }
 
-	err = 0;
+          err = 0;
 
 done:
 	mbedtls_cipher_free(&ctx);
