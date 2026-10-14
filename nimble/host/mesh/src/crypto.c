@@ -40,7 +40,7 @@ int bt_mesh_aes_cmac(const uint8_t key[16], struct bt_mesh_sg *sg,
 	}
 
 	for (; sg_len; sg_len--, sg++) {
-		if (mbedtls_cipher_cmac_update(&ctx, sg->data, sg->len)) {
+		if (sg->len && mbedtls_cipher_cmac_update(&ctx, sg->data, sg->len)) {
 			goto done;
 		}
 	}
