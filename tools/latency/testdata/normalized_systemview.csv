@@ -1,0 +1,6 @@
+timestamp_us,message
+1000,ll_sched lls=0 cputime=105 start_time=100
+1010,ll_conn_ev_start conn_handle=1
+1090,ll_conn_ev_end conn_handle=1 event_cntr=42
+2000,ll_conn_ev_start conn_handle=2
+2075,ll_conn_ev_end conn_handle=2 event_cntr=7
