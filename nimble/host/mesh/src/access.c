@@ -230,35 +230,35 @@ static void mod_publish(struct ble_npl_event *work)
 	struct bt_mesh_model_pub *pub = ble_npl_event_get_arg(work);
 	int err;
 
-	if (pub->addr == BT_MESH_ADDR_UNASSIGNED ||
-	bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
-		/* Publication is no longer active, but the cancellation of the
-		 * delayed work failed. Abandon recurring timer.
-		 */
-		return;
-	}
+          if (pub->addr == BT_MESH_ADDR_UNASSIGNED ||
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+              /* Publication is no longer active, but the cancellation of the
+               * delayed work failed. Abandon recurring timer.
+               */
+              return;
+          }
 
-	BT_DBG("");
+          BT_DBG("");
 
-	if (pub->count) {
-		pub->count--;
-	} else {
-		/* First publication in this period */
-		err = pub_period_start(pub);
-		if (err) {
-			return;
-		}
-	}
+          if (pub->count) {
+              pub->count--;
+          } else {
+              /* First publication in this period */
+              err = pub_period_start(pub);
+              if (err) {
+                  return;
+              }
+          }
 
-	err = publish_transmit(pub->mod);
-	if (err) {
-		BT_ERR("Failed to publish (err %d)", err);
-		if (pub->count == BT_MESH_PUB_TRANSMIT_COUNT(pub->retransmit)) {
-			pub->period_start = k_uptime_get_32();
-		}
+          err = publish_transmit(pub->mod);
+          if (err) {
+              BT_ERR("Failed to publish (err %d)", err);
+              if (pub->count == BT_MESH_PUB_TRANSMIT_COUNT(pub->retransmit)) {
+                  pub->period_start = k_uptime_get_32();
+              }
 
-		publish_sent(err, pub->mod);
-	}
+              publish_sent(err, pub->mod);
+          }
 }
 
 struct bt_mesh_elem *bt_mesh_model_elem(struct bt_mesh_model *mod)

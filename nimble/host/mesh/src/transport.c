@@ -279,14 +279,14 @@ static void seg_tx_reset(struct seg_tx *tx)
 
 	tx->nack_count = 0;
 
-	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_IVU_PENDING)) {
-		BT_DBG("Proceding with pending IV Update");
+          if (bt_mesh_atomic_test_and_clear_bit(bt_mesh.flags, BT_MESH_IVU_PENDING)) {
+              BT_DBG("Proceding with pending IV Update");
 
-		/* bt_mesh_net_iv_update() will re-enable the flag if this
-		 * wasn't the only transfer.
-		 */
-		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
-	}
+              /* bt_mesh_net_iv_update() will re-enable the flag if this
+               * wasn't the only transfer.
+               */
+              bt_mesh_net_iv_update(bt_mesh.iv_index, false);
+          }
 }
 
 static inline void seg_tx_complete(struct seg_tx *tx, int err)

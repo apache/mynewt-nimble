@@ -92,11 +92,11 @@ static void send_invite(void)
 static void start_sent(int err, void *cb_data)
 {
 	if (!bt_pub_key_get()) {
-		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
-		BT_WARN("Waiting for local public key");
-	} else {
-		send_pub_key();
-	}
+              bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
+              BT_WARN("Waiting for local public key");
+          } else {
+              send_pub_key();
+          }
 }
 
 static void send_start(void)
@@ -111,33 +111,37 @@ static void send_start(void)
 
 	memcpy(bt_mesh_prov_link.conf_inputs.start, &start->om_data[1], PDU_LEN_START);
 
-	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY) && oob_pub_key) {
-		net_buf_simple_add_u8(start, PUB_KEY_OOB);
-		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY);
-	} else {
-		net_buf_simple_add_u8(start, PUB_KEY_NO_OOB);
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY) &&
+              oob_pub_key) {
+              net_buf_simple_add_u8(start, PUB_KEY_OOB);
+              bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY);
+          } else {
+              net_buf_simple_add_u8(start, PUB_KEY_NO_OOB);
+          }
 
-	net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_method);
+          net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_method);
 
-	net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_action);
+          net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_action);
 
-	net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_size);
+          net_buf_simple_add_u8(start, bt_mesh_prov_link.oob_size);
 
-	memcpy(bt_mesh_prov_link.conf_inputs.invite, &start->om_data[1], PDU_LEN_INVITE);
+          memcpy(bt_mesh_prov_link.conf_inputs.invite, &start->om_data[1],
+                 PDU_LEN_INVITE);
 
-	if (bt_mesh_prov_auth(true, bt_mesh_prov_link.oob_method,
-			      bt_mesh_prov_link.oob_action, bt_mesh_prov_link.oob_size) < 0) {
-		BT_ERR("Invalid authentication method: 0x%02x; "
-		       "action: 0x%02x; size: 0x%02x", bt_mesh_prov_link.oob_method,
-		       bt_mesh_prov_link.oob_action, bt_mesh_prov_link.oob_size);
-		return;
-	}
+          if (bt_mesh_prov_auth(true, bt_mesh_prov_link.oob_method,
+                                bt_mesh_prov_link.oob_action,
+                                bt_mesh_prov_link.oob_size) < 0) {
+              BT_ERR("Invalid authentication method: 0x%02x; "
+                     "action: 0x%02x; size: 0x%02x",
+                     bt_mesh_prov_link.oob_method,
+                     bt_mesh_prov_link.oob_action, bt_mesh_prov_link.oob_size);
+              return;
+          }
 
-	if (bt_mesh_prov_send(start, start_sent)) {
-		BT_ERR("Failed to send Provisioning Start");
-		return;
-	}
+          if (bt_mesh_prov_send(start, start_sent)) {
+              BT_ERR("Failed to send Provisioning Start");
+              return;
+          }
 }
 
 static bool prov_check_method(struct bt_mesh_dev_capabilities *caps)
@@ -317,13 +321,13 @@ static void send_confirm(void)
 
 static void public_key_sent(int err, void *cb_data)
 {
-	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
+    bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
 
-	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY) &&
-	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
-		prov_dh_key_gen();
-		return;
-	}
+    if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY) &&
+        bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
+        prov_dh_key_gen();
+        return;
+    }
 }
 
 static void send_pub_key(void)
@@ -372,14 +376,14 @@ static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
 
 	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, BT_DH_KEY_LEN));
 
-	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING) ||
-	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
-	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
-		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM);
-		return;
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING) ||
+              bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
+              bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
+              bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM);
+              return;
+          }
 
-	send_confirm();
+          send_confirm();
 }
 
 static void prov_dh_key_gen(void)
@@ -410,22 +414,22 @@ static void prov_dh_key_gen(void)
 		prov_fail(PROV_ERR_UNEXP_ERR);
 	}
 
-	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
-		bt_mesh_prov_link.expect = PROV_INPUT_COMPLETE;
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
+              bt_mesh_prov_link.expect = PROV_INPUT_COMPLETE;
+          }
 }
 
 static void prov_pub_key(const uint8_t *data)
 {
 	BT_DBG("Remote Public Key: %s", bt_hex(data, BT_PUB_KEY_LEN));
 
-	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY);
+          bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY);
 
-	/* PublicKeyDevice */
-	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, data, BT_PUB_KEY_LEN);
-	bt_mesh_prov_link.bearer->clear_tx();
+          /* PublicKeyDevice */
+          memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, data, BT_PUB_KEY_LEN);
+          bt_mesh_prov_link.bearer->clear_tx();
 
-	prov_dh_key_gen();
+          prov_dh_key_gen();
 }
 
 static void pub_key_ready(const uint8_t *pkey)
@@ -437,18 +441,17 @@ static void pub_key_ready(const uint8_t *pkey)
 
 	BT_DBG("Local public key ready");
 
-	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
-		send_pub_key();
-	}
+          if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
+              send_pub_key();
+          }
 }
 
 static void notify_input_complete(void)
 {
-	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags,
-				      NOTIFY_INPUT_COMPLETE) &&
-	    bt_mesh_prov->input_complete) {
-		bt_mesh_prov->input_complete();
-	}
+    if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE) &&
+        bt_mesh_prov->input_complete) {
+        bt_mesh_prov->input_complete();
+    }
 }
 
 static void prov_input_complete(const uint8_t *data)
@@ -457,9 +460,9 @@ static void prov_input_complete(const uint8_t *data)
 
 	notify_input_complete();
 
-	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
-		send_confirm();
-	}
+          if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
+              send_confirm();
+          }
 }
 
 static void send_prov_data(void)
@@ -654,9 +657,9 @@ static void prov_failed(const uint8_t *data)
 
 static void local_input_complete(void)
 {
-	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
-		send_confirm();
-	}
+    if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
+        send_confirm();
+    }
 }
 
 static void prov_link_closed(void)
@@ -740,14 +743,15 @@ int bt_mesh_prov_remote_pub_key_set(const uint8_t public_key[BT_PUB_KEY_LEN])
 		return -EINVAL;
 	}
 
-	if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
-		return -EALREADY;
-	}
+          if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
+              return -EALREADY;
+          }
 
-	/* Swap X and Y halves independently to big-endian */
-	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, public_key, PDU_LEN_PUB_KEY);
+          /* Swap X and Y halves independently to big-endian */
+          memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, public_key,
+                 PDU_LEN_PUB_KEY);
 
-	return 0;
+          return 0;
 }
 
 #if defined(CONFIG_BT_MESH_PB_ADV)
@@ -756,24 +760,24 @@ int bt_mesh_pb_adv_open(const uint8_t uuid[16], uint16_t net_idx, uint16_t addr,
 {
 	int err;
 
-	if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE)) {
-		return -EBUSY;
-	}
+          if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE)) {
+              return -EBUSY;
+          }
 
-	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PROVISIONER);
-	memcpy(prov_device.uuid, uuid, 16);
-	prov_device.addr = addr;
-	prov_device.net_idx = net_idx;
-	prov_device.attention_duration = attention_duration;
-	bt_mesh_prov_link.bearer = &pb_adv;
-	bt_mesh_prov_link.role = &role_provisioner;
+          bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PROVISIONER);
+          memcpy(prov_device.uuid, uuid, 16);
+          prov_device.addr = addr;
+          prov_device.net_idx = net_idx;
+          prov_device.attention_duration = attention_duration;
+          bt_mesh_prov_link.bearer = &pb_adv;
+          bt_mesh_prov_link.role = &role_provisioner;
 
-	err = bt_mesh_prov_link.bearer->link_open(prov_device.uuid, PROTOCOL_TIMEOUT,
-						  bt_mesh_prov_bearer_cb_get(), NULL);
-	if (err) {
-		bt_mesh_atomic_clear_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
-	}
+          err = bt_mesh_prov_link.bearer->link_open(
+              prov_device.uuid, PROTOCOL_TIMEOUT, bt_mesh_prov_bearer_cb_get(), NULL);
+          if (err) {
+              bt_mesh_atomic_clear_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
+          }
 
-	return err;
+          return err;
 }
 #endif

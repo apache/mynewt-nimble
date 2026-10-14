@@ -877,15 +877,15 @@ void notify_complete(void)
 {
 	sys_snode_t *n;
 
-	if (bt_mesh_atomic_dec(&pending_notifications) > 1) {
-		return;
-	}
+          if (bt_mesh_atomic_dec(&pending_notifications) > 1) {
+              return;
+          }
 
-	BT_DBG("");
+          BT_DBG("");
 
-	while ((n = sys_slist_get(&idle_waiters))) {
-		CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
-	}
+          while ((n = sys_slist_get(&idle_waiters))) {
+              CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
+          }
 }
 
 static int proxy_send(uint16_t conn_handle,
@@ -902,10 +902,10 @@ static int proxy_send(uint16_t conn_handle,
 	notify_complete();
 
 	if (!err) {
-		bt_mesh_atomic_inc(&pending_notifications);
-	}
+              bt_mesh_atomic_inc(&pending_notifications);
+          }
 
-	return err;
+          return err;
 }
 
 int bt_mesh_proxy_adv_start(void)
