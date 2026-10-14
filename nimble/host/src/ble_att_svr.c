@@ -82,6 +82,41 @@ ble_att_svr_entry_free(struct ble_att_svr_entry *entry)
 }
 
 /**
+ * Stores a request awaiting authorization on its ATT bearer. On success the
+ * channel takes ownership of om; on failure om is left with the caller.
+ */
+static int
+pending_att_prepare(uint16_t conn_handle, uint16_t attr_handle, uint16_t offset,
+                    struct os_mbuf *om, uint8_t access_opcode,
+                    uint8_t att_opcode, uint16_t cid)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_hs_lock();
+    rc = ble_att_conn_chan_find(conn_handle, cid, &conn, &chan);
+    if (rc != 0) {
+        ble_hs_unlock();
+        return rc;
+    }
+
+    if (chan->att_svr_rxom != NULL) {
+        os_mbuf_free_chain(chan->att_svr_rxom);
+    }
+
+    chan->att_svr_attr_handle = attr_handle;
+    chan->att_svr_offset = offset;
+    chan->att_svr_rxom = om;
+    chan->att_svr_access_op = access_opcode;
+    chan->att_svr_att_op = att_opcode;
+
+    ble_hs_unlock();
+
+    return 0;
+}
+
+/**
  * Allocate the next handle id and return it.
  *
  * @return A new 16-bit handle ID.
@@ -244,6 +279,152 @@ ble_att_svr_get_sec_state(uint16_t conn_handle,
     ble_hs_unlock();
 }
 
+static int ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
+                                   struct ble_att_svr_entry *entry,
+                                   uint8_t *out_att_err);
+
+/**
+ * Gates remote access to an attribute: checks permissions and security, then
+ * whether authorization is required and, if so, asks the application for it
+ * via BLE_GAP_EVENT_AUTHORIZE.
+ *
+ * The request is stored as pending on the bearer *before* the event is
+ * delivered, so the application may resolve it with
+ * ble_gatts_authorize_pending_att_req() from any context, including from
+ * within the event callback itself, as soon as it returns
+ * BLE_GAP_AUTHORIZE_PENDING.
+ *
+ * @param om                    The request (or response) buffer to keep while
+ *                                  authorization is pending.
+ *
+ * @return                      0 if access is granted; *om is untouched.
+ *                              BLE_HS_EPENDING if the request was taken over
+ *                                  (pending, or already resolved); *om is
+ *                                  set to NULL and the caller must not
+ *                                  send a response.
+ *                              Other nonzero on failure, with *att_err set;
+ *                                  *om is untouched.
+ */
+int
+ble_att_svr_check_author_perm(uint16_t conn_handle, uint16_t cid,
+                              uint16_t attr_handle, uint8_t access_opcode,
+                              uint8_t att_opcode, uint16_t offset,
+                              struct os_mbuf **om, uint8_t *att_err)
+{
+    struct ble_att_svr_entry *entry;
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    struct os_mbuf *pend_om;
+    bool already_authorized;
+    int author;
+    int rc;
+
+    entry = ble_att_svr_find_by_handle(attr_handle);
+    if (entry == NULL) {
+        *att_err = BLE_ATT_ERR_INVALID_HANDLE;
+        return BLE_HS_ENOENT;
+    }
+
+    /* Access gating happens here, before any value-dependent processing
+     * (offset, length, prepare queue - done later by the access callback or
+     * the request handler), so that no information about the value leaks
+     * and the outcome depends only on the attribute's policy. Fixed order:
+     *   1. read/write not permitted
+     *   2. security (encryption, authentication, key size)
+     *   3. authorization
+     * Security goes first so the application is never asked to authorize
+     * a request that would fail anyway.
+     */
+    rc = ble_att_svr_check_perms(conn_handle,
+                                 access_opcode == BLE_ATT_ACCESS_OP_READ,
+                                 entry, att_err);
+    if (rc != 0) {
+        return rc;
+    }
+
+    if (access_opcode == BLE_ATT_ACCESS_OP_READ) {
+        author = entry->ha_flags & BLE_ATT_F_READ_AUTHOR;
+    } else {
+        author = entry->ha_flags & BLE_ATT_F_WRITE_AUTHOR;
+    }
+
+    if (!author) {
+        return 0;
+    }
+
+    /* Long read/write: authorize once per procedure, not per piece. A piece
+     * with offset > 0 continuing the procedure last authorized on this bearer
+     * (same attribute and opcode, handle cleared if refused) is already
+     * authorized. A new procedure starts at offset 0 and is always asked.
+     */
+    if ((att_opcode == BLE_ATT_OP_READ_BLOB_REQ ||
+         att_opcode == BLE_ATT_OP_PREP_WRITE_REQ) && offset > 0) {
+        ble_hs_lock();
+        already_authorized =
+            ble_att_conn_chan_find(conn_handle, cid, &conn, &chan) == 0 &&
+            chan->att_svr_attr_handle == attr_handle &&
+            (chan->att_svr_att_op == att_opcode ||
+             (att_opcode == BLE_ATT_OP_READ_BLOB_REQ &&
+              chan->att_svr_att_op == BLE_ATT_OP_READ_REQ));
+        ble_hs_unlock();
+        if (already_authorized) {
+            return 0;
+        }
+    }
+
+    /* A Write Command has no response and cannot be kept pending: only
+     * BLE_GAP_AUTHORIZE_ACCEPT grants access, nothing is stored.
+     */
+    if (access_opcode == BLE_ATT_ACCESS_OP_WRITE_CMD) {
+        rc = ble_gap_authorize_event(conn_handle, attr_handle, access_opcode,
+                                     cid);
+        return rc == BLE_GAP_AUTHORIZE_ACCEPT ? 0 : BLE_HS_EAUTHOR;
+    }
+
+    rc = pending_att_prepare(conn_handle, attr_handle, offset, *om,
+                             access_opcode, att_opcode, cid);
+    if (rc != 0) {
+        *att_err = BLE_ATT_ERR_UNLIKELY;
+        return rc;
+    }
+
+    pend_om = *om;
+    *om = NULL;
+
+    rc = ble_gap_authorize_event(conn_handle, attr_handle, access_opcode, cid);
+    if (rc == BLE_GAP_AUTHORIZE_PENDING) {
+        return BLE_HS_EPENDING;
+    }
+
+    /* Resolved synchronously; take the request back from the bearer. */
+    ble_hs_lock();
+    if (ble_att_conn_chan_find(conn_handle, cid, &conn, &chan) == 0 &&
+        chan->att_svr_rxom == pend_om) {
+        chan->att_svr_rxom = NULL;
+        *om = pend_om;
+        if (rc != BLE_GAP_AUTHORIZE_ACCEPT) {
+            chan->att_svr_attr_handle = 0;
+        }
+    }
+    ble_hs_unlock();
+
+    if (*om == NULL) {
+        /* Request is gone: the application already resolved it (despite not
+         * returning BLE_GAP_AUTHORIZE_PENDING) or the bearer was freed.
+         * Nothing left to do.
+         */
+        return BLE_HS_EPENDING;
+    }
+
+    if (rc == BLE_GAP_AUTHORIZE_ACCEPT) {
+        return 0;
+    }
+
+    /* BLE_GAP_AUTHORIZE_REJECT or unknown value */
+    *att_err = BLE_ATT_ERR_INSUFFICIENT_AUTHOR;
+    return BLE_HS_ATT_ERR(*att_err);
+}
+
 static int
 ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
                         struct ble_att_svr_entry *entry,
@@ -254,7 +435,6 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     struct ble_store_key_sec key_sec;
     struct ble_hs_conn_addrs addrs;
     struct ble_hs_conn *conn;
-    int author;
     int authen;
     int enc;
     int rc;
@@ -267,7 +447,6 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
 
         enc = entry->ha_flags & BLE_ATT_F_READ_ENC;
         authen = entry->ha_flags & BLE_ATT_F_READ_AUTHEN;
-        author = entry->ha_flags & BLE_ATT_F_READ_AUTHOR;
     } else {
         if (!(entry->ha_flags & BLE_ATT_F_WRITE)) {
             *out_att_err = BLE_ATT_ERR_WRITE_NOT_PERMITTED;
@@ -276,11 +455,10 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
 
         enc = entry->ha_flags & BLE_ATT_F_WRITE_ENC;
         authen = entry->ha_flags & BLE_ATT_F_WRITE_AUTHEN;
-        author = entry->ha_flags & BLE_ATT_F_WRITE_AUTHOR;
     }
 
     /* Bail early if this operation doesn't require security. */
-    if (!enc && !authen && !author) {
+    if (!enc && !authen) {
         return 0;
     }
 
@@ -330,10 +508,6 @@ ble_att_svr_check_perms(uint16_t conn_handle, int is_read,
     if (entry->ha_min_key_size > sec_state.key_size) {
         *out_att_err = BLE_ATT_ERR_INSUFFICIENT_KEY_SZ;
         return BLE_HS_ATT_ERR(*out_att_err);
-    }
-
-    if (author) {
-        /* XXX: Prompt user for authorization. */
     }
 
     return 0;
@@ -468,6 +642,25 @@ ble_att_svr_read_flat(uint16_t conn_handle,
 
 done:
     os_mbuf_free_chain(om);
+    return rc;
+}
+
+int
+ble_att_svr_create_read_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *om,
+                            int hs_status, uint8_t att_op, uint16_t err_handle,
+                            uint16_t offset, uint8_t *out_att_err)
+{
+    int rc = 0;
+
+    if (hs_status != 0) {
+        rc = hs_status;
+        goto done;
+    }
+
+    rc = ble_att_svr_read_handle(conn_handle, err_handle, offset, om, out_att_err);
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, om, att_op, *out_att_err, err_handle);
     return rc;
 }
 
@@ -621,9 +814,10 @@ ble_att_svr_tx_error_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txo
  *                                  of the error message's attribute handle
  *                                  field.
  */
-static int
-ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status, struct os_mbuf *om,
-                   uint8_t att_op, uint8_t err_status, uint16_t err_handle)
+int
+ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status,
+                   struct os_mbuf *om, uint8_t att_op, uint8_t err_status,
+                   uint16_t err_handle)
 {
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
@@ -1549,14 +1743,17 @@ ble_att_svr_rx_read(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
         goto done;
     }
 
-    rc = ble_att_svr_read_handle(conn_handle, err_handle, 0, txom, &att_err);
-    if (rc != 0) {
-        goto done;
+    rc = ble_att_svr_check_author_perm(conn_handle, cid, err_handle,
+                                       BLE_ATT_ACCESS_OP_READ,
+                                       BLE_ATT_OP_READ_REQ, 0, &txom, &att_err);
+    if (rc == BLE_HS_EPENDING) {
+        return rc;
     }
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_READ_REQ,
-                            att_err, err_handle);
+    rc = ble_att_svr_create_read_rsp(conn_handle, cid, txom, rc,
+                                     BLE_ATT_OP_READ_REQ, err_handle, 0, &att_err);
+
     return rc;
 }
 
@@ -1577,6 +1774,7 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
     txom = NULL;
     att_err = 0;
     err_handle = 0;
+    offset = 0;
 
     rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
     if (rc != 0) {
@@ -1599,8 +1797,14 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
         goto done;
     }
 
-    rc = ble_att_svr_read_handle(conn_handle, err_handle, offset,
-                                 txom, &att_err);
+    rc = ble_att_svr_check_author_perm(conn_handle, cid, err_handle,
+                                       BLE_ATT_ACCESS_OP_READ,
+                                       BLE_ATT_OP_READ_BLOB_REQ, offset, &txom,
+                                       &att_err);
+    if (rc == BLE_HS_EPENDING) {
+        return rc;
+    }
+
     if (rc != 0) {
         goto done;
     }
@@ -1608,8 +1812,9 @@ ble_att_svr_rx_read_blob(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rx
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_READ_BLOB_REQ,
-                            att_err, err_handle);
+    rc = ble_att_svr_create_read_rsp(conn_handle, cid, txom, rc,
+                                     BLE_ATT_OP_READ_BLOB_REQ, err_handle,
+                                     offset, &att_err);
     return rc;
 }
 
@@ -1684,27 +1889,76 @@ done:
 }
 
 int
+ble_att_svr_create_read_mult_rsp(uint16_t conn_handle, uint16_t cid,
+                                 struct os_mbuf **om, int hs_status,
+                                 uint8_t *att_err, uint16_t *err_handle)
+{
+    struct os_mbuf *txom;
+
+    int rc = 0;
+    txom = NULL;
+
+    if (hs_status != 0) {
+        rc = ble_att_svr_pkt(om, &txom, att_err);
+        if (rc != 0) {
+            *err_handle = 0;
+            goto done;
+        }
+        rc = hs_status;
+        goto done;
+    }
+
+    rc = ble_att_svr_build_read_mult_rsp(conn_handle, cid, om, &txom, att_err,
+                                         err_handle);
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom,
+                            BLE_ATT_OP_READ_MULT_REQ, *att_err, *err_handle);
+    return rc;
+}
+
+int
 ble_att_svr_rx_read_mult(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 {
 #if !MYNEWT_VAL(BLE_ATT_SVR_READ_MULT)
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct os_mbuf *txom;
     uint16_t err_handle;
+    uint16_t offset;
     uint8_t att_err;
-    int rc;
+    int rc = 0;
 
     /* Initialize some values in case of early error. */
-    txom = NULL;
     err_handle = 0;
     att_err = 0;
+    offset = 0;
 
-    rc = ble_att_svr_build_read_mult_rsp(conn_handle, cid, rxom, &txom, &att_err,
-                                         &err_handle);
+    /* Iterate through requested handles to check authorization */
+    while ((OS_MBUF_PKTLEN(*rxom) - offset) >= 2) {
+        os_mbuf_copydata(*rxom, offset, 2, &err_handle);
+        err_handle = le16toh(err_handle);
+        offset += 2;
 
-    return ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_READ_MULT_REQ,
-                              att_err, err_handle);
+        /* Request is kept as pending; resumed from the next handle */
+        rc = ble_att_svr_check_author_perm(conn_handle, cid, err_handle,
+                                           BLE_ATT_ACCESS_OP_READ,
+                                           BLE_ATT_OP_READ_MULT_REQ, offset,
+                                           rxom, &att_err);
+        if (rc == BLE_HS_EPENDING) {
+            return rc;
+        }
+
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+done:
+    rc = ble_att_svr_create_read_mult_rsp(conn_handle, cid, rxom, rc, &att_err,
+                                          &err_handle);
+
+    return rc;
 }
 
 static int
@@ -1804,28 +2058,71 @@ done:
 }
 
 int
+ble_att_svr_create_read_mult_var_len_rsp(uint16_t conn_handle, uint16_t cid,
+                                         struct os_mbuf **om, int hs_status,
+                                         uint8_t *att_err, uint16_t *err_handle)
+{
+    struct os_mbuf *txom;
+    int rc;
+
+    rc = 0;
+    txom = NULL;
+
+    if (hs_status != 0) {
+        rc = hs_status;
+        goto done;
+    }
+
+    rc = ble_att_svr_build_read_mult_rsp_var(conn_handle, cid, om, &txom,
+                                             att_err, err_handle);
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom,
+                            BLE_ATT_OP_READ_MULT_VAR_REQ, *att_err, *err_handle);
+    return rc;
+}
+
+int
 ble_att_svr_rx_read_mult_var(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 {
 #if (!MYNEWT_VAL(BLE_ATT_SVR_READ_MULT) || (MYNEWT_VAL(BLE_VERSION) < 52))
     return BLE_HS_ENOTSUP;
 #endif
 
-    struct os_mbuf *txom;
     uint16_t err_handle;
+    uint16_t offset;
     uint8_t att_err;
     int rc;
 
     /* Initialize some values in case of early error. */
-    txom = NULL;
     err_handle = 0;
     att_err = 0;
+    offset = 0;
+    rc = 0;
 
-    rc = ble_att_svr_build_read_mult_rsp_var(conn_handle, cid, rxom, &txom, &att_err,
-                                         &err_handle);
+    /* Iterate through requested handles to check authorization */
+    while ((OS_MBUF_PKTLEN(*rxom) - offset) >= 2) {
+        os_mbuf_copydata(*rxom, offset, 2, &err_handle);
+        err_handle = le16toh(err_handle);
+        offset += 2;
 
-    return ble_att_svr_tx_rsp(conn_handle, cid, rc, txom,
-                              BLE_ATT_OP_READ_MULT_VAR_REQ,
-                              att_err, err_handle);
+        /* Request is kept as pending; resumed from the next handle */
+        rc = ble_att_svr_check_author_perm(conn_handle, cid, err_handle,
+                                           BLE_ATT_ACCESS_OP_READ,
+                                           BLE_ATT_OP_READ_MULT_VAR_REQ, offset,
+                                           rxom, &att_err);
+        if (rc == BLE_HS_EPENDING) {
+            return rc;
+        }
+
+        if (rc != 0) {
+            goto done;
+        }
+    }
+
+done:
+    return ble_att_svr_create_read_mult_var_len_rsp(conn_handle, cid, rxom, rc,
+                                                    &att_err, &err_handle);
 }
 
 static int
@@ -2168,6 +2465,47 @@ done:
 }
 
 int
+ble_att_svr_create_write_rsp(uint16_t conn_handle, uint16_t cid,
+                             struct os_mbuf **om, int hs_status,
+                             struct ble_att_write_req *req, uint16_t offset,
+                             uint16_t handle, uint8_t *out_att_err)
+{
+    struct os_mbuf *txom;
+
+    txom = NULL;
+    int rc = 0;
+
+    if (hs_status != 0) {
+        rc = hs_status;
+        goto done;
+    }
+
+    /* Allocate the write response.  This must be done prior to processing the
+     * request.  See the note at the top of this file for details.
+     */
+    rc = ble_att_svr_build_write_rsp(om, &txom, out_att_err);
+    if (rc != 0) {
+        goto done;
+    }
+
+    /* Strip the request base from the front of the mbuf. */
+    os_mbuf_adj(*om, sizeof(*req));
+
+    rc = ble_att_svr_write_handle(conn_handle, handle, offset, om, out_att_err);
+
+    if (rc != 0) {
+        goto done;
+    }
+
+    rc = 0;
+
+done:
+    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_WRITE_REQ,
+                            *out_att_err, handle);
+    return rc;
+}
+
+int
 ble_att_svr_rx_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 {
 #if !MYNEWT_VAL(BLE_ATT_SVR_WRITE)
@@ -2175,13 +2513,12 @@ ble_att_svr_rx_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 #endif
 
     struct ble_att_write_req *req;
-    struct os_mbuf *txom;
     uint16_t handle;
     uint8_t att_err;
     int rc;
 
     /* Initialize some values in case of early error. */
-    txom = NULL;
+    req = NULL;
     att_err = 0;
     handle = 0;
 
@@ -2194,27 +2531,17 @@ ble_att_svr_rx_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 
     handle = le16toh(req->bawq_handle);
 
-    /* Allocate the write response.  This must be done prior to processing the
-     * request.  See the note at the top of this file for details.
-     */
-    rc = ble_att_svr_build_write_rsp(rxom, &txom, &att_err);
-    if (rc != 0) {
-        goto done;
+    rc = ble_att_svr_check_author_perm(conn_handle, cid, handle,
+                                       BLE_ATT_ACCESS_OP_WRITE,
+                                       BLE_ATT_OP_WRITE_REQ, 0, rxom, &att_err);
+    if (rc == BLE_HS_EPENDING) {
+        return rc;
     }
-
-    /* Strip the request base from the front of the mbuf. */
-    os_mbuf_adj(*rxom, sizeof(*req));
-
-    rc = ble_att_svr_write_handle(conn_handle, handle, 0, rxom, &att_err);
-    if (rc != 0) {
-        goto done;
-    }
-
-    rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_WRITE_REQ,
-                            att_err, handle);
+    rc = ble_att_svr_create_write_rsp(conn_handle, cid, rxom, rc, req, 0,
+                                      handle, &att_err);
+
     return rc;
 }
 
@@ -2238,6 +2565,14 @@ ble_att_svr_rx_write_no_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *
     req = (struct ble_att_write_req *)(*rxom)->om_data;
 
     handle = le16toh(req->bawq_handle);
+
+    rc = ble_att_svr_check_author_perm(conn_handle, cid, handle,
+                                       BLE_ATT_ACCESS_OP_WRITE_CMD,
+                                       BLE_ATT_OP_WRITE_CMD, 0, rxom, &att_err);
+    if (rc != 0) {
+        /* Command dropped; no response is sent for a command */
+        return rc;
+    }
 
     /* Strip the request base from the front of the mbuf. */
     os_mbuf_adj(*rxom, sizeof(*req));
@@ -2506,43 +2841,23 @@ ble_att_svr_insert_prep_entry(uint16_t conn_handle,
 }
 
 int
-ble_att_svr_rx_prep_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+ble_att_svr_create_prep_write_rsp(uint16_t conn_handle, uint16_t cid,
+                                  struct os_mbuf **om,
+                                  struct ble_att_prep_write_cmd *req, int hs_status,
+                                  uint8_t att_err, uint16_t err_handle)
 {
-#if !MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE)
-    return BLE_HS_ENOTSUP;
-#endif
-
-    struct ble_att_prep_write_cmd *req;
     struct ble_att_svr_entry *attr_entry;
     struct os_mbuf *txom;
-    uint16_t err_handle;
-    uint8_t att_err;
-    int rc;
 
-    /* Initialize some values in case of early error. */
+    int rc = 0;
     txom = NULL;
-    att_err = 0;
-    err_handle = 0;
 
-    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
-    if (rc != 0) {
+    if (hs_status != 0) {
+        rc = hs_status;
         goto done;
     }
 
-    req = (struct ble_att_prep_write_cmd *)(*rxom)->om_data;
-
-    err_handle = le16toh(req->bapc_handle);
-
     attr_entry = ble_att_svr_find_by_handle(le16toh(req->bapc_handle));
-
-    /* A prepare write request gets rejected for the following reasons:
-     * 1. Insufficient authorization.
-     * 2. Insufficient authentication.
-     * 3. Insufficient encryption key size (XXX: Not checked).
-     * 4. Insufficient encryption (XXX: Not checked).
-     * 5. Invalid handle.
-     * 6. Write not permitted.
-     */
 
     /* <5> */
     if (attr_entry == NULL) {
@@ -2551,24 +2866,24 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **r
         goto done;
     }
 
-    /* <1>, <2>, <4>, <6> */
+    /* <2>, <4>, <6> */
     rc = ble_att_svr_check_perms(conn_handle, 0, attr_entry, &att_err);
+
     if (rc != 0) {
         goto done;
     }
 
     ble_hs_lock();
     rc = ble_att_svr_insert_prep_entry(conn_handle, le16toh(req->bapc_handle),
-                                       le16toh(req->bapc_offset), *rxom,
-                                       &att_err);
+                                       le16toh(req->bapc_offset), *om, &att_err);
     ble_hs_unlock();
 
     /* Reuse rxom for response.  On success, the response is identical to
      * request except for op code.  On error, the buffer contents will get
      * cleared before the error gets written.
      */
-    txom = *rxom;
-    *rxom = NULL;
+    txom = *om;
+    *om = NULL;
 
     if (rc != 0) {
         goto done;
@@ -2581,8 +2896,61 @@ ble_att_svr_rx_prep_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **r
     rc = 0;
 
 done:
-    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom, BLE_ATT_OP_PREP_WRITE_REQ,
-                            att_err, err_handle);
+    rc = ble_att_svr_tx_rsp(conn_handle, cid, rc, txom,
+                            BLE_ATT_OP_PREP_WRITE_REQ, att_err, err_handle);
+
+    return rc;
+}
+
+int
+ble_att_svr_rx_prep_write(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
+{
+#if !MYNEWT_VAL(BLE_ATT_SVR_QUEUED_WRITE)
+    return BLE_HS_ENOTSUP;
+#endif
+
+    struct ble_att_prep_write_cmd *req;
+    uint16_t err_handle;
+    uint8_t att_err;
+    int rc;
+
+    /* Initialize some values in case of early error. */
+    req = NULL;
+    att_err = 0;
+    err_handle = 0;
+
+    rc = ble_att_svr_pullup_req_base(rxom, sizeof(*req), &att_err);
+    if (rc != 0) {
+        goto done;
+    }
+
+    req = (struct ble_att_prep_write_cmd *)(*rxom)->om_data;
+
+    err_handle = le16toh(req->bapc_handle);
+
+    /* A prepare write request gets rejected for the following reasons:
+     * 1. Insufficient authorization.
+     * 2. Insufficient authentication.
+     * 3. Insufficient encryption key size (XXX: Not checked).
+     * 4. Insufficient encryption (XXX: Not checked).
+     * 5. Invalid handle.
+     * 6. Write not permitted.
+     */
+
+    /* <1> */
+    rc = ble_att_svr_check_author_perm(conn_handle, cid, err_handle,
+                                       BLE_ATT_ACCESS_OP_WRITE,
+                                       BLE_ATT_OP_PREP_WRITE_REQ,
+                                       le16toh(req->bapc_offset), rxom,
+                                       &att_err);
+    if (rc == BLE_HS_EPENDING) {
+        return rc;
+    }
+
+done: /* <2>, <4>, <6> */
+    rc = ble_att_svr_create_prep_write_rsp(conn_handle, cid, rxom, req, rc,
+                                           att_err, err_handle);
+
     return rc;
 }
 

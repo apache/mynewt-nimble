@@ -86,6 +86,13 @@ struct ble_l2cap_chan {
     ble_l2cap_event_fn *cb;
     void *cb_arg;
 #endif
+
+    /* Pending ATT server authorization request */
+    struct os_mbuf *att_svr_rxom;
+    uint16_t att_svr_attr_handle;
+    uint16_t att_svr_offset;
+    uint8_t att_svr_access_op;
+    uint8_t att_svr_att_op;
 };
 
 struct ble_l2cap_hdr {
