@@ -864,17 +864,17 @@ static void gatt_disconnected(struct ble_gap_conn_desc conn, uint8_t reason)
 	}
 
 	client = find_client(conn.conn_handle);
-	if (!client) {
-		return;
-	}
+          if (!client) {
+              return;
+          }
 
-	conn_count--;
-	if (client->cli) {
-		bt_mesh_proxy_role_cleanup(client->cli);
-		client->cli = NULL;
-	}
+          conn_count--;
+          if (client->cli) {
+              bt_mesh_proxy_role_cleanup(client->cli);
+              client->cli = NULL;
+          }
 
-	client->conn_handle = 0xffff;
+          client->conn_handle = 0xffff;
 }
 
 void notify_complete(void)
