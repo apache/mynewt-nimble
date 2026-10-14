@@ -24,6 +24,7 @@
 #include <string.h>
 #include <assert.h>
 #include "os/os.h"
+#include "nimble/nimble_npl_atomic_builtin.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -24,6 +24,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <nuttx/atomic.h>
 
 #include "os_types.h"
 
@@ -34,6 +35,45 @@ extern "C" {
 #define BLE_NPL_OS_ALIGNMENT    4
 
 #define BLE_NPL_TIME_FOREVER    INT32_MAX
+
+typedef atomic_t ble_npl_atomic_t;
+typedef int32_t ble_npl_atomic_val_t;
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_get(const ble_npl_atomic_t *target)
+{
+    return atomic_load_4(target, __ATOMIC_SEQ_CST);
+}
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_set(ble_npl_atomic_t *target, ble_npl_atomic_val_t value)
+{
+    return atomic_exchange_4(target, value, __ATOMIC_SEQ_CST);
+}
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_add(ble_npl_atomic_t *target, ble_npl_atomic_val_t value)
+{
+    return atomic_fetch_add_4(target, value, __ATOMIC_SEQ_CST);
+}
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_sub(ble_npl_atomic_t *target, ble_npl_atomic_val_t value)
+{
+    return atomic_fetch_sub_4(target, value, __ATOMIC_SEQ_CST);
+}
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_or(ble_npl_atomic_t *target, ble_npl_atomic_val_t value)
+{
+    return atomic_fetch_or_4(target, value, __ATOMIC_SEQ_CST);
+}
+
+static inline ble_npl_atomic_val_t
+ble_npl_atomic_and(ble_npl_atomic_t *target, ble_npl_atomic_val_t value)
+{
+    return atomic_fetch_and_4(target, value, __ATOMIC_SEQ_CST);
+}
 
 #ifdef __cplusplus
 }

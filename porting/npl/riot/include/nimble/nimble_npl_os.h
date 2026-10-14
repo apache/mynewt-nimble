@@ -26,6 +26,7 @@
 #include "mutex.h"
 #include "sema.h"
 #include "ztimer.h"
+#include "nimble/nimble_npl_atomic_builtin.h"
 
 #if defined(CPU_FAM_NRF51) || defined(CPU_FAM_NRF52)
 #include "nrf_clock.h"
