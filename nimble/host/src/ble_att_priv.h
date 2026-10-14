@@ -226,6 +226,31 @@ void ble_att_svr_restore_range(uint16_t start_handle, uint16_t end_handle);
 int ble_att_svr_tx_error_rsp(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom,
                              uint8_t req_op, uint16_t handle,
                              uint8_t error_code);
+int ble_att_svr_create_read_rsp(uint16_t conn_handle, uint16_t cid,
+                                struct os_mbuf *om, int hs_status,
+                                uint8_t att_op, uint16_t err_handle,
+                                uint16_t offset, uint8_t *out_att_err);
+int ble_att_svr_create_write_rsp(uint16_t conn_handle, uint16_t cid,
+                                 struct os_mbuf **om, int hs_status,
+                                 struct ble_att_write_req *req, uint16_t offset,
+                                 uint16_t handle, uint8_t *out_att_err);
+int ble_att_svr_create_read_mult_rsp(uint16_t conn_handle, uint16_t cid,
+                                     struct os_mbuf **om, int hs_status,
+                                     uint8_t *att_err, uint16_t *err_handle);
+int ble_att_svr_create_read_mult_var_len_rsp(uint16_t conn_handle, uint16_t cid,
+                                             struct os_mbuf **om, int hs_status,
+                                             uint8_t *att_err, uint16_t *err_handle);
+int ble_att_svr_create_prep_write_rsp(uint16_t conn_handle, uint16_t cid,
+                                      struct os_mbuf **om,
+                                      struct ble_att_prep_write_cmd *req, int hs_status,
+                                      uint8_t att_err, uint16_t err_handle);
+int ble_att_svr_check_author_perm(uint16_t conn_handle, uint16_t cid,
+                                  uint16_t attr_handle, uint8_t access_opcode,
+                                  uint8_t att_opcode, uint16_t offset,
+                                  struct os_mbuf **om, uint8_t *att_err);
+int ble_att_svr_tx_rsp(uint16_t conn_handle, uint16_t cid, int hs_status,
+                       struct os_mbuf *om, uint8_t att_op, uint8_t err_status,
+                       uint16_t err_handle);
 /*** $clt */
 
 /** An information-data entry in a find information response. */
