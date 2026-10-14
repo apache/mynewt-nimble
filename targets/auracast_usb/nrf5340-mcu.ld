@@ -41,10 +41,12 @@ OUTPUT_FORMAT ("elf32-littlearm", "elf32-bigarm", "elf32-littlearm")
  *   __StackLimit
  *   __StackTop
  *   __stack
- *   __bssnz_start__
- *   __bssnz_end__
+ *   __noinit_start__
+ *   __noinit_end__
  */
 ENTRY(Reset_Handler)
+
+NSC_REGION_SIZE = 0x200;
 
 SECTIONS
 {
@@ -99,19 +101,12 @@ SECTIONS
         *(SORT(.dtors.*))
         *(.dtors)
 
+INCLUDE "link_tables.ld.h"
         EXCLUDE_FILE(*liblc3.a: *libsamplerate.a:) *(.rodata*)
 
         *(.eh_frame*)
         PROVIDE(mynewt_main = main);
         . = ALIGN(4);
-    } > FLASH
-
-
-    .net_core_img :
-    {
-        PROVIDE(net_core_img_start = .);
-        KEEP(*(.net_core_img));
-        PROVIDE(net_core_img_end = .);
     } > FLASH
 
     .ARM.extab :
@@ -126,6 +121,15 @@ SECTIONS
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
         . = ALIGN(4);
     } > FLASH
+
+    .gnu.sgstubs :
+    {
+        FILL(0xffff);
+        . = (ALIGN(16384) >= . + NSC_REGION_SIZE) ? (ALIGN(16384) - NSC_REGION_SIZE) : (ALIGN(16384) - NSC_REGION_SIZE + 16384);
+        _start_sg = .;
+    } > FLASH
+    PROVIDE(_end_sg = .);
+
     __exidx_end = .;
 
     __etext = .;
@@ -172,15 +176,6 @@ SECTIONS
 
     /* Non-zeroed BSS.  This section is similar to BSS, but does not get zeroed at init-time.
      */
-    .bssnz :
-    {
-        . = ALIGN(4);
-        __bssnz_start__ = .;
-        *(.bss.core.nz*)
-        . = ALIGN(4);
-        __bssnz_end__ = .;
-    } > RAM
-
     .bss :
     {
         . = ALIGN(4);
@@ -190,6 +185,15 @@ SECTIONS
         . = ALIGN(4);
         __bss_end__ = .;
     } > RAM
+
+    .noinit :
+     {
+         . = ALIGN(4);
+         __noinit_start__ = .;
+         *(.noinit*)
+         . = ALIGN(4);
+         __noinit_end__ = .;
+     } > RAM
 
     /* Heap starts after BSS */
     . = ALIGN(8);
