@@ -196,7 +196,7 @@ int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
 	msg_cache_next = 0U;
 
 	bt_mesh.iv_index = iv_index;
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS,
+	bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS,
 			  BT_MESH_IV_UPDATE(flags));
 
 	/* If IV Update is already in progress, set minimum required hours,
@@ -219,7 +219,7 @@ int bt_mesh_net_create(uint16_t idx, uint8_t flags, const uint8_t key[16],
 #if MYNEWT_VAL(BLE_MESH_IV_UPDATE_TEST)
 void bt_mesh_iv_update_test(bool enable)
 {
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_TEST, enable);
+	bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_TEST, enable);
 	/* Reset the duration variable - needed for some PTS tests */
 	bt_mesh.ivu_duration = 0;
 }
@@ -231,19 +231,19 @@ bool bt_mesh_iv_update(void)
 		return false;
 	}
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 	} else {
 		bt_mesh_net_iv_update(bt_mesh.iv_index + 1, true);
 	}
 
-	return atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
+	return bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 }
 #endif /* CONFIG_BT_MESH_IV_UPDATE_TEST */
 
 bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 {
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		/* We're currently in IV Update mode */
 
 		if (iv_index != bt_mesh.iv_index) {
@@ -295,7 +295,7 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 	}
 
 	if (!(IS_ENABLED(CONFIG_BT_MESH_IV_UPDATE_TEST) &&
-	      atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_TEST))) {
+	      bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_TEST))) {
 		if (bt_mesh.ivu_duration < BT_MESH_IVU_MIN_HOURS) {
 			BT_WARN("IV Update before minimum duration");
 			return false;
@@ -305,7 +305,7 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 	/* Defer change to Normal Operation if there are pending acks */
 	if (!iv_update && bt_mesh_tx_in_progress()) {
 		BT_WARN("IV Update deferred because of pending transfer");
-		atomic_set_bit(bt_mesh.flags, BT_MESH_IVU_PENDING);
+		bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_IVU_PENDING);
 		return false;
 	}
 
@@ -322,7 +322,7 @@ bool bt_mesh_net_iv_update(uint32_t iv_index, bool iv_update)
 	}
 
 do_update:
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
+	bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv_update);
 	bt_mesh.ivu_duration = 0U;
 
 	k_work_reschedule(&bt_mesh.ivu_timer, BT_MESH_IVU_TIMEOUT);
@@ -358,7 +358,7 @@ uint32_t bt_mesh_next_seq(void)
 		store_seq();
 	}
 
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) &&
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) &&
 	    bt_mesh.seq > IV_UPDATE_SEQ_LIMIT &&
 	    bt_mesh_subnet_get(BT_MESH_KEY_PRIMARY)) {
 		bt_mesh_beacon_ivu_initiator(true);
@@ -883,7 +883,7 @@ static void ivu_refresh(struct ble_npl_event *work)
 	       bt_mesh.ivu_duration + BT_MESH_IVU_HOURS);
 
 	BT_DBG("%s for %u hour%s",
-	       atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ?
+	       bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ?
 	       "IVU in Progress" : "IVU Normal mode",
 	       bt_mesh.ivu_duration, bt_mesh.ivu_duration == 1 ? "" : "s");
 
@@ -896,7 +896,7 @@ static void ivu_refresh(struct ble_npl_event *work)
 		return;
 	}
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS)) {
 		bt_mesh_beacon_ivu_initiator(true);
 		bt_mesh_net_iv_update(bt_mesh.iv_index, false);
 	} else if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
@@ -948,7 +948,7 @@ static int iv_set(int argc, char **argv, char *val)
 
 	if (!val) {
 		bt_mesh.iv_index = 0U;
-		atomic_clear_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
+		bt_mesh_atomic_clear_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 		return 0;
 	}
 
@@ -965,7 +965,7 @@ static int iv_set(int argc, char **argv, char *val)
 	}
 
 	bt_mesh.iv_index = iv.iv_index;
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv.iv_update);
+	bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS, iv.iv_update);
 	bt_mesh.ivu_duration = iv.iv_duration;
 
 	BT_DBG("IV Index 0x%04x (IV Update Flag %u) duration %u hours",
@@ -1099,7 +1099,7 @@ static void store_pending_iv(void)
 	int err;
 
 	iv.iv_index = bt_mesh.iv_index;
-	iv.iv_update = atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
+	iv.iv_update = bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS);
 	iv.iv_duration = bt_mesh.ivu_duration;
 
 	str = settings_str_from_bytes(&iv, sizeof(iv), buf, sizeof(buf));
@@ -1119,7 +1119,7 @@ static void store_pending_iv(void)
 
 void bt_mesh_net_pending_iv_store(void)
 {
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		store_pending_iv();
 	} else {
 		clear_iv();
@@ -1168,7 +1168,7 @@ static void store_pending_net(void)
 
 void bt_mesh_net_pending_net_store(void)
 {
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		store_pending_net();
 	} else {
 		clear_net();
@@ -1182,7 +1182,7 @@ void bt_mesh_net_pending_seq_store(void)
 	struct seq_val seq;
 	int err;
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
 		sys_put_le24(bt_mesh.seq, seq.val);
 
 		str = settings_str_from_bytes(&seq, sizeof(seq), buf, sizeof(buf));

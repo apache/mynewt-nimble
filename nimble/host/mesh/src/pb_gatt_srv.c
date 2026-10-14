@@ -77,7 +77,7 @@ ble_uuid16_t BT_UUID_MESH_PROXY_DATA_OUT       = BLE_UUID16_INIT(0x2ade);
 static bool prov_fast_adv;
 
 struct svc_handles svc_handles;
-static atomic_t pending_notifications;
+static bt_mesh_atomic_t pending_notifications;
 
 static int gatt_send(uint16_t conn_handle,
 		     const void *data, uint16_t len);
@@ -408,7 +408,7 @@ static int gatt_send(uint16_t conn_handle,
 	notify_complete();
 
 	if (!err) {
-		atomic_inc(&pending_notifications);
+		bt_mesh_atomic_inc(&pending_notifications);
 	}
 
 	return err;

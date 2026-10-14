@@ -236,7 +236,7 @@ static void beacon_send(struct ble_npl_event *work)
 
 	if (bt_mesh_is_provisioned()) {
 		if (!bt_mesh_beacon_enabled() &&
-		!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
+		!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
 			return;
 		}
 
@@ -356,8 +356,8 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 	BT_DBG("net_idx 0x%04x iv_index 0x%08x, current iv_index 0x%08x",
 	       sub->net_idx, params.iv_index, bt_mesh.iv_index);
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
-	    (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
+	    (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
 	     BT_MESH_IV_UPDATE(params.flags))) {
 		bt_mesh_beacon_ivu_initiator(false);
 	}
@@ -435,7 +435,7 @@ void bt_mesh_beacon_init(void)
 
 void bt_mesh_beacon_ivu_initiator(bool enable)
 {
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_INITIATOR, enable);
+	bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_INITIATOR, enable);
 
 	/* Fire the beacon handler straight away if it's not already pending -
 	 * in which case we'll fire according to the ongoing periodic sending.
@@ -468,7 +468,7 @@ void bt_mesh_beacon_enable(void)
 
 void bt_mesh_beacon_disable(void)
 {
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
+	if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
 		/* If this fails, we'll do an early exit in the work handler. */
 		(void)k_work_cancel_delayable(&beacon_timer);
 	}

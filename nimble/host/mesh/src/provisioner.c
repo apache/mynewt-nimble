@@ -92,7 +92,7 @@ static void send_invite(void)
 static void start_sent(int err, void *cb_data)
 {
 	if (!bt_pub_key_get()) {
-		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY);
 		BT_WARN("Waiting for local public key");
 	} else {
 		send_pub_key();
@@ -111,9 +111,9 @@ static void send_start(void)
 
 	memcpy(bt_mesh_prov_link.conf_inputs.start, &start->om_data[1], PDU_LEN_START);
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY) && oob_pub_key) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY) && oob_pub_key) {
 		net_buf_simple_add_u8(start, PUB_KEY_OOB);
-		atomic_set_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY);
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY);
 	} else {
 		net_buf_simple_add_u8(start, PUB_KEY_NO_OOB);
 	}
@@ -245,7 +245,7 @@ static void prov_capabilities(const uint8_t *data)
     prov_node.addr = prov_device.addr;
     prov_node.num_elem = data[0];
     prov_node.net_idx = prov_device.net_idx;
-    atomic_set(prov_node.flags, 0);
+    bt_mesh_atomic_set(prov_node.flags, 0);
 #endif
 	memcpy(bt_mesh_prov_link.conf_inputs.capabilities, data, PDU_LEN_CAPABILITIES);
 
@@ -317,10 +317,10 @@ static void send_confirm(void)
 
 static void public_key_sent(int err, void *cb_data)
 {
-	atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
+	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PUB_KEY_SENT);
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY) &&
-	    atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, OOB_PUB_KEY) &&
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
 		prov_dh_key_gen();
 		return;
 	}
@@ -372,10 +372,10 @@ static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
 
 	BT_DBG("DHkey: %s", bt_hex(bt_mesh_prov_link.dhkey, BT_DH_KEY_LEN));
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING) ||
-	    atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
-	    atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
-		atomic_set_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM);
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_STRING) ||
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, WAIT_NUMBER) ||
+	    bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
+		bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM);
 		return;
 	}
 
@@ -410,7 +410,7 @@ static void prov_dh_key_gen(void)
 		prov_fail(PROV_ERR_UNEXP_ERR);
 	}
 
-	if (atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE)) {
 		bt_mesh_prov_link.expect = PROV_INPUT_COMPLETE;
 	}
 }
@@ -419,7 +419,7 @@ static void prov_pub_key(const uint8_t *data)
 {
 	BT_DBG("Remote Public Key: %s", bt_hex(data, BT_PUB_KEY_LEN));
 
-	atomic_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY);
+	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY);
 
 	/* PublicKeyDevice */
 	memcpy(bt_mesh_prov_link.conf_inputs.pub_key_device, data, BT_PUB_KEY_LEN);
@@ -437,14 +437,14 @@ static void pub_key_ready(const uint8_t *pkey)
 
 	BT_DBG("Local public key ready");
 
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_PUB_KEY)) {
 		send_pub_key();
 	}
 }
 
 static void notify_input_complete(void)
 {
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags,
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags,
 				      NOTIFY_INPUT_COMPLETE) &&
 	    bt_mesh_prov->input_complete) {
 		bt_mesh_prov->input_complete();
@@ -457,7 +457,7 @@ static void prov_input_complete(const uint8_t *data)
 
 	notify_input_complete();
 
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
 		send_confirm();
 	}
 }
@@ -654,7 +654,7 @@ static void prov_failed(const uint8_t *data)
 
 static void local_input_complete(void)
 {
-	if (atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
+	if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_CONFIRM)) {
 		send_confirm();
 	}
 }
@@ -740,7 +740,7 @@ int bt_mesh_prov_remote_pub_key_set(const uint8_t public_key[BT_PUB_KEY_LEN])
 		return -EINVAL;
 	}
 
-	if (atomic_test_and_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
+	if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, REMOTE_PUB_KEY)) {
 		return -EALREADY;
 	}
 
@@ -756,11 +756,11 @@ int bt_mesh_pb_adv_open(const uint8_t uuid[16], uint16_t net_idx, uint16_t addr,
 {
 	int err;
 
-	if (atomic_test_and_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE)) {
+	if (bt_mesh_atomic_test_and_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE)) {
 		return -EBUSY;
 	}
 
-	atomic_set_bit(bt_mesh_prov_link.flags, PROVISIONER);
+	bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, PROVISIONER);
 	memcpy(prov_device.uuid, uuid, 16);
 	prov_device.addr = addr;
 	prov_device.net_idx = net_idx;
@@ -771,7 +771,7 @@ int bt_mesh_pb_adv_open(const uint8_t uuid[16], uint16_t net_idx, uint16_t addr,
 	err = bt_mesh_prov_link.bearer->link_open(prov_device.uuid, PROTOCOL_TIMEOUT,
 						  bt_mesh_prov_bearer_cb_get(), NULL);
 	if (err) {
-		atomic_clear_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
+		bt_mesh_atomic_clear_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
 	}
 
 	return err;

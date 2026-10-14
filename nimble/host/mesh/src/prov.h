@@ -109,7 +109,7 @@ struct bt_mesh_prov_role {
 };
 
 struct bt_mesh_prov_link {
-	ATOMIC_DEFINE(flags, NUM_FLAGS);
+	BT_MESH_ATOMIC_DEFINE(flags, NUM_FLAGS);
 
 	const struct prov_bearer *bearer;
 	const struct bt_mesh_prov_role *role;
