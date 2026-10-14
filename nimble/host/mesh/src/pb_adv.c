@@ -43,8 +43,8 @@
 #define LINK_CLOSE      0x02
 
 #define XACT_SEG_OFFSET(_seg) (20 + ((_seg - 1) * 23))
-#define XACT_SEG_DATA(_seg) (&link.rx.buf->om_data[XACT_SEG_OFFSET(_seg)])
-#define XACT_SEG_RECV(_seg) (link.rx.seg &= ~(1 << (_seg)))
+#define XACT_SEG_DATA(_seg) (&adv_link.rx.buf->om_data[XACT_SEG_OFFSET(_seg)])
+#define XACT_SEG_RECV(_seg) (adv_link.rx.seg &= ~(1 << (_seg)))
 
 #define XACT_ID_MAX  0x7f
 #define XACT_ID_NVAL 0xff
@@ -122,7 +122,7 @@ struct prov_rx {
 };
 
 static struct os_mbuf *rx_buf;
-static struct pb_adv link;
+static struct pb_adv adv_link;
 
 static void gen_prov_ack_send(uint8_t xact_id);
 static void link_open(struct prov_rx *rx, struct os_mbuf *buf);
@@ -135,10 +135,10 @@ static void buf_sent(int err, void *user_data)
 {
 	BT_DBG("buf_send");
 
-	if (atomic_test_and_clear_bit(link.flags, ADV_LINK_CLOSING)) {
-		close_link(PROV_BEARER_LINK_STATUS_SUCCESS);
-		return;
-	}
+          if (atomic_test_and_clear_bit(adv_link.flags, ADV_LINK_CLOSING)) {
+              close_link(PROV_BEARER_LINK_STATUS_SUCCESS);
+              return;
+          }
 }
 
 static void buf_start(uint16_t duration, int err, void *user_data)
@@ -168,18 +168,18 @@ static void free_segments(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(link.tx.buf); i++) {
-		struct os_mbuf *buf = link.tx.buf[i];
+          for (i = 0; i < ARRAY_SIZE(adv_link.tx.buf); i++) {
+              struct os_mbuf *buf = adv_link.tx.buf[i];
 
-		if (!buf) {
-			break;
-		}
+              if (!buf) {
+                  break;
+              }
 
-		link.tx.buf[i] = NULL;
-		/* Mark as canceled */
-		BT_MESH_ADV(buf)->busy = 0U;
-		net_buf_unref(buf);
-	}
+              adv_link.tx.buf[i] = NULL;
+              /* Mark as canceled */
+              BT_MESH_ADV(buf)->busy = 0U;
+              net_buf_unref(buf);
+          }
 }
 
 static uint8_t next_transaction_id(uint8_t id)
@@ -196,9 +196,9 @@ static void prov_clear_tx(void)
 	 * LINK_ACTIVE flag, so if this call is part of reset_adv_link, it'll
 	 * exit early.
 	 */
-	(void)k_work_cancel_delayable(&link.tx.retransmit);
+          (void)k_work_cancel_delayable(&adv_link.tx.retransmit);
 
-	free_segments();
+          free_segments();
 }
 
 static void reset_adv_link(void)
@@ -209,36 +209,36 @@ static void reset_adv_link(void)
 	/* If this fails, the work handler will exit early on the LINK_ACTIVE
 	 * check.
 	 */
-	(void)k_work_cancel_delayable(&link.prot_timer);
+          (void)k_work_cancel_delayable(&adv_link.prot_timer);
 
-	if (atomic_test_bit(link.flags, ADV_PROVISIONER)) {
-		/* Clear everything except the retransmit and protocol timer
-		 * delayed work objects.
-		 */
-		(void)memset(&link, 0, offsetof(struct pb_adv, tx.retransmit));
-		link.rx.id = XACT_ID_NVAL;
-	} else {
-		/* Accept another provisioning attempt */
-		link.id = 0;
-		atomic_clear(link.flags);
-		link.rx.id = XACT_ID_MAX;
-		link.tx.id = XACT_ID_NVAL;
-	}
-	link.tx.pending_ack = XACT_ID_NVAL;
-	if (!rx_buf) {
-		rx_buf = NET_BUF_SIMPLE(RX_BUFFER_MAX);
-	}
-	link.rx.buf = rx_buf;
-	net_buf_simple_reset(link.rx.buf);
+          if (atomic_test_bit(adv_link.flags, ADV_PROVISIONER)) {
+              /* Clear everything except the retransmit and protocol timer
+               * delayed work objects.
+               */
+              (void)memset(&adv_link, 0, offsetof(struct pb_adv, tx.retransmit));
+              adv_link.rx.id = XACT_ID_NVAL;
+          } else {
+              /* Accept another provisioning attempt */
+              adv_link.id = 0;
+              atomic_clear(adv_link.flags);
+              adv_link.rx.id = XACT_ID_MAX;
+              adv_link.tx.id = XACT_ID_NVAL;
+          }
+          adv_link.tx.pending_ack = XACT_ID_NVAL;
+          if (!rx_buf) {
+              rx_buf = NET_BUF_SIMPLE(RX_BUFFER_MAX);
+          }
+          adv_link.rx.buf = rx_buf;
+          net_buf_simple_reset(adv_link.rx.buf);
 }
 
 static void close_link(enum prov_bearer_link_status reason)
 {
-	const struct prov_bearer_cb *cb = link.cb;
-	void *cb_data = link.cb_data;
+    const struct prov_bearer_cb *cb = adv_link.cb;
+    void *cb_data = adv_link.cb_data;
 
-	reset_adv_link();
-	cb->link_closed(&pb_adv, cb_data, reason);
+    reset_adv_link();
+    cb->link_closed(&pb_adv, cb_data, reason);
 }
 
 static struct os_mbuf *adv_buf_create(uint8_t retransmits)
@@ -258,53 +258,53 @@ static struct os_mbuf *adv_buf_create(uint8_t retransmits)
 
 static void ack_complete(uint16_t duration, int err, void *user_data)
 {
-	BT_DBG("xact 0x%x complete", (uint8_t)link.tx.pending_ack);
-	atomic_clear_bit(link.flags, ADV_ACK_PENDING);
+    BT_DBG("xact 0x%x complete", (uint8_t)adv_link.tx.pending_ack);
+    atomic_clear_bit(adv_link.flags, ADV_ACK_PENDING);
 }
 
 static bool ack_pending(void)
 {
-	return atomic_test_bit(link.flags, ADV_ACK_PENDING);
+    return atomic_test_bit(adv_link.flags, ADV_ACK_PENDING);
 }
 
 static void prov_failed(uint8_t err)
 {
 	BT_DBG("%u", err);
-	link.cb->error(&pb_adv, link.cb_data, err);
-	atomic_set_bit(link.flags, ADV_LINK_INVALID);
+          adv_link.cb->error(&pb_adv, adv_link.cb_data, err);
+          atomic_set_bit(adv_link.flags, ADV_LINK_INVALID);
 }
 
 static void prov_msg_recv(void)
 {
-	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
+    k_work_reschedule(&adv_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	if (!bt_mesh_fcs_check(link.rx.buf, link.rx.fcs)) {
-		BT_ERR("Incorrect FCS");
-		return;
-	}
+    if (!bt_mesh_fcs_check(adv_link.rx.buf, adv_link.rx.fcs)) {
+        BT_ERR("Incorrect FCS");
+        return;
+    }
 
-	gen_prov_ack_send(link.rx.id);
+    gen_prov_ack_send(adv_link.rx.id);
 
-	if (atomic_test_bit(link.flags, ADV_LINK_INVALID)) {
-		BT_WARN("Unexpected msg 0x%02x on invalidated link",
-			link.rx.buf->om_data[0]);
-		prov_failed(PROV_ERR_UNEXP_PDU);
-		return;
-	}
+    if (atomic_test_bit(adv_link.flags, ADV_LINK_INVALID)) {
+        BT_WARN("Unexpected msg 0x%02x on invalidated link",
+                adv_link.rx.buf->om_data[0]);
+        prov_failed(PROV_ERR_UNEXP_PDU);
+        return;
+    }
 
-	link.cb->recv(&pb_adv, link.cb_data, link.rx.buf);
+    adv_link.cb->recv(&pb_adv, adv_link.cb_data, adv_link.rx.buf);
 }
 
 static void protocol_timeout(struct ble_npl_event *work)
 {
-	if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-		return;
-	}
+    if (!atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+        return;
+    }
 
-	BT_DBG("");
+    BT_DBG("");
 
-	link.rx.seg = 0U;
-	prov_link_close(PROV_BEARER_LINK_STATUS_TIMEOUT);
+    adv_link.rx.seg = 0U;
+    prov_link_close(PROV_BEARER_LINK_STATUS_TIMEOUT);
 }
 /*******************************************************************************
  * Generic provisioning
@@ -317,34 +317,34 @@ static void gen_prov_ack_send(uint8_t xact_id)
 	};
 	const struct bt_mesh_send_cb *complete;
 	struct os_mbuf *buf;
-	bool pending = atomic_test_and_set_bit(link.flags, ADV_ACK_PENDING);
+          bool pending = atomic_test_and_set_bit(adv_link.flags, ADV_ACK_PENDING);
 
-	BT_DBG("xact_id 0x%x", xact_id);
+          BT_DBG("xact_id 0x%x", xact_id);
 
-	if (pending && link.tx.pending_ack == xact_id) {
-		BT_DBG("Not sending duplicate ack");
-		return;
-	}
+          if (pending && adv_link.tx.pending_ack == xact_id) {
+              BT_DBG("Not sending duplicate ack");
+              return;
+          }
 
-	buf = adv_buf_create(RETRANSMITS_ACK);
-	if (!buf) {
-		atomic_clear_bit(link.flags, ADV_ACK_PENDING);
-		return;
-	}
+          buf = adv_buf_create(RETRANSMITS_ACK);
+          if (!buf) {
+              atomic_clear_bit(adv_link.flags, ADV_ACK_PENDING);
+              return;
+          }
 
-	if (pending) {
-		complete = NULL;
-	} else {
-		link.tx.pending_ack = xact_id;
-		complete = &cb;
-	}
+          if (pending) {
+              complete = NULL;
+          } else {
+              adv_link.tx.pending_ack = xact_id;
+              complete = &cb;
+          }
 
-	net_buf_add_be32(buf, link.id);
-	net_buf_add_u8(buf, xact_id);
-	net_buf_add_u8(buf, GPC_ACK);
+          net_buf_add_be32(buf, adv_link.id);
+          net_buf_add_u8(buf, xact_id);
+          net_buf_add_u8(buf, GPC_ACK);
 
-	bt_mesh_adv_send(buf, complete, NULL);
-	net_buf_unref(buf);
+          bt_mesh_adv_send(buf, complete, NULL);
+          net_buf_unref(buf);
 }
 
 static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
@@ -353,154 +353,153 @@ static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
 
 	BT_DBG("len %u, seg_index %u", buf->om_len, seg);
 
-	if (!link.rx.seg && link.rx.id == rx->xact_id) {
-		if (!ack_pending()) {
-			BT_DBG("Resending ack");
-			gen_prov_ack_send(rx->xact_id);
-		}
+          if (!adv_link.rx.seg && adv_link.rx.id == rx->xact_id) {
+              if (!ack_pending()) {
+                  BT_DBG("Resending ack");
+                  gen_prov_ack_send(rx->xact_id);
+              }
 
-		return;
-	}
+              return;
+          }
 
-	if (!link.rx.seg &&
-	    next_transaction_id(link.rx.id) == rx->xact_id) {
-		BT_DBG("Start segment lost");
+          if (!adv_link.rx.seg && next_transaction_id(adv_link.rx.id) == rx->xact_id) {
+              BT_DBG("Start segment lost");
 
-		link.rx.id = rx->xact_id;
+              adv_link.rx.id = rx->xact_id;
 
-		net_buf_simple_reset(link.rx.buf);
-		link.rx.seg = SEG_NVAL;
-		link.rx.last_seg = SEG_NVAL;
+              net_buf_simple_reset(adv_link.rx.buf);
+              adv_link.rx.seg = SEG_NVAL;
+              adv_link.rx.last_seg = SEG_NVAL;
 
-		prov_clear_tx();
-	} else if (rx->xact_id != link.rx.id) {
-		BT_WARN("Data for unknown transaction (0x%x != 0x%x)",
-				rx->xact_id, link.rx.id);
-		return;
-	}
+              prov_clear_tx();
+          } else if (rx->xact_id != adv_link.rx.id) {
+              BT_WARN("Data for unknown transaction (0x%x != 0x%x)",
+                      rx->xact_id, adv_link.rx.id);
+              return;
+          }
 
-	if (seg > link.rx.last_seg) {
-		BT_ERR("Invalid segment index %u", seg);
-		prov_failed(PROV_ERR_NVAL_FMT);
-		return;
-	}
+          if (seg > adv_link.rx.last_seg) {
+              BT_ERR("Invalid segment index %u", seg);
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
 
-	if (!(link.rx.seg & BIT(seg))) {
-		BT_DBG("Ignoring already received segment");
-		return;
-	}
+          if (!(adv_link.rx.seg & BIT(seg))) {
+              BT_DBG("Ignoring already received segment");
+              return;
+          }
 
-	if (XACT_SEG_OFFSET(seg) + buf->om_len > RX_BUFFER_MAX) {
-		BT_WARN("Rx buffer overflow. Malformed generic prov frame?");
-		return;
-	}
+          if (XACT_SEG_OFFSET(seg) + buf->om_len > RX_BUFFER_MAX) {
+              BT_WARN("Rx buffer overflow. Malformed generic prov frame?");
+              return;
+          }
 
-	memcpy(XACT_SEG_DATA(seg), buf->om_data, buf->om_len);
-	XACT_SEG_RECV(seg);
+          memcpy(XACT_SEG_DATA(seg), buf->om_data, buf->om_len);
+          XACT_SEG_RECV(seg);
 
-	if (seg == link.rx.last_seg && !(link.rx.seg & BIT(0))) {
-		uint8_t expect_len;
+          if (seg == adv_link.rx.last_seg && !(adv_link.rx.seg & BIT(0))) {
+              uint8_t expect_len;
 
-		expect_len = (link.rx.buf->om_len - 20U -
-				((link.rx.last_seg - 1) * 23U));
-		if (expect_len != buf->om_len) {
-			BT_ERR("Incorrect last seg len: %u != %u", expect_len,
-					buf->om_len);
-			prov_failed(PROV_ERR_NVAL_FMT);
-			return;
-		}
-	}
+              expect_len = (adv_link.rx.buf->om_len - 20U -
+                            ((adv_link.rx.last_seg - 1) * 23U));
+              if (expect_len != buf->om_len) {
+                  BT_ERR("Incorrect last seg len: %u != %u", expect_len, buf->om_len);
+                  prov_failed(PROV_ERR_NVAL_FMT);
+                  return;
+              }
+          }
 
-	if (!link.rx.seg) {
-		prov_msg_recv();
-	}
+          if (!adv_link.rx.seg) {
+              prov_msg_recv();
+          }
 }
 
 static void gen_prov_ack(struct prov_rx *rx, struct os_mbuf *buf)
 {
 	BT_DBG("len %u", buf->om_len);
 
-	if (!link.tx.buf[0]) {
-		return;
-	}
+          if (!adv_link.tx.buf[0]) {
+              return;
+          }
 
-	if (rx->xact_id == link.tx.id) {
-		/* Don't clear resending of link_close messages */
-		if (!atomic_test_bit(link.flags, ADV_LINK_CLOSING)) {
-			prov_clear_tx();
-		}
+          if (rx->xact_id == adv_link.tx.id) {
+              /* Don't clear resending of link_close messages */
+              if (!atomic_test_bit(adv_link.flags, ADV_LINK_CLOSING)) {
+                  prov_clear_tx();
+              }
 
-		if (link.tx.cb) {
-			link.tx.cb(0, link.tx.cb_data);
-		}
-	}
+              if (adv_link.tx.cb) {
+                  adv_link.tx.cb(0, adv_link.tx.cb_data);
+              }
+          }
 }
 
 static void gen_prov_start(struct prov_rx *rx, struct os_mbuf *buf)
 {
 	uint8_t seg = SEG_NVAL;
 
-	if (rx->xact_id == link.rx.id) {
-		if (!link.rx.seg) {
-			if (!ack_pending()) {
-				BT_DBG("Resending ack");
-				gen_prov_ack_send(rx->xact_id);
-			}
+          if (rx->xact_id == adv_link.rx.id) {
+              if (!adv_link.rx.seg) {
+                  if (!ack_pending()) {
+                      BT_DBG("Resending ack");
+                      gen_prov_ack_send(rx->xact_id);
+                  }
 
-			return;
-		}
+                  return;
+              }
 
-		if (!(link.rx.seg & BIT(0))) {
-			BT_DBG("Ignoring duplicate segment");
-			return;
-		}
-	} else if (rx->xact_id != next_transaction_id(link.rx.id)) {
-		BT_WARN("Unexpected xact 0x%x, expected 0x%x", rx->xact_id,
-				next_transaction_id(link.rx.id));
-		return;
-	}
+              if (!(adv_link.rx.seg & BIT(0))) {
+                  BT_DBG("Ignoring duplicate segment");
+                  return;
+              }
+          } else if (rx->xact_id != next_transaction_id(adv_link.rx.id)) {
+              BT_WARN("Unexpected xact 0x%x, expected 0x%x", rx->xact_id,
+                      next_transaction_id(adv_link.rx.id));
+              return;
+          }
 
-	net_buf_simple_reset(link.rx.buf);
-	link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
-	link.rx.id = rx->xact_id;
-	link.rx.fcs = net_buf_simple_pull_u8(buf);
+          net_buf_simple_reset(adv_link.rx.buf);
+          adv_link.rx.buf->om_len = net_buf_simple_pull_be16(buf);
+          adv_link.rx.id = rx->xact_id;
+          adv_link.rx.fcs = net_buf_simple_pull_u8(buf);
 
-	BT_DBG("%p len %u last_seg %u total_len %u fcs 0x%02x", link.rx.buf, buf->om_len,
-	       START_LAST_SEG(rx->gpc), link.rx.buf->om_len, link.rx.fcs);
+          BT_DBG("%p len %u last_seg %u total_len %u fcs 0x%02x",
+                 adv_link.rx.buf, buf->om_len, START_LAST_SEG(rx->gpc),
+                 adv_link.rx.buf->om_len, adv_link.rx.fcs);
 
-	if (link.rx.buf->om_len < 1) {
-		BT_ERR("Ignoring zero-length provisioning PDU");
-		prov_failed(PROV_ERR_NVAL_FMT);
-		return;
-	}
+          if (adv_link.rx.buf->om_len < 1) {
+              BT_ERR("Ignoring zero-length provisioning PDU");
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
 
-	if (START_LAST_SEG(rx->gpc) > 0 && link.rx.buf->om_len <= 20U) {
-		BT_ERR("Too small total length for multi-segment PDU");
-		prov_failed(PROV_ERR_NVAL_FMT);
-		return;
-	}
+          if (START_LAST_SEG(rx->gpc) > 0 && adv_link.rx.buf->om_len <= 20U) {
+              BT_ERR("Too small total length for multi-segment PDU");
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
 
-	prov_clear_tx();
+          prov_clear_tx();
 
-	link.rx.last_seg = START_LAST_SEG(rx->gpc);
-	if ((link.rx.seg & BIT(0)) &&
-	    (find_msb_set((~link.rx.seg) & SEG_NVAL) - 1 > link.rx.last_seg)) {
-		BT_ERR("Invalid segment index %u", seg);
-		prov_failed(PROV_ERR_NVAL_FMT);
-		return;
-	}
+          adv_link.rx.last_seg = START_LAST_SEG(rx->gpc);
+          if ((adv_link.rx.seg & BIT(0)) &&
+              (find_msb_set((~adv_link.rx.seg) & SEG_NVAL) - 1 > adv_link.rx.last_seg)) {
+              BT_ERR("Invalid segment index %u", seg);
+              prov_failed(PROV_ERR_NVAL_FMT);
+              return;
+          }
 
-	if (link.rx.seg) {
-		seg = link.rx.seg;
-	}
+          if (adv_link.rx.seg) {
+              seg = adv_link.rx.seg;
+          }
 
-	link.rx.seg = seg & ((1 << (START_LAST_SEG(rx->gpc) + 1)) - 1);
-	memcpy(link.rx.buf->om_data, buf->om_data, buf->om_len);
-	XACT_SEG_RECV(0);
+          adv_link.rx.seg = seg & ((1 << (START_LAST_SEG(rx->gpc) + 1)) - 1);
+          memcpy(adv_link.rx.buf->om_data, buf->om_data, buf->om_len);
+          XACT_SEG_RECV(0);
 
-	if (!link.rx.seg) {
-		prov_msg_recv();
-	}
+          if (!adv_link.rx.seg) {
+              prov_msg_recv();
+          }
 }
 
 static void gen_prov_ctl(struct prov_rx *rx, struct os_mbuf *buf)
@@ -512,28 +511,28 @@ static void gen_prov_ctl(struct prov_rx *rx, struct os_mbuf *buf)
 		link_open(rx, buf);
 		break;
 	case LINK_ACK:
-		if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-			return;
-		}
+              if (!atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+                  return;
+              }
 
-		link_ack(rx, buf);
-		break;
-	case LINK_CLOSE:
-		if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-			return;
-		}
+              link_ack(rx, buf);
+              break;
+          case LINK_CLOSE:
+              if (!atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+                  return;
+              }
 
-		link_close(rx, buf);
-		break;
-	default:
-		BT_ERR("Unknown bearer opcode: 0x%02x", BEARER_CTL(rx->gpc));
+              link_close(rx, buf);
+              break;
+          default:
+              BT_ERR("Unknown bearer opcode: 0x%02x", BEARER_CTL(rx->gpc));
 
-		if (IS_ENABLED(CONFIG_BT_TESTING)) {
-			bt_test_mesh_prov_invalid_bearer(BEARER_CTL(rx->gpc));
-		}
+              if (IS_ENABLED(CONFIG_BT_TESTING)) {
+                  bt_test_mesh_prov_invalid_bearer(BEARER_CTL(rx->gpc));
+              }
 
-		return;
-	}
+              return;
+          }
 }
 
 static const struct {
@@ -554,13 +553,13 @@ static void gen_prov_recv(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE) &&
-	    gen_prov[GPCF(rx->gpc)].require_link) {
-		BT_DBG("Ignoring message that requires active link");
-		return;
-	}
+          if (!atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE) &&
+              gen_prov[GPCF(rx->gpc)].require_link) {
+              BT_DBG("Ignoring message that requires active link");
+              return;
+          }
 
-	gen_prov[GPCF(rx->gpc)].func(rx, buf);
+          gen_prov[GPCF(rx->gpc)].func(rx, buf);
 }
 
 /*******************************************************************************
@@ -571,41 +570,41 @@ static void send_reliable(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(link.tx.buf); i++) {
-		struct os_mbuf *buf = link.tx.buf[i];
+          for (i = 0; i < ARRAY_SIZE(adv_link.tx.buf); i++) {
+              struct os_mbuf *buf = adv_link.tx.buf[i];
 
-		if (!buf) {
-			break;
-		}
+              if (!buf) {
+                  break;
+              }
 
-		if (BT_MESH_ADV(buf)->busy) {
-			continue;
-		}
+              if (BT_MESH_ADV(buf)->busy) {
+                  continue;
+              }
 
-		BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
+              BT_DBG("%u bytes: %s", buf->om_len, bt_hex(buf->om_data, buf->om_len));
 
-		bt_mesh_adv_send(buf, NULL, NULL);
-	}
+              bt_mesh_adv_send(buf, NULL, NULL);
+          }
 
-	k_work_reschedule(&link.tx.retransmit, RETRANSMIT_TIMEOUT);
+          k_work_reschedule(&adv_link.tx.retransmit, RETRANSMIT_TIMEOUT);
 }
 
 static void prov_retransmit(struct ble_npl_event *work)
 {
 	BT_DBG("");
 
-	if (!atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-		BT_WARN("Link not active");
-		return;
-	}
+          if (!atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+              BT_WARN("Link not active");
+              return;
+          }
 
-	if (k_uptime_get() - link.tx.start > TRANSACTION_TIMEOUT) {
-		BT_WARN("Giving up transaction");
-		prov_link_close(PROV_BEARER_LINK_STATUS_FAIL);
-		return;
-	}
+          if (k_uptime_get() - adv_link.tx.start > TRANSACTION_TIMEOUT) {
+              BT_WARN("Giving up transaction");
+              prov_link_close(PROV_BEARER_LINK_STATUS_FAIL);
+              return;
+          }
 
-	send_reliable();
+          send_reliable();
 }
 
 static struct os_mbuf *ctl_buf_create(uint8_t op, const void *data, uint8_t data_len,
@@ -620,12 +619,12 @@ static struct os_mbuf *ctl_buf_create(uint8_t op, const void *data, uint8_t data
 		return NULL;
 	}
 
-	net_buf_add_be32(buf, link.id);
-	/* Transaction ID, always 0 for Bearer messages */
-	net_buf_add_u8(buf, 0x00);
-	net_buf_add_u8(buf, GPC_CTL(op));
-	net_buf_add_mem(buf, data, data_len);
-	return buf;
+          net_buf_add_be32(buf, adv_link.id);
+          /* Transaction ID, always 0 for Bearer messages */
+          net_buf_add_u8(buf, 0x00);
+          net_buf_add_u8(buf, GPC_CTL(op));
+          net_buf_add_mem(buf, data, data_len);
+          return buf;
 }
 
 static int bearer_ctl_send(struct os_mbuf *buf)
@@ -634,14 +633,14 @@ static int bearer_ctl_send(struct os_mbuf *buf)
 		return -ENOMEM;
 	}
 	prov_clear_tx();
-	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
+          k_work_reschedule(&adv_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	link.tx.start = k_uptime_get();
-	link.tx.buf[0] = buf;
-	send_reliable();
+          adv_link.tx.start = k_uptime_get();
+          adv_link.tx.buf[0] = buf;
+          send_reliable();
 
-	return 0;
-	}
+          return 0;
+}
 
 static int bearer_ctl_send_unacked(struct os_mbuf *buf)
 {
@@ -650,11 +649,11 @@ static int bearer_ctl_send_unacked(struct os_mbuf *buf)
 	}
 
 	prov_clear_tx();
-	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
+          k_work_reschedule(&adv_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
-	net_buf_unref(buf);
-	return 0;
+          bt_mesh_adv_send(buf, &buf_sent_cb, NULL);
+          net_buf_unref(buf);
+          return 0;
 }
 
 static int prov_send_adv(struct os_mbuf *msg,
@@ -664,64 +663,64 @@ static int prov_send_adv(struct os_mbuf *msg,
 	uint8_t seg_len, seg_id;
 
 	prov_clear_tx();
-	k_work_reschedule(&link.prot_timer, PROTOCOL_TIMEOUT);
+          k_work_reschedule(&adv_link.prot_timer, PROTOCOL_TIMEOUT);
 
-	start = adv_buf_create(RETRANSMITS_RELIABLE);
-	if (!start) {
-		return -ENOBUFS;
-	}
+          start = adv_buf_create(RETRANSMITS_RELIABLE);
+          if (!start) {
+              return -ENOBUFS;
+          }
 
-	link.tx.id = next_transaction_id(link.tx.id);
-	net_buf_add_be32(start, link.id);
-	net_buf_add_u8(start, link.tx.id);
+          adv_link.tx.id = next_transaction_id(adv_link.tx.id);
+          net_buf_add_be32(start, adv_link.id);
+          net_buf_add_u8(start, adv_link.tx.id);
 
-	net_buf_add_u8(start, GPC_START(last_seg(msg->om_len)));
-	net_buf_add_be16(start, msg->om_len);
-	net_buf_add_u8(start, bt_mesh_fcs_calc(msg->om_data, msg->om_len));
+          net_buf_add_u8(start, GPC_START(last_seg(msg->om_len)));
+          net_buf_add_be16(start, msg->om_len);
+          net_buf_add_u8(start, bt_mesh_fcs_calc(msg->om_data, msg->om_len));
 
-	link.tx.buf[0] = start;
-	link.tx.cb = cb;
-	link.tx.cb_data = cb_data;
-	link.tx.start = k_uptime_get();
+          adv_link.tx.buf[0] = start;
+          adv_link.tx.cb = cb;
+          adv_link.tx.cb_data = cb_data;
+          adv_link.tx.start = k_uptime_get();
 
-	BT_DBG("xact_id: 0x%x len: %u", link.tx.id, msg->om_len);
+          BT_DBG("xact_id: 0x%x len: %u", adv_link.tx.id, msg->om_len);
 
-	seg_len = MIN(msg->om_len, START_PAYLOAD_MAX);
-	BT_DBG("seg 0 len %u: %s", seg_len, bt_hex(msg->om_data, seg_len));
-	net_buf_add_mem(start, msg->om_data, seg_len);
-	net_buf_simple_pull_mem(msg, seg_len);
+          seg_len = MIN(msg->om_len, START_PAYLOAD_MAX);
+          BT_DBG("seg 0 len %u: %s", seg_len, bt_hex(msg->om_data, seg_len));
+          net_buf_add_mem(start, msg->om_data, seg_len);
+          net_buf_simple_pull_mem(msg, seg_len);
 
-	buf = start;
-	for (seg_id = 1U; msg->om_len > 0; seg_id++) {
-		if (seg_id >= ARRAY_SIZE(link.tx.buf)) {
-			BT_ERR("Too big message");
-			free_segments();
-			return -E2BIG;
-		}
+          buf = start;
+          for (seg_id = 1U; msg->om_len > 0; seg_id++) {
+              if (seg_id >= ARRAY_SIZE(adv_link.tx.buf)) {
+                  BT_ERR("Too big message");
+                  free_segments();
+                  return -E2BIG;
+              }
 
-		buf = adv_buf_create(RETRANSMITS_RELIABLE);
-		if (!buf) {
-			free_segments();
-			return -ENOBUFS;
-		}
+              buf = adv_buf_create(RETRANSMITS_RELIABLE);
+              if (!buf) {
+                  free_segments();
+                  return -ENOBUFS;
+              }
 
-		link.tx.buf[seg_id] = buf;
+              adv_link.tx.buf[seg_id] = buf;
 
-		seg_len = MIN(msg->om_len, CONT_PAYLOAD_MAX);
+              seg_len = MIN(msg->om_len, CONT_PAYLOAD_MAX);
 
-		BT_DBG("seg %u len %u: %s", seg_id, seg_len,
-		       bt_hex(msg->om_data, seg_len));
+              BT_DBG("seg %u len %u: %s", seg_id, seg_len,
+                     bt_hex(msg->om_data, seg_len));
 
-		net_buf_add_be32(buf, link.id);
-		net_buf_add_u8(buf, link.tx.id);
-		net_buf_add_u8(buf, GPC_CONT(seg_id));
-		net_buf_add_mem(buf, msg->om_data, seg_len);
-		net_buf_simple_pull_mem(msg, seg_len);
-	}
+              net_buf_add_be32(buf, adv_link.id);
+              net_buf_add_u8(buf, adv_link.tx.id);
+              net_buf_add_u8(buf, GPC_CONT(seg_id));
+              net_buf_add_mem(buf, msg->om_data, seg_len);
+              net_buf_simple_pull_mem(msg, seg_len);
+          }
 
-	send_reliable();
+          send_reliable();
 
-	return 0;
+          return 0;
 }
 
 /*******************************************************************************
@@ -739,50 +738,52 @@ static void link_open(struct prov_rx *rx, struct os_mbuf *buf)
 		return;
 	}
 
-	if (atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-		/* Send another link ack if the provisioner missed the last */
-		if (link.id != rx->link_id) {
-			BT_DBG("Ignoring bearer open: link already active");
-			return;
-		}
+          if (atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+              /* Send another link ack if the provisioner missed the last */
+              if (adv_link.id != rx->link_id) {
+                  BT_DBG("Ignoring bearer open: link already active");
+                  return;
+              }
 
-		BT_DBG("Resending link ack");
-		/* Ignore errors, message will be attempted again if we keep receiving link open: */
-		(void)bearer_ctl_send_unacked(ctl_buf_create(LINK_ACK, NULL, 0, RETRANSMITS_ACK));
-		return;
-	}
+              BT_DBG("Resending link ack");
+              /* Ignore errors, message will be attempted again if we keep receiving link open: */
+              (void)bearer_ctl_send_unacked(
+                  ctl_buf_create(LINK_ACK, NULL, 0, RETRANSMITS_ACK));
+              return;
+          }
 
-	if (memcmp(buf->om_data, bt_mesh_prov_get()->uuid, 16)) {
-		BT_DBG("Bearer open message not for us");
-		return;
-	}
+          if (memcmp(buf->om_data, bt_mesh_prov_get()->uuid, 16)) {
+              BT_DBG("Bearer open message not for us");
+              return;
+          }
 
-	link.id = rx->link_id;
-	atomic_set_bit(link.flags, ADV_LINK_ACTIVE);
-	net_buf_simple_reset(link.rx.buf);
+          adv_link.id = rx->link_id;
+          atomic_set_bit(adv_link.flags, ADV_LINK_ACTIVE);
+          net_buf_simple_reset(adv_link.rx.buf);
 
-	err = bearer_ctl_send_unacked(ctl_buf_create(LINK_ACK, NULL, 0, RETRANSMITS_ACK));
-	if (err) {
-		reset_adv_link();
-		return;
-	}
+          err = bearer_ctl_send_unacked(
+              ctl_buf_create(LINK_ACK, NULL, 0, RETRANSMITS_ACK));
+          if (err) {
+              reset_adv_link();
+              return;
+          }
 
-	link.cb->link_opened(&pb_adv, link.cb_data);
+          adv_link.cb->link_opened(&pb_adv, adv_link.cb_data);
 }
 
 static void link_ack(struct prov_rx *rx, struct os_mbuf *buf)
 {
 	BT_DBG("len %u", buf->om_len);
 
-	if (atomic_test_bit(link.flags, ADV_PROVISIONER)) {
-		if (atomic_test_and_set_bit(link.flags, ADV_LINK_ACK_RECVD)) {
-			return;
-		}
+          if (atomic_test_bit(adv_link.flags, ADV_PROVISIONER)) {
+              if (atomic_test_and_set_bit(adv_link.flags, ADV_LINK_ACK_RECVD)) {
+                  return;
+              }
 
-		prov_clear_tx();
+              prov_clear_tx();
 
-		link.cb->link_opened(&pb_adv, link.cb_data);
-	}
+              adv_link.cb->link_opened(&pb_adv, adv_link.cb_data);
+          }
 }
 
 static void link_close(struct prov_rx *rx, struct os_mbuf *buf)
@@ -804,26 +805,27 @@ void bt_mesh_pb_adv_recv(struct os_mbuf *buf)
 {
 	struct prov_rx rx;
 
-	if (!link.cb) {
-		return;
-	}
+          if (!adv_link.cb) {
+              return;
+          }
 
-	if (buf->om_len < 6) {
-		BT_WARN("Too short provisioning packet (len %u)", buf->om_len);
-		return;
-	}
+          if (buf->om_len < 6) {
+              BT_WARN("Too short provisioning packet (len %u)", buf->om_len);
+              return;
+          }
 
-	rx.link_id = net_buf_simple_pull_be32(buf);
-	rx.xact_id = net_buf_simple_pull_u8(buf);
-	rx.gpc = net_buf_simple_pull_u8(buf);
+          rx.link_id = net_buf_simple_pull_be32(buf);
+          rx.xact_id = net_buf_simple_pull_u8(buf);
+          rx.gpc = net_buf_simple_pull_u8(buf);
 
-	if (atomic_test_bit(link.flags, ADV_LINK_ACTIVE) && link.id != rx.link_id) {
-		return;
-	}
+          if (atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE) &&
+              adv_link.id != rx.link_id) {
+              return;
+          }
 
-	BT_DBG("link_id 0x%08x xact_id 0x%x", rx.link_id, rx.xact_id);
+          BT_DBG("link_id 0x%08x xact_id 0x%x", rx.link_id, rx.xact_id);
 
-	gen_prov_recv(&rx, buf);
+          gen_prov_recv(&rx, buf);
 }
 
 static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
@@ -839,21 +841,22 @@ static int prov_link_open(const uint8_t uuid[16], int32_t timeout,
 		return err;
 	}
 
-	if (atomic_test_and_set_bit(link.flags, ADV_LINK_ACTIVE)) {
-		return -EBUSY;
-	}
+          if (atomic_test_and_set_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+              return -EBUSY;
+          }
 
-	atomic_set_bit(link.flags, ADV_PROVISIONER);
+          atomic_set_bit(adv_link.flags, ADV_PROVISIONER);
 
-	bt_rand(&link.id, sizeof(link.id));
-	link.tx.id = XACT_ID_MAX;
-	link.rx.id = XACT_ID_NVAL;
-	link.cb = cb;
-	link.cb_data = cb_data;
+          bt_rand(&adv_link.id, sizeof(adv_link.id));
+          adv_link.tx.id = XACT_ID_MAX;
+          adv_link.rx.id = XACT_ID_NVAL;
+          adv_link.cb = cb;
+          adv_link.cb_data = cb_data;
 
-	net_buf_simple_reset(link.rx.buf);
+          net_buf_simple_reset(adv_link.rx.buf);
 
-	return bearer_ctl_send(ctl_buf_create(LINK_OPEN, uuid, 16, RETRANSMITS_RELIABLE));
+          return bearer_ctl_send(
+              ctl_buf_create(LINK_OPEN, uuid, 16, RETRANSMITS_RELIABLE));
 }
 
 static int prov_link_accept(const struct prov_bearer_cb *cb, void *cb_data)
@@ -866,43 +869,44 @@ static int prov_link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 		return err;
 	}
 
-	if (atomic_test_bit(link.flags, ADV_LINK_ACTIVE)) {
-		return -EBUSY;
-	}
+          if (atomic_test_bit(adv_link.flags, ADV_LINK_ACTIVE)) {
+              return -EBUSY;
+          }
 
-	link.rx.id = XACT_ID_MAX;
-	link.tx.id = XACT_ID_NVAL;
-	link.cb = cb;
-	link.cb_data = cb_data;
+          adv_link.rx.id = XACT_ID_MAX;
+          adv_link.tx.id = XACT_ID_NVAL;
+          adv_link.cb = cb;
+          adv_link.cb_data = cb_data;
 
-	/* Make sure we're scanning for provisioning invitations */
-	bt_mesh_scan_enable();
-	/* Enable unprovisioned beacon sending */
-	bt_mesh_beacon_enable();
+          /* Make sure we're scanning for provisioning invitations */
+          bt_mesh_scan_enable();
+          /* Enable unprovisioned beacon sending */
+          bt_mesh_beacon_enable();
 
-	return 0;
+          return 0;
 }
 
 static void prov_link_close(enum prov_bearer_link_status status)
 {
-	if (atomic_test_and_set_bit(link.flags, ADV_LINK_CLOSING)) {
-		return;
-	}
+    if (atomic_test_and_set_bit(adv_link.flags, ADV_LINK_CLOSING)) {
+        return;
+    }
 
-	/* Ignore errors, the link will time out eventually if this doesn't get sent */
-	bearer_ctl_send_unacked(ctl_buf_create(LINK_CLOSE, &status, 1, RETRANSMITS_LINK_CLOSE));
+    /* Ignore errors, the link will time out eventually if this doesn't get sent */
+    bearer_ctl_send_unacked(
+        ctl_buf_create(LINK_CLOSE, &status, 1, RETRANSMITS_LINK_CLOSE));
 }
 
 void pb_adv_init(void)
 {
-	k_work_init_delayable(&link.prot_timer, protocol_timeout);
-	k_work_init_delayable(&link.tx.retransmit, prov_retransmit);
+    k_work_init_delayable(&adv_link.prot_timer, protocol_timeout);
+    k_work_init_delayable(&adv_link.tx.retransmit, prov_retransmit);
 
     if (!rx_buf) {
         rx_buf = NET_BUF_SIMPLE(RX_BUFFER_MAX);
     }
-    link.rx.buf = rx_buf;
-    net_buf_simple_reset(link.rx.buf);
+    adv_link.rx.buf = rx_buf;
+    net_buf_simple_reset(adv_link.rx.buf);
 }
 
 void pb_adv_reset(void)
