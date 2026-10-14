@@ -109,42 +109,42 @@ static inline void lpn_set_state(int state)
 	bt_mesh.lpn.state = state;
 }
 
-static inline void group_zero(atomic_t *target)
+static inline void group_zero(bt_mesh_atomic_t *target)
 {
 #if CONFIG_BT_MESH_LPN_GROUPS > 32
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.lpn.added); i++) {
-		atomic_set(&target[i], 0);
+		bt_mesh_atomic_set(&target[i], 0);
 	}
 #else
-	atomic_set(target, 0);
+	bt_mesh_atomic_set(target, 0);
 #endif
 }
 
-static inline void group_set(atomic_t *target, atomic_t *source)
+static inline void group_set(bt_mesh_atomic_t *target, bt_mesh_atomic_t *source)
 {
 #if CONFIG_BT_MESH_LPN_GROUPS > 32
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.lpn.added); i++) {
-		atomic_or(&target[i], atomic_get(&source[i]));
+		bt_mesh_atomic_or(&target[i], bt_mesh_atomic_get(&source[i]));
 	}
 #else
-	atomic_or(target, atomic_get(source));
+	bt_mesh_atomic_or(target, bt_mesh_atomic_get(source));
 #endif
 }
 
-static inline void group_clear(atomic_t *target, atomic_t *source)
+static inline void group_clear(bt_mesh_atomic_t *target, bt_mesh_atomic_t *source)
 {
 #if CONFIG_BT_MESH_LPN_GROUPS > 32
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.lpn.added); i++) {
-		atomic_and(&target[i], ~atomic_get(&source[i]));
+		bt_mesh_atomic_and(&target[i], ~bt_mesh_atomic_get(&source[i]));
 	}
 #else
-	atomic_and(target, ~atomic_get(source));
+	bt_mesh_atomic_and(target, ~bt_mesh_atomic_get(source));
 #endif
 }
 
@@ -637,7 +637,7 @@ static void lpn_group_add(uint16_t group)
 
 	for (i = 0; i < ARRAY_SIZE(lpn->groups); i++) {
 		if (lpn->groups[i] == group) {
-			atomic_clear_bit(lpn->to_remove, i);
+			bt_mesh_atomic_clear_bit(lpn->to_remove, i);
 			return;
 		}
 
@@ -662,9 +662,9 @@ static void lpn_group_del(uint16_t group)
 
 	for (i = 0; i < ARRAY_SIZE(lpn->groups); i++) {
 		if (lpn->groups[i] == group) {
-			if (atomic_test_bit(lpn->added, i) ||
-			    atomic_test_bit(lpn->pending, i)) {
-				atomic_set_bit(lpn->to_remove, i);
+			if (bt_mesh_atomic_test_bit(lpn->added, i) ||
+			    bt_mesh_atomic_test_bit(lpn->pending, i)) {
+				bt_mesh_atomic_set_bit(lpn->to_remove, i);
 				lpn->groups_changed = 1;
 			} else {
 				lpn->groups[i] = BT_MESH_ADDR_UNASSIGNED;
@@ -673,16 +673,16 @@ static void lpn_group_del(uint16_t group)
 	}
 }
 
-static inline int group_popcount(atomic_t *target)
+static inline int group_popcount(bt_mesh_atomic_t *target)
 {
 #if CONFIG_BT_MESH_LPN_GROUPS > 32
 	int i, count = 0;
 
 	for (i = 0; i < ARRAY_SIZE(bt_mesh.lpn.added); i++) {
-		count += popcount(atomic_get(&target[i]));
+		count += popcount(bt_mesh_atomic_get(&target[i]));
 	}
 #else
-	return popcount(atomic_get(target));
+	return popcount(bt_mesh_atomic_get(target));
 #endif
 }
 
@@ -718,11 +718,11 @@ static bool sub_update(uint8_t op)
 		}
 
 		if (op == TRANS_CTL_OP_FRIEND_SUB_ADD) {
-			if (atomic_test_bit(lpn->added, i)) {
+			if (bt_mesh_atomic_test_bit(lpn->added, i)) {
 				continue;
 			}
 		} else {
-			if (!atomic_test_bit(lpn->to_remove, i)) {
+			if (!bt_mesh_atomic_test_bit(lpn->to_remove, i)) {
 				continue;
 			}
 		}
@@ -733,7 +733,7 @@ static bool sub_update(uint8_t op)
 		}
 
 		req.addr_list[g++] = sys_cpu_to_be16(lpn->groups[i]);
-		atomic_set_bit(lpn->pending, i);
+		bt_mesh_atomic_set_bit(lpn->pending, i);
 
 		if (g == ARRAY_SIZE(req.addr_list)) {
 			break;
@@ -923,8 +923,8 @@ int bt_mesh_lpn_friend_sub_cfm(struct bt_mesh_net_rx *rx,
 		group_clear(lpn->added, lpn->pending);
 
 		for (i = 0; i < ARRAY_SIZE(lpn->groups); i++) {
-			if (atomic_test_and_clear_bit(lpn->pending, i) &&
-			    atomic_test_and_clear_bit(lpn->to_remove, i)) {
+			if (bt_mesh_atomic_test_and_clear_bit(lpn->pending, i) &&
+			    bt_mesh_atomic_test_and_clear_bit(lpn->to_remove, i)) {
 				lpn->groups[i] = BT_MESH_ADDR_UNASSIGNED;
 			}
 		}
@@ -974,8 +974,8 @@ int bt_mesh_lpn_friend_update(struct bt_mesh_net_rx *rx,
 		return 0;
 	}
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
-	    (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
+	    (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
 	     BT_MESH_IV_UPDATE(msg->flags))) {
 		bt_mesh_beacon_ivu_initiator(false);
 	}

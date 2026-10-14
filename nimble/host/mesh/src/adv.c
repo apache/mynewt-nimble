@@ -59,7 +59,7 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+	if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
 		BT_WARN("Refusing to allocate buffer while suspended");
 		return NULL;
 	}
