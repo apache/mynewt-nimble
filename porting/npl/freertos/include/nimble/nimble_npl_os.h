@@ -28,6 +28,7 @@
 #include "semphr.h"
 #include "task.h"
 #include "timers.h"
+#include "nimble/nimble_npl_atomic_builtin.h"
 
 #ifdef __cplusplus
 extern "C" {
