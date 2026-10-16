@@ -1,0 +1,137 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+#include <stdint.h>
+#include <string.h>
+#include <nimble/ble.h>
+#include <nimble/hci_common.h>
+#include <testutil/testutil.h>
+#include <controller/ble_ll_iso_big.h>
+#include "ble_ll_conn_priv.h"
+
+/* Handle of a connection that does not exist */
+#define TEST_CONN_HANDLE (0x0abc)
+
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+TEST_CASE_SELF(test_ll_hci_conn_update_len)
+{
+    struct ble_hci_le_conn_update_cp cmd = {
+        .conn_handle = htole16(TEST_CONN_HANDLE),
+        .conn_itvl_min = htole16(0x0018),
+        .conn_itvl_max = htole16(0x0028),
+        .conn_latency = htole16(0),
+        .supervision_timeout = htole16(0x0100),
+        .min_ce_len = htole16(0),
+        .max_ce_len = htole16(0),
+    };
+    int rc;
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, 0);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, sizeof(cmd) - 1);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_update((uint8_t *)&cmd, sizeof(cmd));
+    TEST_ASSERT(rc == BLE_ERR_UNK_CONN_ID);
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+TEST_CASE_SELF(test_ll_hci_set_default_subrate_len)
+{
+    struct ble_hci_le_set_default_subrate_cp cmd = {
+        .subrate_min = htole16(1),
+        .subrate_max = htole16(2),
+        .max_latency = htole16(0),
+        .cont_num = htole16(0),
+        .supervision_tmo = htole16(100),
+    };
+    uint8_t rsplen = 0;
+    int rc;
+
+    rc = ble_ll_conn_hci_set_default_subrate((uint8_t *)&cmd, 0, NULL, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_set_default_subrate((uint8_t *)&cmd, sizeof(cmd) - 1,
+                                             NULL, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_set_default_subrate((uint8_t *)&cmd, sizeof(cmd),
+                                             NULL, &rsplen);
+    TEST_ASSERT(rc == 0);
+}
+
+TEST_CASE_SELF(test_ll_hci_subrate_req_len)
+{
+    struct ble_hci_le_subrate_req_cp cmd = {
+        .conn_handle = htole16(TEST_CONN_HANDLE),
+        .subrate_min = htole16(1),
+        .subrate_max = htole16(2),
+        .max_latency = htole16(0),
+        .cont_num = htole16(0),
+        .supervision_tmo = htole16(100),
+    };
+    uint8_t rsplen = 0;
+    int rc;
+
+    rc = ble_ll_conn_hci_subrate_req((uint8_t *)&cmd, 0, NULL, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_subrate_req((uint8_t *)&cmd, sizeof(cmd) - 1, NULL, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_conn_hci_subrate_req((uint8_t *)&cmd, sizeof(cmd), NULL, &rsplen);
+    TEST_ASSERT(rc == BLE_ERR_UNK_CONN_ID);
+}
+#endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+TEST_CASE_SELF(test_ll_hci_terminate_big_len)
+{
+    struct ble_hci_le_terminate_big_cp cmd = {
+        .big_handle = 0x00,
+        .reason = BLE_ERR_REM_USER_CONN_TERM,
+    };
+    int rc;
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, 0);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, sizeof(cmd) - 1);
+    TEST_ASSERT(rc == BLE_ERR_INV_HCI_CMD_PARMS);
+
+    rc = ble_ll_iso_big_hci_terminate((uint8_t *)&cmd, sizeof(cmd));
+    TEST_ASSERT(rc == BLE_ERR_UNK_ADV_INDENT);
+}
+#endif
+
+TEST_SUITE(ble_ll_hci_test_suite)
+{
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL) || MYNEWT_VAL(BLE_LL_ROLE_CENTRAL)
+    test_ll_hci_conn_update_len();
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
+    test_ll_hci_set_default_subrate_len();
+    test_ll_hci_subrate_req_len();
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    test_ll_hci_terminate_big_len();
+#endif
+}

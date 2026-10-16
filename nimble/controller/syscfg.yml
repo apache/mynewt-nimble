@@ -530,6 +530,7 @@ syscfg.defs:
             Enable support for Isochronous Broadcasting state.
         restrictions:
             - BLE_LL_ISO if 1
+            - BLE_LL_CFG_FEAT_LL_PERIODIC_ADV if 1
         value: 0
         state: experimental
 
