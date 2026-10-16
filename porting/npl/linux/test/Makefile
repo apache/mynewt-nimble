@@ -75,6 +75,7 @@ all: depend                   \
      test_npl_eventq.exe      \
      test_npl_eventq_timeout.exe \
      test_npl_sem.exe         \
+     test_npl_mutex.exe       \
      $(NULL)
 
 test_npl_task.exe: test_npl_task.o $(OBJS)
@@ -92,12 +93,16 @@ test_npl_callout.exe: test_npl_callout.o $(OBJS)
 test_npl_sem.exe: test_npl_sem.o $(OBJS)
 	$(LD) -o $@ $^ $(LDFLAGS) $(LIBS)
 
+test_npl_mutex.exe: test_npl_mutex.o $(OBJS)
+	$(LD) -o $@ $^ $(LDFLAGS) $(LIBS)
+
 test: all
 	./test_npl_task.exe
 	./test_npl_callout.exe
 	./test_npl_eventq.exe
 	./test_npl_eventq_timeout.exe
 	./test_npl_sem.exe
+	./test_npl_mutex.exe
 
 show_objs:
 	@echo $(OBJS)
