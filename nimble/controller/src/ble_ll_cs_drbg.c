@@ -177,7 +177,7 @@ ble_ll_cs_drbg_f9(const uint8_t *sm, uint8_t *k, uint8_t *v)
     int rc;
     uint8_t x[32] = { 0 };
     uint64_t *x_p = (uint64_t *)x;
-    uint64_t *sm_p = (uint64_t *)sm;
+    uint64_t *sm_p;
 
     /* V = V[127:8] || (( V[7:0] + 1 ) mod 2^8) */
     v[0]++;
@@ -193,11 +193,14 @@ ble_ll_cs_drbg_f9(const uint8_t *sm, uint8_t *k, uint8_t *v)
         return rc;
     }
 
-    /* X = X ⊕ SM */
-    x_p[0] ^= sm_p[0];
-    x_p[1] ^= sm_p[1];
-    x_p[2] ^= sm_p[2];
-    x_p[3] ^= sm_p[3];
+    if (sm != NULL) {
+        sm_p = (uint64_t *)sm;
+        /* X = X ⊕ SM */
+        x_p[0] ^= sm_p[0];
+        x_p[1] ^= sm_p[1];
+        x_p[3] ^= sm_p[3];
+        x_p[2] ^= sm_p[2];
+    }
 
     memcpy(v, x, 16);
     memcpy(k, x + 16, 16);
@@ -479,7 +482,7 @@ ble_ll_cs_drbg_rand_marker_selection(struct ble_ll_cs_drbg_ctx *drbg_ctx,
         drbg_ctx->marker_selection_free_bits = 8;
     }
 
-    *marker_selection = drbg_ctx->marker_selection_cache & 0x80;
+    *marker_selection = (drbg_ctx->marker_selection_cache & 0x80) != 0;
     drbg_ctx->marker_selection_cache <<= 1;
     --drbg_ctx->marker_selection_free_bits;
 
@@ -513,7 +516,7 @@ ble_ll_cs_drbg_apply_marker_signal(struct ble_ll_cs_drbg_ctx *drbg_ctx,
                                    uint8_t step_count, uint8_t *buf, uint8_t position)
 {
     int rc;
-    uint16_t *byte_ptr;
+    uint16_t val;
     uint16_t marker_signal;
     uint8_t marker_selection;
     uint8_t byte_id = 0;
@@ -533,10 +536,14 @@ ble_ll_cs_drbg_apply_marker_signal(struct ble_ll_cs_drbg_ctx *drbg_ctx,
     }
 
     byte_id = position / 8;
-    byte_ptr = (uint16_t *)&buf[byte_id];
     bit_offset = position % 8;
-    *byte_ptr &= ~(0xF << bit_offset);
-    *byte_ptr |= ~(marker_signal << bit_offset);
+
+    val = get_le16(buf + byte_id);
+
+    val &= ~(0xF << bit_offset);
+    val |= marker_signal << bit_offset;
+
+    put_le16(buf + byte_id, val);
 
     return 0;
 }

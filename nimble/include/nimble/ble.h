@@ -300,6 +300,9 @@ enum ble_error_codes
     BLE_ERR_LIMIT_REACHED       = 0x43,
     BLE_ERR_OPERATION_CANCELLED = 0x44,
     BLE_ERR_PACKET_TOO_LONG     = 0x45,
+    BLE_ERR_TOO_LATE            = 0x46,
+    BLE_ERR_TOO_EARLY           = 0x47,
+    BLE_ERR_INSUFFICIENT_CHAN   = 0x48,
     BLE_ERR_MAX                 = 0xff
 };
 
