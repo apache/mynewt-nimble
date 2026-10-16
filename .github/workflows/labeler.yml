@@ -43,3 +43,5 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ignore_file_deletions: true
+          # Label only, don't comment on XL pull requests
+          message_if_xl: ''
