@@ -25,8 +25,9 @@ on:
       - master
   pull_request:
 
+# New push to master or pull request cancels its in-progress run
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
