@@ -1,0 +1,99 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+pkg.name: babblesim/ext/nrf_hw_models
+pkg.type: sdk
+pkg.description: BabbleSim nRF HW models (built in native simulator runner context)
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://github.com/BabbleSim/ext_nRF_hw_models"
+
+# HW models register themselves via native simulator tasks and HW events
+# (linker sections) so nothing references them directly.
+pkg.whole_archive: true
+
+pkg.deps:
+    - "@apache-mynewt-nimble/babblesim/ext/bsim"
+    - "@apache-mynewt-nimble/babblesim/ext/native_simulator"
+
+pkg.cflags:
+    - -std=gnu11
+    # Do not fail optimized builds on warnings in external code
+    - -Wno-error=strict-aliasing
+    - -D_XOPEN_SOURCE=500
+    - -DNRF52833_XXAA
+    - -DNRF52833
+
+pkg.private_include_dirs:
+    - "@babblesim-native_simulator/common/src"
+    - "@babblesim-nrf_hw_models/src/HW_models"
+    - "@babblesim-nrf_hw_models/src/nrfx_config"
+    - "@babblesim-nrf_hw_models/src/nrfx/mdk_replacements"
+    - "@babblesim-nrf_hw_models/src/nrfx/nrfx_replacements"
+    - "@nordic-nrfx/."
+    - "@nordic-nrfx/bsp/stable"
+    - "@nordic-nrfx/bsp/stable/mdk"
+
+pkg.source_files:
+    - "@babblesim-nrf_hw_models/src/HW_models/BLECrypt_if.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/HW_utils.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_misc.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_misc.52833.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_PPI.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_HWLowL.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_GPIO_backend.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_GPIO_backend_file.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_EGU.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_AAR.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/trivial_xo.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/fake_timer.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RADIO.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RADIO_bitcounter.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RADIO_signals.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RADIO_timings.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RADIO_utils.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_AES_CCM.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_AES_ECB.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_MWU.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_NFCT.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_NVMC.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_NVM_backend.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/crc.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/irq_ctrl.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RTC.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/bstest_ticker.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_GPIO.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_TEMP.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_TIMER.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_UART.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_UART_backend_fifo.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_UART_backend_pty.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_UART_backend_pty_int.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_UART_be_loopb.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_52_FICR.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NRF_GPIOTE.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_RNG.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/weak_stubs.c"
+    - "@babblesim-nrf_hw_models/src/HW_models/NHW_CLOCK.c"
+
+repository.babblesim-nrf_hw_models:
+    type: github
+    vers: 0569cfac3d8dd9c69f959dbc877f386139ebffcf-commit
+    branch: main
+    user: BabbleSim
+    repo: ext_nRF_hw_models
