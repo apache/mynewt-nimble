@@ -36,3 +36,4 @@ project.repositories.allowed:
        - apache-mynewt-nimble
        - mcuboot
        - mbedtls
+       - tinycbor
