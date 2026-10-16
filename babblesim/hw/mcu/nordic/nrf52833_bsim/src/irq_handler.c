@@ -18,6 +18,15 @@
 #include "mcu/cmsis_nvic.h"
 #include "mcu/nrf52833_bsim.h"
 
+extern void nhw_AAR_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_CCM_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_ECB_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_RADIO_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_RNG_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_rtc_regw_sideeffects_EVENTS_all(unsigned int rtc);
+extern void nhw_TEMP_regw_sideeffects_EVENTS_all(unsigned int inst);
+extern void nhw_timer_regw_sideeffects_EVENTS_all(unsigned int t);
+
 static uint32_t g_vectors[NHW_INTCTRL_MAX_INTLINES];
 static int g_currently_running_irq = -1;
 
@@ -50,6 +59,61 @@ os_arch_in_isr(void)
     return g_currently_running_irq >= 0;
 }
 
+/*
+ * Peripherals interrupts in HW models are level based and events state is only
+ * evaluated when registers are accessed via nrfx HAL. Since some code (e.g.
+ * NimBLE PHY driver) clears events by writing to registers directly, make
+ * sure events state of peripheral is re-evaluated after its ISR is done.
+ */
+static void
+reeval_periph_events(int irq_nbr)
+{
+    switch (irq_nbr) {
+    case RADIO_IRQn:
+        nhw_RADIO_regw_sideeffects_EVENTS_all(0);
+        break;
+    case TIMER0_IRQn:
+        nhw_timer_regw_sideeffects_EVENTS_all(0);
+        break;
+    case TIMER1_IRQn:
+        nhw_timer_regw_sideeffects_EVENTS_all(1);
+        break;
+    case TIMER2_IRQn:
+        nhw_timer_regw_sideeffects_EVENTS_all(2);
+        break;
+    case TIMER3_IRQn:
+        nhw_timer_regw_sideeffects_EVENTS_all(3);
+        break;
+    case TIMER4_IRQn:
+        nhw_timer_regw_sideeffects_EVENTS_all(4);
+        break;
+    case RTC0_IRQn:
+        nhw_rtc_regw_sideeffects_EVENTS_all(0);
+        break;
+    case RTC1_IRQn:
+        nhw_rtc_regw_sideeffects_EVENTS_all(1);
+        break;
+    case RTC2_IRQn:
+        nhw_rtc_regw_sideeffects_EVENTS_all(2);
+        break;
+    case RNG_IRQn:
+        nhw_RNG_regw_sideeffects_EVENTS_all(0);
+        break;
+    case ECB_IRQn:
+        nhw_ECB_regw_sideeffects_EVENTS_all(0);
+        break;
+    case CCM_AAR_IRQn:
+        nhw_CCM_regw_sideeffects_EVENTS_all(0);
+        nhw_AAR_regw_sideeffects_EVENTS_all(0);
+        break;
+    case TEMP_IRQn:
+        nhw_TEMP_regw_sideeffects_EVENTS_all(0);
+        break;
+    default:
+        break;
+    }
+}
+
 static void
 vector_to_irq(int irq_nbr)
 {
@@ -64,6 +128,7 @@ vector_to_irq(int irq_nbr)
     }
 
     ((void (*)(void))g_vectors[irq_nbr])();
+    reeval_periph_events(irq_nbr);
 
     bs_trace_raw_time(7, "Irq %i (%s) ended\n", irq_nbr,
                       hw_irq_ctrl_get_name(BSIM_CPU_N, irq_nbr));

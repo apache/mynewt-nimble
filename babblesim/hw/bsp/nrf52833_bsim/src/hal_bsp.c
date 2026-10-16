@@ -19,11 +19,21 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <assert.h>
 #include "os/mynewt.h"
 #include "hal/hal_bsp.h"
 #include "hal/hal_flash.h"
 #include "hal/hal_system.h"
+#include "hal/hal_timer.h"
 #include "bsp/bsp.h"
+#if MYNEWT_VAL(UART_0)
+#include "uart/uart.h"
+#include "uart_hal/uart_hal.h"
+#endif
+
+#if MYNEWT_VAL(UART_0)
+static struct uart_dev os_bsp_uart0;
+#endif
 
 const struct hal_flash *
 hal_bsp_flash_dev(uint8_t id)
@@ -50,8 +60,58 @@ hal_bsp_get_nvic_priority(int irq_num, uint32_t pri)
     return pri;
 }
 
+static void
+create_timers(void)
+{
+    int rc;
+
+    (void)rc;
+
+#if MYNEWT_VAL(TIMER_0)
+    rc = hal_timer_init(0, NULL);
+    assert(rc == 0);
+#endif
+#if MYNEWT_VAL(TIMER_1)
+    rc = hal_timer_init(1, NULL);
+    assert(rc == 0);
+#endif
+#if MYNEWT_VAL(TIMER_2)
+    rc = hal_timer_init(2, NULL);
+    assert(rc == 0);
+#endif
+#if MYNEWT_VAL(TIMER_3)
+    rc = hal_timer_init(3, NULL);
+    assert(rc == 0);
+#endif
+#if MYNEWT_VAL(TIMER_4)
+    rc = hal_timer_init(4, NULL);
+    assert(rc == 0);
+#endif
+#if MYNEWT_VAL(TIMER_5)
+    rc = hal_timer_init(5, NULL);
+    assert(rc == 0);
+#endif
+
+#if MYNEWT_VAL(OS_CPUTIME_TIMER_NUM) >= 0
+    rc = os_cputime_init(MYNEWT_VAL(OS_CPUTIME_FREQ));
+    assert(rc == 0);
+#endif
+}
+
 void
 hal_bsp_init(void)
 {
+    int rc;
+
+    (void)rc;
+
     hal_system_clock_start();
+
+    create_timers();
+
+#if MYNEWT_VAL(UART_0)
+    rc = os_dev_create((struct os_dev *)&os_bsp_uart0, "uart0",
+                       OS_DEV_INIT_PRIMARY, 0, uart_hal_init, NULL);
+    assert(rc == 0);
+#endif
 }

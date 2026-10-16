@@ -31,3 +31,24 @@ syscfg.defs:
             Specifies the required alignment for internal flash writes.
             Used internally by the newt tool.
         value: 1
+    UART_0:
+        description: 'Enable UART 0 (output to stdout of simulated device)'
+        value: 1
+    TIMER_0:
+        description: 'Enable nRF52xxx Timer 0'
+        value: 0
+    TIMER_1:
+        description: 'Enable nRF52xxx Timer 1'
+        value: 0
+    TIMER_2:
+        description: 'Enable nRF52xxx Timer 2'
+        value: 0
+    TIMER_3:
+        description: 'Enable nRF52xxx Timer 3'
+        value: 0
+    TIMER_4:
+        description: 'Enable nRF52xxx Timer 4'
+        value: 0
+    TIMER_5:
+        description: 'Enable nRF52xxx RTC 0'
+        value: 0

@@ -31,6 +31,9 @@ pkg.deps:
     - "@apache-mynewt-nimble/babblesim/ext/nrf_hal"
     - "@apache-mynewt-nimble/babblesim/runner"
 
+pkg.deps.BLE_CONTROLLER:
+    - "@apache-mynewt-nimble/nimble/drivers/nrf5x"
+
 pkg.private_include_dirs:
     - "@babblesim-native_simulator/common/src"
     - "@apache-mynewt-nimble/babblesim/runner/include"

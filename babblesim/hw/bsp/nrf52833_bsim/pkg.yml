@@ -27,6 +27,10 @@ pkg.cflags:
     - '-DNRF52833_XXAA'
     - '-DNRF52833'
     - '-DINTEGRATOR_PROVIDES_CMSIS'
+    - '-DBABBLESIM'
 
 pkg.deps:
     - "@apache-mynewt-nimble/babblesim/hw/mcu/nordic/nrf52833_bsim"
+
+pkg.deps.UART_0:
+    - "@apache-mynewt-core/hw/drivers/uart/uart_hal"

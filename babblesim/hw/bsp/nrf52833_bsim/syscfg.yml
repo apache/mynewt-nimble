@@ -17,7 +17,18 @@
 # under the License.
 #
 
+syscfg.defs:
+    BABBLESIM:
+        description: 'Set to indicate that BSP is running on BabbleSim'
+        value: 1
+
 syscfg.vals:
     MCU_TARGET: nRF52833
     OS_TICKS_PER_SEC: 128
     WATCHDOG_INTERVAL: 0
+    TIMER_5: 1
+    OS_CPUTIME_FREQ: 32768
+    OS_CPUTIME_TIMER_NUM: 5
+
+syscfg.vals.BLE_CONTROLLER:
+    BLE_LL_RFMGMT_ENABLE_TIME: 1500
