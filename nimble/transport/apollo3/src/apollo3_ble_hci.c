@@ -28,6 +28,28 @@
 
 #define HCI_CMD_HDR_LEN (3) /*!< \brief Command packet header length */
 
+static os_event_fn apollo3_ble_hci_ev_cb;
+
+static struct os_event apollo3_ble_hci_ev = {
+    .ev_cb = apollo3_ble_hci_ev_cb,
+};
+
+static struct os_eventq apollo3_ble_hci_evq;
+static struct os_task apollo3_ble_hci_task;
+static os_stack_t apollo3_ble_hci_stack[MYNEWT_VAL(BLE_HCI_APOLLO3_STACK_SIZE)];
+
+struct apollo3_ble_hci_pkt {
+    uint8_t type;
+    void *data;
+    STAILQ_ENTRY(apollo3_ble_hci_pkt) next;
+};
+
+static STAILQ_HEAD(, apollo3_ble_hci_pkt) apollo3_ble_hci_tx_q;
+
+static struct os_mempool apollo3_ble_hci_pkt_pool;
+static os_membuf_t apollo3_ble_hci_pkt_buf[OS_MEMPOOL_SIZE(
+    1 + MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT), sizeof(struct apollo3_ble_hci_pkt))];
+
 /* Tx power level in dBm. */
 typedef enum {
   TX_POWER_LEVEL_MINUS_10P0_dBm = 0x4,
@@ -55,11 +77,15 @@ static struct hci_h4_sm hci_apollo3_h4sm;
 static void
 apollo3_ble_hci_trans_rx_process(void)
 {
-    uint32_t len;
+    uint32_t status;
+    uint32_t len = 0;
     int rlen;
     uint8_t *buf = (uint8_t *)g_read_buf;
 
-    am_hal_ble_blocking_hci_read(ble_handle, (uint32_t *)buf, &len);
+    status = am_hal_ble_blocking_hci_read(ble_handle, (uint32_t *)buf, &len);
+    if (status != AM_HAL_STATUS_SUCCESS || len == 0) {
+        return;
+    }
 
     /* NOTE: Ambiq Apollo3 controller does not have local supported lmp features implemented
      * The command will always return 0 so we overwrite the buffer here
@@ -67,7 +93,6 @@ apollo3_ble_hci_trans_rx_process(void)
     if(buf[4] == 0x03 && buf[5] == 0x10 && len == 15) {
         memset(&buf[11], 0x60, sizeof(uint8_t));
     }
-
     rlen = hci_h4_sm_rx(&hci_apollo3_h4sm, buf, len);
     assert(rlen >= 0);
 }
@@ -91,8 +116,7 @@ apollo3_hci_int(void)
         /* Lower WAKE */
         am_hal_ble_wakeup_set(ble_handle, 0);
 
-        /* Call read function to pull in data from controller */
-        apollo3_ble_hci_trans_rx_process();
+        os_eventq_put(&apollo3_ble_hci_evq, &apollo3_ble_hci_ev);
     }
     else {
         assert(0);
@@ -230,49 +254,92 @@ apollo3_update_wake(void)
     AM_CRITICAL_END;
 }
 
-/*
- * Function used by the BLE stack to send HCI messages to the BLE controller.
- * The payload is placed into a queue and the controller is turned on. When it is ready
- * an interrupt will fire to handle sending a message
- */
 static int
-apollo3_hci_write(hci_drv_write_t *write_buf)
+apollo3_ble_hci_enqueue_acl(struct os_mbuf *om)
 {
-    /* Wake up the BLE controller. */
-    apollo3_update_wake();
+    struct apollo3_ble_hci_pkt *pkt;
+    os_sr_t sr;
 
-    /* Wait on SPI status before writing */
-    while (BLEIFn(0)->BSTATUS_b.SPISTATUS) {
-        os_time_delay(1);
+    pkt = os_memblock_get(&apollo3_ble_hci_pkt_pool);
+    if (pkt == NULL) {
+        os_mbuf_free_chain(om);
+        return BLE_ERR_MEM_CAPACITY;
     }
 
-    if (AM_HAL_STATUS_SUCCESS !=
-        am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_RAW, write_buf->data, write_buf->len)) {
-        return -1;
-    }
+    pkt->type = AM_HAL_BLE_ACL;
+    pkt->data = om;
+
+    OS_ENTER_CRITICAL(sr);
+    STAILQ_INSERT_TAIL(&apollo3_ble_hci_tx_q, pkt, next);
+    OS_EXIT_CRITICAL(sr);
+
+    os_eventq_put(&apollo3_ble_hci_evq, &apollo3_ble_hci_ev);
 
     return 0;
 }
 
 static int
-apollo3_ble_hci_acl_tx(struct os_mbuf *om)
+apollo3_ble_hci_enqueue_cmd(void *buf)
 {
-    int rc = 0;
+    struct apollo3_ble_hci_pkt *pkt;
+    uint8_t *cmd = buf;
+    os_sr_t sr;
+
+    pkt = os_memblock_get(&apollo3_ble_hci_pkt_pool);
+    if (pkt == NULL) {
+        ble_transport_free(cmd);
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
+    pkt->type = AM_HAL_BLE_CMD;
+    pkt->data = cmd;
+
+    OS_ENTER_CRITICAL(sr);
+    STAILQ_INSERT_TAIL(&apollo3_ble_hci_tx_q, pkt, next);
+    OS_EXIT_CRITICAL(sr);
+
+    os_eventq_put(&apollo3_ble_hci_evq, &apollo3_ble_hci_ev);
+
+    return 0;
+}
+
+static int
+apollo3_ble_hci_tx_acl(void *data)
+{
+    struct os_mbuf *om = data;
     hci_drv_write_t write_buf;
     uint8_t *ptr = (uint8_t *)write_buf.data;
+    uint32_t pktlen = OS_MBUF_PKTLEN(om);
 
-    *ptr = HCI_H4_ACL;
-    ptr++;
-    write_buf.len = 1;
+    if (pktlen > MYNEWT_VAL(BLE_TRANSPORT_APOLLO3_MAX_TX_PACKET)) {
+        return -1;
+    }
+    os_mbuf_copydata(om, 0, pktlen, ptr);
+    write_buf.len = pktlen;
+    apollo3_update_wake();
 
-    os_mbuf_copydata(om, 0, OS_MBUF_PKTLEN(om), ptr);
-    write_buf.len += OS_MBUF_PKTLEN(om);
+    if (am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_ACL, write_buf.data,
+                                      write_buf.len) != AM_HAL_STATUS_SUCCESS) {
+        return -1;
+    }
+    return 0;
+}
 
-    rc = apollo3_hci_write(&write_buf);
+static int
+apollo3_ble_hci_tx_cmd(void *data)
+{
+    am_hal_status_e status;
+    uint8_t *cmd = data;
+    uint32_t len = HCI_CMD_HDR_LEN + cmd[2];
 
-    os_mbuf_free_chain(om);
+    apollo3_update_wake();
+    status = am_hal_ble_blocking_hci_write(ble_handle, AM_HAL_BLE_CMD,
+                                           (uint32_t *)cmd, len);
 
-    return (rc < 0) ? BLE_ERR_MEM_CAPACITY : 0;
+    if (status != AM_HAL_STATUS_SUCCESS) {
+        return -1;
+    }
+    return 0;
 }
 
 static int
@@ -310,33 +377,114 @@ apollo3_ble_hci_init(void)
 int
 ble_transport_to_ll_cmd_impl(void *buf)
 {
-    int rc;
-    uint8_t *cmd = buf;
-    hci_drv_write_t write_buf;
-    uint8_t *ptr = (uint8_t *)write_buf.data;
-
-    *ptr = HCI_H4_CMD;
-    ptr++;
-    write_buf.len = HCI_CMD_HDR_LEN + cmd[2] + 1;
-    memcpy(ptr, cmd, write_buf.len - 1);
-
-    rc = apollo3_hci_write(&write_buf);
-
-    ble_transport_free(cmd);
-
-    return (rc < 0) ? BLE_ERR_MEM_CAPACITY :  0;
+    return apollo3_ble_hci_enqueue_cmd(buf);
 }
 
 int
 ble_transport_to_ll_acl_impl(struct os_mbuf *om)
 {
-    return apollo3_ble_hci_acl_tx(om);
+    return apollo3_ble_hci_enqueue_acl(om);
+}
+
+static void
+apollo3_ble_hci_pkt_free(struct apollo3_ble_hci_pkt *pkt)
+{
+    switch (pkt->type) {
+    case AM_HAL_BLE_CMD:
+        ble_transport_free(pkt->data);
+        break;
+    case AM_HAL_BLE_ACL:
+        os_mbuf_free_chain(pkt->data);
+        break;
+    default:
+        break;
+    }
+    os_memblock_put(&apollo3_ble_hci_pkt_pool, pkt);
+}
+
+static int
+apollo3_ble_hci_tx(struct apollo3_ble_hci_pkt *pkt)
+{
+    int rc;
+    switch (pkt->type) {
+    case AM_HAL_BLE_CMD:
+        rc = apollo3_ble_hci_tx_cmd(pkt->data);
+        break;
+    case AM_HAL_BLE_ACL:
+        rc = apollo3_ble_hci_tx_acl(pkt->data);
+        break;
+    default:
+        rc = -1;
+        break;
+    }
+    return rc;
+}
+
+static void
+apollo3_ble_hci_ev_cb(struct os_event *ev)
+{
+    struct apollo3_ble_hci_pkt *pkt;
+    int rc = 0;
+    os_sr_t sr;
+
+    while (BLEIF->BSTATUS_b.BLEIRQ || !STAILQ_EMPTY(&apollo3_ble_hci_tx_q)) {
+        if (BLEIF->BSTATUS_b.BLEIRQ) {
+            apollo3_ble_hci_trans_rx_process();
+            continue;
+        }
+
+        OS_ENTER_CRITICAL(sr);
+        pkt = STAILQ_FIRST(&apollo3_ble_hci_tx_q);
+        OS_EXIT_CRITICAL(sr);
+        if (pkt == NULL) {
+            break;
+        }
+
+        rc = apollo3_ble_hci_tx(pkt);
+
+        if (rc != 0) {
+            break;
+        }
+
+        OS_ENTER_CRITICAL(sr);
+        STAILQ_REMOVE_HEAD(&apollo3_ble_hci_tx_q, next);
+        OS_EXIT_CRITICAL(sr);
+
+        apollo3_ble_hci_pkt_free(pkt);
+    }
+}
+
+static void
+apollo3_ble_hci_task_loop(void *unused)
+{
+    while (1) {
+        os_eventq_run(&apollo3_ble_hci_evq);
+    }
 }
 
 void
 ble_transport_ll_init(void)
 {
+    int rc;
+
     hci_h4_sm_init(&hci_apollo3_h4sm, &hci_h4_allocs_from_ll,
                    apollo3_ble_hci_frame_cb);
+
+    rc = os_mempool_init(&apollo3_ble_hci_pkt_pool,
+                         1 + MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_HS_COUNT),
+                         sizeof(struct apollo3_ble_hci_pkt),
+                         apollo3_ble_hci_pkt_buf, "apollo3_ble_hci_pkt_pool");
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
+    STAILQ_INIT(&apollo3_ble_hci_tx_q);
+
+    os_eventq_init(&apollo3_ble_hci_evq);
+
+    rc = os_task_init(
+        &apollo3_ble_hci_task, "apollo3_ble_hci", apollo3_ble_hci_task_loop,
+        NULL, MYNEWT_VAL(BLE_HCI_APOLLO3_TASK_PRIO), OS_WAIT_FOREVER,
+        apollo3_ble_hci_stack, MYNEWT_VAL(BLE_HCI_APOLLO3_STACK_SIZE));
+    SYSINIT_PANIC_ASSERT(rc == 0);
+
     apollo3_ble_hci_init();
 }
