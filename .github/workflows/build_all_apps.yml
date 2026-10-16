@@ -45,17 +45,13 @@ jobs:
              sudo apt-get install -y gcc-multilib
       - name: Install newt
         uses: ./.github/actions/newt-install
-      - name: Setup project
+      - name: Set up project
+        uses: ./.github/actions/newt-project
+        with:
+          save-cache: true
+      - name: Remove project targets
         shell: bash
-        run: |
-             newt new build
-             cp -f .github/project.yml build/project.yml
-             cd build
-             newt upgrade --shallow=1
-             rm -rf targets
-             rm -rf repos/apache-mynewt-nimble
-             git clone .. repos/apache-mynewt-nimble
-             cd ..
+        run: rm -rf build/targets
       - name: Build applications
         shell: bash
         run: |

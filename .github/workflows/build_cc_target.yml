@@ -44,16 +44,8 @@ jobs:
           release: ${{ matrix.gcc }}
       - name: Install newt
         uses: ./.github/actions/newt-install
-      - name: Setup project
-        shell: bash
-        run: |
-             newt new build
-             cp -f .github/project.yml build/project.yml
-             cd build
-             newt upgrade --shallow=1
-             rm -rf repos/apache-mynewt-nimble
-             git clone .. repos/apache-mynewt-nimble
-             cd ..
+      - name: Set up project
+        uses: ./.github/actions/newt-project
       - name: Build test target
         shell: bash
         run: |
