@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   targets:
-    name: Build BabbleSim targets
+    name: Build and test BabbleSim targets
     runs-on: ubuntu-latest
     env:
       BSIM_OUT_PATH: ${{ github.workspace }}/babblesim
@@ -78,8 +78,24 @@ jobs:
              rm -rf targets
              rm -rf repos/apache-mynewt-nimble
              git clone .. repos/apache-mynewt-nimble
+             # Fetch external repositories declared by NimBLE packages. newt
+             # does not upgrade repository with commits not pushed upstream,
+             # so put tested commit on a branch tracking upstream master to
+             # keep it checked out.
+             cd repos/apache-mynewt-nimble
+             git remote set-url origin https://github.com/apache/mynewt-nimble.git
+             git fetch -q origin master
+             git checkout -q -B ci-build
+             git branch -q --set-upstream-to=origin/master
+             cd ../..
+             newt upgrade --shallow=1
       - name: Build targets
         shell: bash
         run: |
              cd build
              ls repos/apache-mynewt-nimble/babblesim/targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q @apache-mynewt-nimble/babblesim/targets/$0'
+      - name: Run tests
+        shell: bash
+        run: |
+             cd build
+             repos/apache-mynewt-nimble/babblesim/tests/run_all.sh
