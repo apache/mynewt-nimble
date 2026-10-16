@@ -1,0 +1,125 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Set up newt project
+description: >
+  Create newt project for testing current commit. External repositories
+  are restored from cache and then upgraded by newt, so only changes
+  since cache was created are downloaded. apache-mynewt-nimble is
+  replaced with tested commit and is not cached. Only .git directories
+  are cached and working trees are checked out after restore, which
+  keeps cache small and lets each system check out files with its own
+  git settings. Cache is created on Linux and shared with other
+  systems. Single cache is shared by all projects since newt skips
+  repositories not used by project. Cache should be saved only by one
+  job using project with all repositories and only from master branch,
+  since only caches from default branch are available to pull requests.
+
+inputs:
+  project:
+    description: Project file to use (relative to repository root)
+    required: false
+    default: .github/project.yml
+  path:
+    description: Directory to create project in
+    required: false
+    default: build
+  save-cache:
+    description: Save repositories to cache (Linux and master branch only)
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Create project
+      id: project
+      shell: bash
+      run: |
+        newt new "${{ inputs.path }}"
+        cp -f "${{ inputs.project }}" "${{ inputs.path }}/project.yml"
+        echo "cache-prefix=newt-repos-git-" >> "$GITHUB_OUTPUT"
+
+    - name: Restore repositories from cache
+      id: restore
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ inputs.path }}/repos/*/.git
+        key: ${{ steps.project.outputs.cache-prefix }}${{ github.sha }}
+        restore-keys: ${{ steps.project.outputs.cache-prefix }}
+        # Cache is created on Linux, Windows needs this to restore it
+        enableCrossOsArchive: true
+
+    # newt silently skips upgrade of modified repositories, so remove
+    # those still appearing modified after checkout (e.g. due to line
+    # endings on Windows), so that they are cloned again.
+    - name: Check out restored repositories
+      if: steps.restore.outputs.cache-matched-key != ''
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        bash "$GITHUB_WORKSPACE/.github/scripts/checkout_repos.sh" .
+        for d in repos/*/; do
+          if [ -n "$(git -C "$d" status --porcelain --untracked-files=no)" ]; then
+            echo "::warning::$d modified after restore from cache, removing"
+            rm -rf "$d"
+          fi
+        done
+
+    # apache-mynewt-nimble version downloaded by newt is not used, it is
+    # replaced with tested commit later. Upgrade is not repeated after
+    # that, as newt would switch apache-mynewt-nimble back to version
+    # required by apache-mynewt-core.
+    - name: Upgrade repositories
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        newt upgrade --shallow=1
+        rm -rf repos/apache-mynewt-nimble
+
+    # Cache key is based on external repositories versions only, so new
+    # cache is created only when dependencies change and not on every
+    # commit to apache-mynewt-core.
+    - name: Compute repositories cache key
+      id: key
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      run: |
+        hash=$(for d in repos/*/; do
+                   [ "$d" = "repos/apache-mynewt-core/" ] && continue
+                   echo "$d $(git -C "$d" rev-parse HEAD)"
+               done | git hash-object --stdin | cut -c1-16)
+        echo "key=${{ steps.project.outputs.cache-prefix }}$hash" >> "$GITHUB_OUTPUT"
+
+    - name: Save repositories to cache
+      if: >-
+        inputs.save-cache == 'true' && runner.os == 'Linux' &&
+        github.ref == 'refs/heads/master' &&
+        github.event_name != 'pull_request' &&
+        steps.restore.outputs.cache-matched-key != steps.key.outputs.key
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ inputs.path }}/repos/*/.git
+        key: ${{ steps.key.outputs.key }}
+        enableCrossOsArchive: true
+
+    - name: Use tested apache-mynewt-nimble
+      shell: bash
+      run: |
+        git clone -q . "${{ inputs.path }}/repos/apache-mynewt-nimble"

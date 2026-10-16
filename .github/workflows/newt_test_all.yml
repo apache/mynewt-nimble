@@ -42,23 +42,17 @@ jobs:
              sudo apt-get install -y gcc-multilib
       - name: Install newt
         uses: ./.github/actions/newt-install
-      - name: Setup project
-        shell: bash
-        run: |
-             newt new build
-             cp -f .github/project_newt_test_all.yml build/project.yml
-             cd build
-             newt upgrade --shallow=1
-             rm -rf repos/apache-mynewt-nimble
-             git clone .. repos/apache-mynewt-nimble
-             cd ..
+      - name: Set up project
+        uses: ./.github/actions/newt-project
+        with:
+          project: .github/project_newt_test_all.yml
       - name: Switch to main mcuboot
         # This is temporary until next mcuboot release is available
         shell: bash
         run: |
              cd build/repos/mcuboot
-             git fetch origin main:main
-             git checkout main
+             git fetch --depth=1 origin main
+             git checkout --detach FETCH_HEAD
       - name: newt test all
         shell: bash
         run: |
