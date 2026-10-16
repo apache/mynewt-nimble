@@ -21,7 +21,7 @@ bsp.name: "nRF52 DK"
 bsp.url: https://www.nordicsemi.com/Software-and-Tools/Development-Kits/nRF52-DK
 bsp.maker: "Nordic Semiconductor"
 bsp.arch: bsim_arch
-bsp.compiler: "@apache-mynewt-core/compiler/sim"
+bsp.compiler: "@apache-mynewt-nimble/babblesim/compiler/bsim"
 bsp.downloadscript: "hw/bsp/nrf52_bsim/nordic_pca10040_download.sh"
 bsp.debugscript: "hw/bsp/nrf52_bsim/nordic_pca10040_debug.sh"
 bsp.downloadscript.WINDOWS.OVERWRITE: "hw/bsp/nrf52_bsim/nordic_pca10040_download.cmd"
