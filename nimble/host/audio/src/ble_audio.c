@@ -26,8 +26,7 @@
 #include "ble_audio_priv.h"
 
 static struct ble_gap_event_listener ble_audio_gap_event_listener;
-static SLIST_HEAD(, ble_audio_event_listener) ble_audio_event_listener_list =
-    SLIST_HEAD_INITIALIZER(ble_audio_event_listener_list);
+static SLIST_HEAD(, ble_audio_event_listener) ble_audio_event_listener_list;
 
 struct ble_audio_adv_parse_broadcast_announcement_data {
     struct ble_audio_event event;
@@ -526,4 +525,10 @@ ble_audio_base_bis_iter(struct ble_audio_base_iter *bis_iter,
     }
 
     return 0;
+}
+
+void
+ble_audio_init(void)
+{
+    SLIST_INIT(&ble_audio_event_listener_list);
 }

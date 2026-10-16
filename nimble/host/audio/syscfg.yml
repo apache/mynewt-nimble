@@ -35,6 +35,11 @@ syscfg.defs:
             This option enables BLE Audio Scan Delegator support.
         value: 0
 
+    BLE_AUDIO_SYSINIT_STAGE:
+        description: >
+            Primary sysinit stage for BLE Audio.
+        value: 300
+
 syscfg.defs.BLE_AUDIO_BROADCAST_SINK:
     BLE_AUDIO_BROADCAST_SINK_SYSINIT_STAGE:
         description: >
