@@ -299,6 +299,26 @@
 #define MYNEWT_VAL_PKG_encoding_tinycbor (1)
 #endif
 
+#ifndef MYNEWT_VAL_TINYCBOR_FLOAT_SUPPORT
+#define MYNEWT_VAL_TINYCBOR_FLOAT_SUPPORT (MYNEWT_VAL_FLOAT_USER)
+#endif
+
+#ifndef MYNEWT_VAL_TINYCBOR_HALF_FLOAT_SUPPORT
+#define MYNEWT_VAL_TINYCBOR_HALF_FLOAT_SUPPORT (0)
+#endif
+
+#ifndef MYNEWT_VAL_TINYCBOR_PARSER_MAX_RECURSIONS
+#define MYNEWT_VAL_TINYCBOR_PARSER_MAX_RECURSIONS (32)
+#endif
+
+#ifndef MYNEWT_VAL_TINYCBOR_PRETTY_API
+#define MYNEWT_VAL_TINYCBOR_PRETTY_API (1)
+#endif
+
+#ifndef MYNEWT_VAL_TINYCBOR_VALIDATION_API
+#define MYNEWT_VAL_TINYCBOR_VALIDATION_API (1)
+#endif
+
 #ifndef MYNEWT_VAL_BSP_SIMULATED
 #define MYNEWT_VAL_BSP_SIMULATED (1)
 #endif
@@ -597,6 +617,10 @@
 
 #ifndef MYNEWT_VAL_PKG_kernel_sim
 #define MYNEWT_VAL_PKG_kernel_sim (1)
+#endif
+
+#ifndef MYNEWT_VAL_PKG_mgmt_mcumgr_mgmt
+#define MYNEWT_VAL_PKG_mgmt_mcumgr_mgmt (1)
 #endif
 
 #ifndef MYNEWT_VAL_PKG_net_ip_mn_socket
@@ -901,10 +925,6 @@
 
 #ifndef MYNEWT_VAL_STREAMER_MBUF_PRINTF_MAX
 #define MYNEWT_VAL_STREAMER_MBUF_PRINTF_MAX (128)
-#endif
-
-#ifndef MYNEWT_VAL_PKG_mgmt
-#define MYNEWT_VAL_PKG_mgmt (1)
 #endif
 
 #ifndef MYNEWT_VAL_BLE_CHANNEL_SOUNDING
@@ -2374,6 +2394,7 @@
 #define MYNEWT_PKG_apache_mynewt_core__hw_mcu_native 1
 #define MYNEWT_PKG_apache_mynewt_core__kernel_os 1
 #define MYNEWT_PKG_apache_mynewt_core__kernel_sim 1
+#define MYNEWT_PKG_apache_mynewt_core__mgmt_mcumgr_mgmt 1
 #define MYNEWT_PKG_apache_mynewt_core__net_ip_mn_socket 1
 #define MYNEWT_PKG_apache_mynewt_core__net_ip_native_sockets 1
 #define MYNEWT_PKG_apache_mynewt_core__sys_console_stub 1
@@ -2392,7 +2413,6 @@
 #define MYNEWT_PKG_apache_mynewt_core__util_mem 1
 #define MYNEWT_PKG_apache_mynewt_core__util_rwlock 1
 #define MYNEWT_PKG_apache_mynewt_core__util_streamer 1
-#define MYNEWT_PKG_apache_mynewt_mcumgr__mgmt 1
 #define MYNEWT_PKG_apache_mynewt_nimble__nimble 1
 #define MYNEWT_PKG_apache_mynewt_nimble__nimble_host 1
 #define MYNEWT_PKG_apache_mynewt_nimble__nimble_host_mesh 1
