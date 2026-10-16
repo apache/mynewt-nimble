@@ -1,0 +1,107 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Remove superseded caches
+description: >
+  Remove caches superseded by newer ones. Caches are saved only from
+  master branch with unique keys (e.g. ccache-<job>-<run_id>-<attempt>)
+  and only newest entry of each kind is used by later runs, so older
+  entries only take space from repository cache quota. Should be used
+  from job run after all jobs saving caches are completed. Requires
+  actions: write permission.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v9
+      with:
+        script: |
+          // Kind of cache is identified by all capture groups of
+          // matching pattern. Entries of ccache are ordered by run ID
+          // and attempt from key, so that entry saved by older run
+          // completed after newer one never replaces newer entry,
+          // other caches by creation time.
+          const families = [
+            {
+              re: /^(ccache-.+)-(\d+)-(\d+)$/,
+              name: (m) => m[1],
+              order: (m) => [Number(m[2]), Number(m[3])],
+            },
+            {
+              re: /^(newt-repos-[^-]+)-[0-9a-f]+$/,
+              name: (m) => m[1],
+            },
+            {
+              re: /^(newt-[^-]+)-[0-9a-f]{40}-(.+)$/,
+              name: (m) => `${m[1]}-${m[2]}`,
+            },
+          ];
+
+          const caches = await github.paginate(
+            github.rest.actions.getActionsCacheList,
+            { ...context.repo, ref: 'refs/heads/master', per_page: 100 });
+
+          const newer = (a, b) => {
+            for (let i = 0; i < a.length; i++) {
+              if (a[i] !== b[i]) {
+                return a[i] > b[i];
+              }
+            }
+            return false;
+          };
+
+          const newest = new Map();
+          const stale = [];
+          for (const cache of caches) {
+            for (const family of families) {
+              const m = cache.key.match(family.re);
+              if (!m) {
+                continue;
+              }
+              const name = family.name(m);
+              const order = family.order ?
+                family.order(m) : [Date.parse(cache.created_at)];
+              const current = newest.get(name);
+              if (!current) {
+                newest.set(name, { cache, order });
+              } else if (newer(order, current.order)) {
+                stale.push(current.cache);
+                newest.set(name, { cache, order });
+              } else {
+                stale.push(cache);
+              }
+              break;
+            }
+          }
+
+          for (const cache of stale) {
+            core.info(`Removing ${cache.key} (${cache.size_in_bytes} bytes)`);
+            try {
+              await github.rest.actions.deleteActionsCacheById({
+                ...context.repo,
+                cache_id: cache.id,
+              });
+            } catch (e) {
+              // Cache may be already removed by GitHub or other run
+              if (e.status !== 404) {
+                throw e;
+              }
+            }
+          }
+          core.info(`Kept ${newest.size} caches, removed ${stale.length}`);
