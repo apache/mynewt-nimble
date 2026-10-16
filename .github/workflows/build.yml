@@ -357,3 +357,23 @@ jobs:
         uses: ./.github/actions/ccache-save
         with:
           key: ports
+
+  # Jobs save caches with unique keys, remove entries superseded by
+  # caches saved in this run. Separate job, so that only it has write
+  # access to caches and none of jobs building code does.
+  cache-cleanup:
+    name: Remove superseded caches
+    needs: [newt, prepare, apps, targets, gcc-target, unit-tests, ports]
+    if: >-
+      !cancelled() && github.ref == 'refs/heads/master' &&
+      github.event_name != 'pull_request'
+    runs-on: ubuntu-slim
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/actions
+      - name: Remove superseded caches
+        uses: ./.github/actions/cache-cleanup
