@@ -1,0 +1,87 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Sync mynewt_format
+
+# The style checker is maintained in apache-mynewt-core; keep NimBLE's copy
+# (tools/mynewt_format.py and tools/mynewt_style/) identical to it. The
+# configuration (newt-coding-rules, newt-coding-rules-ignore) is NimBLE's own
+# and is not touched.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+
+    if: github.event.repository.fork == false
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+
+      - name: Copy mynewt_format from apache-mynewt-core
+        id: changed
+        run: |
+          set +e
+          git clone --depth=1 https://github.com/apache/mynewt-core.git "$RUNNER_TEMP/core"
+          if [ ! -f "$RUNNER_TEMP/core/tools/mynewt_format.py" ]; then
+            echo "apache-mynewt-core does not provide mynewt_format; nothing to sync."
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          rm -rf tools/mynewt_style
+          cp -r "$RUNNER_TEMP/core/tools/mynewt_style" tools/
+          cp "$RUNNER_TEMP/core/tools/mynewt_format.py" tools/
+          find tools/mynewt_style -name __pycache__ -type d -exec rm -rf {} +
+          if [ -n "$(git status --porcelain -- tools/mynewt_format.py tools/mynewt_style)" ]; then
+            echo "mynewt_format has changed, updating..."
+            git status --short -- tools/mynewt_format.py tools/mynewt_style
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes detected."
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request
+        if: steps.changed.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          author: Mynewt Bot <dev@mynewt.apache.org>
+          token: ${{ secrets.GITHUB_TOKEN }}
+          add-paths: |
+            tools/mynewt_format.py
+            tools/mynewt_style
+          commit-message: |
+            tools: Sync mynewt_format from apache-mynewt-core
+
+            The coding style checker is maintained in apache-mynewt-core.
+            Copy its current version so NimBLE is checked with the same
+            rules as core.
+          branch: update-mynewt-format
+          title: "Sync mynewt_format from apache-mynewt-core"
+          body: |
+            Syncing tools/mynewt_format.py and tools/mynewt_style/ from apache-mynewt-core.
+
+            [1]: https://github.com/peter-evans/create-pull-request

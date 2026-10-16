@@ -6,3 +6,7 @@ porting/examples/linux_blemesh/nimble-linux-blemesh
 porting/examples/linux_blemesh_shell/nimble-linux-blemesh-shell
 porting/npl/linux/test/.depend
 porting/npl/linux/test/*.exe
+
+# Python bytecode
+__pycache__/
+*.pyc

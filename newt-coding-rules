@@ -1,0 +1,77 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Coding style configuration for tools/mynewt_format.py (TOML format).
+#
+#   python3 tools/mynewt_format.py --list-rules        all rules, on/off state
+#   python3 tools/mynewt_format.py --explain RULE      what a rule wants and why
+#   python3 tools/mynewt_format.py --list-rulesets     the rulesets below, expanded
+
+[settings]
+extensions = [".c", ".h"]
+indent_width = 4
+tab_width = 4
+max_line_length = 100      # over this: error
+target_line_length = 80    # over this: warning (fails only with -W)
+ignore_file = "newt-coding-rules-ignore"
+default_ruleset = "default"
+# Extra directories with rule plugins (tools/mynewt_style/rules is always loaded):
+# rule_dirs = ["path/to/more/rules"]
+
+# A ruleset is a list of entries:
+#   "*"              every rule enabled below (or enabled by default)
+#   "@category"      every enabled rule of a category (see --list-rules)
+#   "rule-name"      one rule, even if it is disabled
+#   "ruleset:name"   everything selected by another ruleset
+#   "-<entry>"       remove what the entry selects
+[rulesets]
+default = ["*"]
+whitespace = ["@whitespace"]
+# Only what can be fixed mechanically - safe to run with -f on any file.
+format = ["@whitespace", "@spacing", "@layout", "@control", "@functions",
+          "@preprocessor", "@comments", "@expressions", "blank-line-after-declarations",
+          "-macro-multi-statement", "-macro-arg-parens", "-duplicate-include", "-no-if-0"]
+# Bug-prone constructs only.
+safety = ["@safety", "macro-arg-parens", "macro-multi-statement"]
+
+# Per rule settings. Every rule accepts 'enabled' and 'severity'
+# ("error" or "warning"); other keys are rule options (see --explain RULE).
+
+[rules.return-type-placement]
+style = "same-line"        # or "own-line"
+
+[rules.line-length]
+report_target = true       # warn about lines over target_line_length
+
+[rules.max-blank-lines]
+max = 1
+
+[rules.directive-format]
+allow_space_after_hash = false
+
+[rules.declarations-at-top]
+allow_block_scope = false  # true: also allow declarations at the top of nested blocks
+allow_for_init = false     # true: allow 'for (int i = 0; ...)'
+
+[rules.function-naming.prefixes]
+# Path glob (first match wins) -> prefixes allowed for non-static functions.
+"nimble/host/mesh/**" = ["bt_", "ble_", "net_", "k_"]
+"nimble/drivers/**" = []
+"nimble/**/test/**" = []
+"nimble/**" = ["ble_", "nimble_"]
