@@ -95,9 +95,44 @@ ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux, struct os_mbuf *om)
     OS_EXIT_CRITICAL(sr);
 }
 
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
+static void
+ble_ll_isoal_mux_drop_late(struct ble_ll_isoal_mux *mux)
+{
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+    struct os_mbuf *om_next;
+    os_sr_t sr;
+
+    if (mux->framed) {
+        return;
+    }
+
+    while (mux->sdu_q_len > mux->sdu_per_event) {
+        OS_ENTER_CRITICAL(sr);
+        pkthdr = STAILQ_FIRST(&mux->sdu_q);
+        STAILQ_REMOVE_HEAD(&mux->sdu_q, omp_next);
+        mux->sdu_q_len--;
+        OS_EXIT_CRITICAL(sr);
+
+        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+        while (om) {
+            om_next = SLIST_NEXT(om, om_next);
+            os_mbuf_free(om);
+            mux->dropped_pkt++;
+            om = om_next;
+        }
+    }
+}
+#endif
+
 int
 ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
 {
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
+    ble_ll_isoal_mux_drop_late(mux);
+#endif
+
 #if MYNEWT_VAL(BLE_LL_ISOAL_MUX_PREFILL)
     /* If prefill is enabled, we always expect to have required number of SDUs
      * in queue, otherwise we disable mux until enough SDUs are queued again.
@@ -300,6 +335,9 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
     struct os_mbuf_pkthdr *pkthdr;
     struct ble_mbuf_hdr *blehdr;
     struct os_mbuf *om;
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
+    int pkt_freed;
+#endif
 
     pkthdr = STAILQ_FIRST(&mux->sdu_q);
     if (pkthdr) {
@@ -313,7 +351,14 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
         return ble_ll_isoal_mux_framed_event_done(mux);
     }
 
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
+    pkt_freed = mux->dropped_pkt;
+    mux->dropped_pkt = 0;
+
+    return pkt_freed + ble_ll_isoal_mux_unframed_event_done(mux);
+#else
     return ble_ll_isoal_mux_unframed_event_done(mux);
+#endif
 }
 
 static int
