@@ -563,6 +563,21 @@ syscfg.defs:
         value: 0
         experimental: 1
 
+    BLE_LL_ISOAL_MUX_DROP_LATE:
+        description: >
+            Enables discarding of SDUs that missed their ISO event, for unframed
+            ISO data. If more SDUs than required for single event (i.e. including
+            pre-transmissions) are queued at the start of an ISO event, the
+            controller drops the oldest SDUs so only the SDUs required for the
+            event remain, and notifies host as if they were sent. Otherwise an
+            SDU that missed its event delays every next SDU by one ISO interval.
+            Not suitable for a host that queues SDUs ahead of time, e.g. with
+            BLE_LL_ISOAL_MUX_PREFILL.
+        value: 0
+        experimental: 1
+        restrictions:
+            - '!BLE_LL_ISOAL_MUX_PREFILL if 1'
+
     BLE_LL_ISOAL_MUX_PREFILL:
         description: >
             Waits until number of SDUs enqueued in mux is enough to fill complete

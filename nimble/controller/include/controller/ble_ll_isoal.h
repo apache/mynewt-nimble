@@ -51,6 +51,11 @@ struct ble_ll_isoal_mux {
 
     uint32_t sdu_counter;
 
+#if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
+    /* Packets of the dropped SDUs not yet reported as completed */
+    uint16_t dropped_pkt;
+#endif
+
     uint32_t event_tx_timestamp;
     uint32_t last_tx_timestamp;
     uint16_t last_tx_packet_seq_num;
