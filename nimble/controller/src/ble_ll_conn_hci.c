@@ -1096,18 +1096,6 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
         }
     }
 
-    /*
-     * If we are a peripheral and the central has initiated the channel map
-     * update procedure we should deny the peripheral request for now.
-     */
-#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
-    if (connsm->flags.chanmap_update_sched) {
-        if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
-            return BLE_ERR_DIFF_TRANS_COLL;
-        }
-    }
-#endif
-
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
