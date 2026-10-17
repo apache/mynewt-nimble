@@ -1,0 +1,180 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Install newt
+description: >
+  Install newt built from master branch of apache/mynewt-newt. Built
+  binaries are cached per newt commit, so newt is rebuilt only when newt
+  master branch changes. Newt can also be taken from artifact uploaded
+  by another job of the same workflow run, so that it is built only once.
+
+inputs:
+  platforms:
+    description: >
+      Space separated list of GOOS/GOARCH platforms to build newt for, in
+      addition to platform of the runner. Binaries are stored in
+      directory provided by dist output.
+    required: false
+    default: ''
+  artifact:
+    description: >
+      Name of artifact with newt binaries (dist directory) uploaded by
+      another job. If set, newt is taken from it instead of being built.
+    required: false
+    default: ''
+
+outputs:
+  dist:
+    description: Directory with newt binaries, one subdirectory per platform
+    value: ${{ steps.platform.outputs.dist }}
+
+runs:
+  using: composite
+  steps:
+    - name: Get platforms
+      id: platform
+      shell: bash
+      env:
+        RUNNER_OS: ${{ runner.os }}
+        RUNNER_ARCH: ${{ runner.arch }}
+        PLATFORMS: ${{ inputs.platforms }}
+      run: |
+        case "$RUNNER_OS" in
+          Linux) goos=linux ;;
+          Windows) goos=windows ;;
+          macOS) goos=darwin ;;
+        esac
+        case "$RUNNER_ARCH" in
+          X64) goarch=amd64 ;;
+          ARM64) goarch=arm64 ;;
+        esac
+        if [ -z "$goos" ] || [ -z "$goarch" ]; then
+          echo "::error::Unsupported runner $RUNNER_OS $RUNNER_ARCH"
+          exit 1
+        fi
+        host="$goos/$goarch"
+        all=$(echo "$host $PLATFORMS" | tr ' ' '\n' | grep . | sort -u | tr '\n' ' ')
+        echo "host=$host" >> "$GITHUB_OUTPUT"
+        echo "all=${all% }" >> "$GITHUB_OUTPUT"
+        # Relative to workspace, to avoid Windows paths in bash steps
+        echo "dist=.newt-dist" >> "$GITHUB_OUTPUT"
+
+    - name: Download newt
+      if: inputs.artifact != ''
+      uses: actions/download-artifact@v8
+      with:
+        name: ${{ inputs.artifact }}
+        path: ${{ steps.platform.outputs.dist }}
+
+    - name: Get newt master commit
+      if: inputs.artifact == ''
+      id: newt
+      shell: bash
+      run: |
+        sha=$(git ls-remote https://github.com/apache/mynewt-newt.git refs/heads/master | cut -f1)
+        if [ -z "$sha" ]; then
+          echo "::error::Failed to get newt master commit"
+          exit 1
+        fi
+        echo "newt master is at $sha"
+        echo "sha=$sha" >> "$GITHUB_OUTPUT"
+        echo "platforms=$(echo ${{ steps.platform.outputs.all }} | tr '/ ' '_-')" >> "$GITHUB_OUTPUT"
+
+    - name: Restore newt from cache
+      if: inputs.artifact == ''
+      id: cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ steps.platform.outputs.dist }}
+        key: newt-${{ runner.os }}-${{ steps.newt.outputs.sha }}-${{ steps.newt.outputs.platforms }}
+
+    - name: Report newt cache status
+      if: inputs.artifact == ''
+      shell: bash
+      env:
+        CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+        CACHE_KEY: ${{ steps.cache.outputs.cache-primary-key }}
+      run: |
+        if [ "$CACHE_HIT" = "true" ]; then
+          echo "newt cache hit: using cached build ($CACHE_KEY)"
+        else
+          echo "newt cache miss: building newt from source ($CACHE_KEY)"
+        fi
+
+    - name: Set up Go
+      if: inputs.artifact == '' && steps.cache.outputs.cache-hit != 'true'
+      uses: actions/setup-go@v7
+      with:
+        go-version: 'stable'
+        cache: false
+
+    - name: Build newt
+      if: inputs.artifact == '' && steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        CGO_ENABLED: 0
+        GOPATH: ${{ runner.temp }}/newt-gopath
+        NEWT_SHA: ${{ steps.newt.outputs.sha }}
+        PLATFORMS: ${{ steps.platform.outputs.all }}
+        DIST: ${{ steps.platform.outputs.dist }}
+      run: |
+        go version
+        for platform in $PLATFORMS; do
+          goos=${platform%/*}
+          goarch=${platform#*/}
+          echo "Building newt for $platform"
+          GOOS=$goos GOARCH=$goarch \
+            go install "mynewt.apache.org/newt/newt@$NEWT_SHA"
+          # Cross compiled binaries are installed to GOOS_GOARCH subdirectory
+          src="$GOPATH/bin/${goos}_${goarch}"
+          [ -d "$src" ] || src="$GOPATH/bin"
+          mkdir -p "$DIST/${goos}_${goarch}"
+          cp "$src"/newt* "$DIST/${goos}_${goarch}/"
+        done
+        ls -lR "$DIST"
+
+    # Only master saves cache, so that it is shared with all pull
+    # requests instead of being duplicated in each pull request scope
+    - name: Save newt to cache
+      if: >-
+        inputs.artifact == '' && steps.cache.outputs.cache-hit != 'true' &&
+        github.ref == 'refs/heads/master' &&
+        github.event_name != 'pull_request'
+      uses: actions/cache/save@v6
+      with:
+        path: ${{ steps.platform.outputs.dist }}
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Add newt to PATH
+      shell: bash
+      env:
+        HOST: ${{ steps.platform.outputs.host }}
+        DIST: ${{ steps.platform.outputs.dist }}
+      run: |
+        src="$DIST/$(echo "$HOST" | tr / _)"
+        if ! ls "$src"/newt* > /dev/null 2>&1; then
+          echo "::error::newt for $HOST not found"
+          exit 1
+        fi
+        mkdir -p .newt-bin
+        cp "$src"/newt* .newt-bin/
+        # Artifacts don't preserve file permissions
+        chmod +x .newt-bin/newt*
+        echo "$GITHUB_WORKSPACE/.newt-bin" >> "$GITHUB_PATH"
+        .newt-bin/newt version

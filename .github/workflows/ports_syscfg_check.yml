@@ -36,10 +36,6 @@ jobs:
     if: github.event.repository.fork == false
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
-        with:
-          go-version: 'stable'
-          cache: false
       - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
         with:
           release: '15.2.Rel1'
@@ -49,19 +45,9 @@ jobs:
              sudo apt-get update
              sudo apt-get install -y gcc-multilib
       - name: Install newt
-        shell: bash
-        run: |
-             go version
-             go install mynewt.apache.org/newt/newt@latest
-      - name: Setup project
-        shell: bash
-        run: |
-             newt new build
-             cp -f .github/project.yml build/project.yml
-             cd build
-             newt upgrade --shallow=1
-             rm -rf repos/apache-mynewt-nimble
-             git clone .. repos/apache-mynewt-nimble
+        uses: ./.github/actions/newt-install
+      - name: Set up project
+        uses: ./.github/actions/newt-project
       - name: Build ports tests targets
         shell: bash
         run: |

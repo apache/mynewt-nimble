@@ -1,0 +1,77 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Restore ccache
+description: >
+  Install ccache, put it in front of compilers used by newt and restore
+  ccache directory from cache. Must be used after toolchain is installed
+  so that ccache wrappers are found in PATH before real compilers.
+  Supported only on Linux, does nothing on other systems.
+
+inputs:
+  key:
+    description: Cache key, unique for job (and matrix entry)
+    required: true
+  max-size:
+    description: Maximum size of ccache directory
+    required: false
+    default: 500M
+
+runs:
+  using: composite
+  steps:
+    - name: Set up ccache
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if ! command -v ccache > /dev/null; then
+          sudo apt-get update
+          sudo apt-get install -y ccache
+        fi
+        # Wrappers named as compilers used by newt, ccache finds real
+        # compiler by skipping its own directory in PATH.
+        dir="$RUNNER_TEMP/ccache-bin"
+        mkdir -p "$dir"
+        for c in arm-none-eabi-gcc arm-none-eabi-g++ gcc g++; do
+          ln -sf "$(command -v ccache)" "$dir/$c"
+        done
+        echo "$dir" >> "$GITHUB_PATH"
+        {
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE"
+          echo "CCACHE_NOHASHDIR=true"
+          echo "CCACHE_COMPILERCHECK=content"
+          echo "CCACHE_MAXSIZE=${{ inputs.max-size }}"
+          echo "CCACHE_JOB_START=$(date +%s)"
+        } >> "$GITHUB_ENV"
+
+    - name: Restore ccache directory
+      if: runner.os == 'Linux'
+      uses: actions/cache/restore@v6
+      with:
+        path: ${{ runner.temp }}/ccache
+        key: ccache-${{ inputs.key }}-${{ github.sha }}
+        restore-keys: ccache-${{ inputs.key }}-
+
+    - name: Reset ccache statistics
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        ccache --version | head -1
+        ccache --zero-stats

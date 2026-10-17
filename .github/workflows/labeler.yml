@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: "Pull Request Labeler"
+name: "Pull Request Size Labeler"
 on:
   - pull_request_target
 
@@ -27,19 +27,14 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
+    # pr-size-labeler is Docker action which is not supported by
+    # ubuntu-slim runner
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Assign labels based on paths
-        uses: actions/labeler@v7
-        with:
-          sync-labels: true
-          configuration-path: .github/labeler_cfg.yml
-
       - name: Assign labels based on the PR's size
         uses: codelytv/pr-size-labeler@v1.12.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ignore_file_deletions: true
+          # Label only, don't comment on XL pull requests
+          message_if_xl: ''
