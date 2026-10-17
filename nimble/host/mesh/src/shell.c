@@ -2795,18 +2795,17 @@ static void cdb_print_nodes(void)
 			continue;
 		}
 
-		configured = atomic_test_bit(node->flags,
-					     BT_MESH_CDB_NODE_CONFIGURED);
+                    configured = bt_mesh_atomic_test_bit(
+                        node->flags, BT_MESH_CDB_NODE_CONFIGURED);
 
-		total++;
-		bin2hex(node->uuid, 16, uuid_hex_str, sizeof(uuid_hex_str));
-		bin2hex(node->dev_key, 16, key_hex_str, sizeof(key_hex_str));
-		printk("0x%04x   %-8d  %-5s  %s  %s", node->addr,
-			    node->num_elem, configured ? "C" : "-",
-			    uuid_hex_str, key_hex_str);
-	}
+                    total++;
+                    bin2hex(node->uuid, 16, uuid_hex_str, sizeof(uuid_hex_str));
+                    bin2hex(node->dev_key, 16, key_hex_str, sizeof(key_hex_str));
+                    printk("0x%04x   %-8d  %-5s  %s  %s", node->addr, node->num_elem,
+                           configured ? "C" : "-", uuid_hex_str, key_hex_str);
+          }
 
-	printk("> Total nodes: %d", total);
+          printk("> Total nodes: %d", total);
 }
 
 static void cdb_print_subnets(void)
@@ -2859,21 +2858,21 @@ static void cdb_print_app_keys(void)
 
 static int cmd_cdb_show(int argc, char *argv[])
 {
-	if (!atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
-		printk("No valid networks");
-		return 0;
-	}
+    if (!bt_mesh_atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
+        printk("No valid networks");
+        return 0;
+    }
 
-	printk("Mesh Network Information");
-	printk("========================");
+    printk("Mesh Network Information");
+    printk("========================");
 
-	cdb_print_nodes();
-	printk("---");
-	cdb_print_subnets();
-	printk("---");
-	cdb_print_app_keys();
+    cdb_print_nodes();
+    printk("---");
+    cdb_print_subnets();
+    printk("---");
+    cdb_print_app_keys();
 
-	return 0;
+    return 0;
 }
 
 static int cmd_cdb_node_add(int argc, char *argv[])

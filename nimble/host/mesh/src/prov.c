@@ -17,7 +17,7 @@
 #include "mesh_priv.h"
 
 #include "crypto.h"
-#include "atomic.h"
+#include "mesh/atomic.h"
 #include "net.h"
 #include "access.h"
 #include "foundation.h"
@@ -55,16 +55,16 @@ int bt_mesh_prov_reset_state(void (*func)(const uint8_t key[BT_PUB_KEY_LEN]))
 		bt_mesh_attention(NULL, 0);
 	}
 
-	atomic_clear(bt_mesh_prov_link.flags);
-	(void)memset((uint8_t *)&bt_mesh_prov_link + offset, 0,
-		     sizeof(bt_mesh_prov_link) - offset);
+          bt_mesh_atomic_clear(bt_mesh_prov_link.flags);
+          (void)memset((uint8_t *)&bt_mesh_prov_link + offset, 0,
+                       sizeof(bt_mesh_prov_link) - offset);
 
-	err = bt_pub_key_gen(&pub_key_cb);
-	if (err) {
-		BT_ERR("Failed to generate public key (%d)", err);
-		return err;
-	}
-	return 0;
+          err = bt_pub_key_gen(&pub_key_cb);
+          if (err) {
+              BT_ERR("Failed to generate public key (%d)", err);
+              return err;
+          }
+          return 0;
 }
 
 static bt_mesh_output_action_t output_action(uint8_t action)
@@ -207,88 +207,88 @@ int bt_mesh_prov_auth(bool is_provisioner, uint8_t method, uint8_t action, uint8
 			return -EINVAL;
 		}
 
-		atomic_set_bit(bt_mesh_prov_link.flags, OOB_STATIC_KEY);
+                    bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, OOB_STATIC_KEY);
 
-		return 0;
+                    return 0;
 
-	case AUTH_METHOD_OUTPUT:
-		output = output_action(action);
-		if (is_provisioner) {
-			if (output == BT_MESH_DISPLAY_STRING) {
-				input = BT_MESH_ENTER_STRING;
-				atomic_set_bit(bt_mesh_prov_link.flags, WAIT_STRING);
-			} else {
-				input = BT_MESH_ENTER_NUMBER;
-				atomic_set_bit(bt_mesh_prov_link.flags, WAIT_NUMBER);
-			}
+          case AUTH_METHOD_OUTPUT:
+              output = output_action(action);
+              if (is_provisioner) {
+                  if (output == BT_MESH_DISPLAY_STRING) {
+                      input = BT_MESH_ENTER_STRING;
+                      bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_STRING);
+                  } else {
+                      input = BT_MESH_ENTER_NUMBER;
+                      bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_NUMBER);
+                  }
 
-			return bt_mesh_prov->input(input, size);
-		}
+                  return bt_mesh_prov->input(input, size);
+              }
 
-		err = check_output_auth(output, size);
-		if (err) {
-			return err;
-		}
+              err = check_output_auth(output, size);
+              if (err) {
+                  return err;
+              }
 
-		if (output == BT_MESH_DISPLAY_STRING) {
-			char str[9];
+              if (output == BT_MESH_DISPLAY_STRING) {
+                  char str[9];
 
-			atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
-			get_auth_string(str, size);
-			return bt_mesh_prov->output_string(str);
-		}
+                  bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
+                  get_auth_string(str, size);
+                  return bt_mesh_prov->output_string(str);
+              }
 
-		atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
-		return bt_mesh_prov->output_number(output,
-						   get_auth_number(output, BT_MESH_NO_INPUT, size));
-	case AUTH_METHOD_INPUT:
-		input = input_action(action);
-		if (!is_provisioner) {
-			err = check_input_auth(input, size);
-			if (err) {
-				return err;
-			}
+              bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
+              return bt_mesh_prov->output_number(
+                  output, get_auth_number(output, BT_MESH_NO_INPUT, size));
+          case AUTH_METHOD_INPUT:
+              input = input_action(action);
+              if (!is_provisioner) {
+                  err = check_input_auth(input, size);
+                  if (err) {
+                      return err;
+                  }
 
-			if (input == BT_MESH_ENTER_STRING) {
-				atomic_set_bit(bt_mesh_prov_link.flags, WAIT_STRING);
-			} else {
-				atomic_set_bit(bt_mesh_prov_link.flags, WAIT_NUMBER);
-			}
+                  if (input == BT_MESH_ENTER_STRING) {
+                      bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_STRING);
+                  } else {
+                      bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, WAIT_NUMBER);
+                  }
 
-			return bt_mesh_prov->input(input, size);
-		}
+                  return bt_mesh_prov->input(input, size);
+              }
 
-		if (input == BT_MESH_ENTER_STRING) {
-			char str[9];
+              if (input == BT_MESH_ENTER_STRING) {
+                  char str[9];
 
-			atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
-			get_auth_string(str, size);
-			return bt_mesh_prov->output_string(str);
-		}
+                  bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
+                  get_auth_string(str, size);
+                  return bt_mesh_prov->output_string(str);
+              }
 
-		atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
-		output = BT_MESH_DISPLAY_NUMBER;
-		return bt_mesh_prov->output_number(output,
-						   get_auth_number(BT_MESH_NO_OUTPUT, input, size));
+              bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, NOTIFY_INPUT_COMPLETE);
+              output = BT_MESH_DISPLAY_NUMBER;
+              return bt_mesh_prov->output_number(
+                  output, get_auth_number(BT_MESH_NO_OUTPUT, input, size));
 
-	default:
-		return -EINVAL;
-	}
+          default:
+              return -EINVAL;
+          }
 }
 
 int bt_mesh_input_number(uint32_t num)
 {
 	BT_DBG("%u", (unsigned) num);
 
-	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_NUMBER)) {
-		return -EINVAL;
-	}
+          if (!bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_NUMBER)) {
+              return -EINVAL;
+          }
 
-	sys_put_be32(num, &bt_mesh_prov_link.auth[12]);
+          sys_put_be32(num, &bt_mesh_prov_link.auth[12]);
 
-	bt_mesh_prov_link.role->input_complete();
+          bt_mesh_prov_link.role->input_complete();
 
-	return 0;
+          return 0;
 }
 
 int bt_mesh_input_string(const char *str)
@@ -300,15 +300,15 @@ int bt_mesh_input_string(const char *str)
 		return -ENOTSUP;
 	}
 
-	if (!atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
-		return -EINVAL;
-	}
+          if (!bt_mesh_atomic_test_and_clear_bit(bt_mesh_prov_link.flags, WAIT_STRING)) {
+              return -EINVAL;
+          }
 
-	strcpy((char *)bt_mesh_prov_link.auth, str);
+          strcpy((char *)bt_mesh_prov_link.auth, str);
 
-	bt_mesh_prov_link.role->input_complete();
+          bt_mesh_prov_link.role->input_complete();
 
-	return 0;
+          return 0;
 }
 
 const struct bt_mesh_prov *bt_mesh_prov_get(void)
@@ -318,7 +318,7 @@ const struct bt_mesh_prov *bt_mesh_prov_get(void)
 
 bool bt_mesh_prov_active(void)
 {
-	return atomic_test_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
+    return bt_mesh_atomic_test_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
 }
 
 static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
@@ -364,23 +364,23 @@ static void prov_recv(const struct prov_bearer *bearer, void *cb_data,
 
 static void prov_link_opened(const struct prov_bearer *bearer, void *cb_data)
 {
-	atomic_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
+    bt_mesh_atomic_set_bit(bt_mesh_prov_link.flags, LINK_ACTIVE);
 
-	BT_ERR("bt_mesh_prov->link_open");
-	if (bt_mesh_prov->link_open) {
-		bt_mesh_prov->link_open(bearer->type);
-	}
+    BT_ERR("bt_mesh_prov->link_open");
+    if (bt_mesh_prov->link_open) {
+        bt_mesh_prov->link_open(bearer->type);
+    }
 
-	BT_ERR("bt_mesh_prov_link.bearer");
-	bt_mesh_prov_link.bearer = bearer;
+    BT_ERR("bt_mesh_prov_link.bearer");
+    bt_mesh_prov_link.bearer = bearer;
 
-	BT_ERR("bt_mesh_prov_link.role->link_opened");
-	BT_ERR("%p", bt_mesh_prov_link.role);
-	BT_ERR("%p", bt_mesh_prov_link.role->link_opened);
-	if (bt_mesh_prov_link.role->link_opened) {
-		bt_mesh_prov_link.role->link_opened();
-	}
-	BT_ERR("done");
+    BT_ERR("bt_mesh_prov_link.role->link_opened");
+    BT_ERR("%p", bt_mesh_prov_link.role);
+    BT_ERR("%p", bt_mesh_prov_link.role->link_opened);
+    if (bt_mesh_prov_link.role->link_opened) {
+        bt_mesh_prov_link.role->link_opened();
+    }
+    BT_ERR("done");
 }
 
 static void prov_link_closed(const struct prov_bearer *bearer, void *cb_data,

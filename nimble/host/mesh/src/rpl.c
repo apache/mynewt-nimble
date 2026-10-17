@@ -25,7 +25,7 @@ struct rpl_val {
 };
 
 static struct bt_mesh_rpl replay_list[MYNEWT_VAL(BLE_MESH_CRPL)];
-static ATOMIC_DEFINE(store, MYNEWT_VAL(BLE_MESH_CRPL));
+static BT_MESH_ATOMIC_DEFINE(store, MYNEWT_VAL(BLE_MESH_CRPL));
 
 static inline int rpl_idx(const struct bt_mesh_rpl *rpl)
 {
@@ -51,22 +51,22 @@ static void clear_rpl(struct bt_mesh_rpl *rpl)
 	}
 
 	(void)memset(rpl, 0, sizeof(*rpl));
-	atomic_clear_bit(store, rpl_idx(rpl));
+          bt_mesh_atomic_clear_bit(store, rpl_idx(rpl));
 #endif
 }
 
 static void schedule_rpl_store(struct bt_mesh_rpl *entry, bool force)
 {
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
-	atomic_set_bit(store, rpl_idx(entry));
-	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
-	if (force
+    bt_mesh_atomic_set_bit(store, rpl_idx(entry));
+    bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
+    if (force
 #ifdef CONFIG_BT_MESH_RPL_STORE_TIMEOUT
-	|| CONFIG_BT_MESH_RPL_STORE_TIMEOUT >= 0
+        || CONFIG_BT_MESH_RPL_STORE_TIMEOUT >= 0
 #endif
-	    ) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
-	}
+    ) {
+        bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_RPL_PENDING);
+    }
 #endif
 }
 
@@ -320,9 +320,9 @@ static void store_pending_rpl(struct bt_mesh_rpl *rpl)
 {
 	BT_DBG("");
 
-	if (atomic_test_and_clear_bit(store, rpl_idx(rpl))) {
-		store_rpl(rpl);
-	}
+          if (bt_mesh_atomic_test_and_clear_bit(store, rpl_idx(rpl))) {
+              store_rpl(rpl);
+          }
 }
 
 void bt_mesh_rpl_pending_store(uint16_t addr)
@@ -345,16 +345,16 @@ void bt_mesh_rpl_pending_store(uint16_t addr)
 			continue;
 		}
 
-		if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-			store_pending_rpl(&replay_list[i]);
-		} else {
-			clear_rpl(&replay_list[i]);
-		}
+                    if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+                        store_pending_rpl(&replay_list[i]);
+                    } else {
+                        clear_rpl(&replay_list[i]);
+                    }
 
-		if (addr != BT_MESH_ADDR_ALL_NODES) {
-			break;
-		}
-	}
+                    if (addr != BT_MESH_ADDR_ALL_NODES) {
+                        break;
+                    }
+          }
 }
 
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)

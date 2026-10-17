@@ -149,6 +149,30 @@ uint32_t ble_npl_time_ticks_to_ms32(ble_npl_time_t ticks);
 void ble_npl_time_delay(ble_npl_time_t ticks);
 
 /*
+ * Atomics
+ *
+ * ble_npl_atomic_t and ble_npl_atomic_val_t are defined by the port.
+ * Read-modify-write operations return the previous value.
+ */
+
+ble_npl_atomic_val_t ble_npl_atomic_get(const ble_npl_atomic_t *target);
+
+ble_npl_atomic_val_t ble_npl_atomic_set(ble_npl_atomic_t *target,
+                                        ble_npl_atomic_val_t value);
+
+ble_npl_atomic_val_t ble_npl_atomic_add(ble_npl_atomic_t *target,
+                                        ble_npl_atomic_val_t value);
+
+ble_npl_atomic_val_t ble_npl_atomic_sub(ble_npl_atomic_t *target,
+                                        ble_npl_atomic_val_t value);
+
+ble_npl_atomic_val_t ble_npl_atomic_or(ble_npl_atomic_t *target,
+                                       ble_npl_atomic_val_t value);
+
+ble_npl_atomic_val_t ble_npl_atomic_and(ble_npl_atomic_t *target,
+                                        ble_npl_atomic_val_t value);
+
+/*
  * Hardware-specific
  *
  * These symbols should be most likely defined by application since they are

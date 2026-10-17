@@ -21,6 +21,7 @@
 #define _NIMBLE_NPL_OS_H_
 
 #include <stdint.h>
+#include "nimble/nimble_npl_atomic_builtin.h"
 
 #ifdef __cplusplus
 extern "C" {

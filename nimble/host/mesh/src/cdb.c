@@ -176,12 +176,12 @@ static int cdb_net_set(int argc, char *val)
 	bt_mesh_cdb.iv_index = net.iv_index;
 
 	if (net.iv_update) {
-		atomic_set_bit(bt_mesh_cdb.flags, BT_MESH_CDB_IVU_IN_PROGRESS);
-	}
+              bt_mesh_atomic_set_bit(bt_mesh_cdb.flags, BT_MESH_CDB_IVU_IN_PROGRESS);
+          }
 
-	atomic_set_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID);
+          bt_mesh_atomic_set_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID);
 
-	return 0;
+          return 0;
 }
 
 static int cdb_node_set(int argc, char *str)
@@ -234,15 +234,15 @@ static int cdb_node_set(int argc, char *str)
 	}
 
 	if (val.flags & F_NODE_CONFIGURED) {
-		atomic_set_bit(node->flags, BT_MESH_CDB_NODE_CONFIGURED);
-	}
+              bt_mesh_atomic_set_bit(node->flags, BT_MESH_CDB_NODE_CONFIGURED);
+          }
 
-	memcpy(node->uuid, val.uuid, 16);
-	memcpy(node->dev_key, val.dev_key, 16);
+          memcpy(node->uuid, val.uuid, 16);
+          memcpy(node->dev_key, val.dev_key, 16);
 
-	BT_DBG("Node 0x%04x recovered from storage", addr);
+          BT_DBG("Node 0x%04x recovered from storage", addr);
 
-	return 0;
+          return 0;
 }
 
 static int cdb_subnet_set(int argc, char *name)
@@ -402,28 +402,27 @@ static void store_cdb_node(const struct bt_mesh_cdb_node *node)
 	val.num_elem = node->num_elem;
 	val.flags = 0;
 
-	if (atomic_test_bit(node->flags, BT_MESH_CDB_NODE_CONFIGURED)) {
-		val.flags |= F_NODE_CONFIGURED;
-	}
+          if (bt_mesh_atomic_test_bit(node->flags, BT_MESH_CDB_NODE_CONFIGURED)) {
+              val.flags |= F_NODE_CONFIGURED;
+          }
 
-	memcpy(val.uuid, node->uuid, 16);
-	memcpy(val.dev_key, node->dev_key, 16);
+          memcpy(val.uuid, node->uuid, 16);
+          memcpy(val.dev_key, node->dev_key, 16);
 
-	snprintk(path, sizeof(path), "bt_mesh/cdb/Node/%x", node->addr);
+          snprintk(path, sizeof(path), "bt_mesh/cdb/Node/%x", node->addr);
 
-	str = settings_str_from_bytes(&val, sizeof(val), buf, sizeof(buf));
-	if (!str) {
-		BT_ERR("Unable to encode Node as value");
-		return;
-	}
+          str = settings_str_from_bytes(&val, sizeof(val), buf, sizeof(buf));
+          if (!str) {
+              BT_ERR("Unable to encode Node as value");
+              return;
+          }
 
-
-	err = settings_save_one(path, str);
-	if (err) {
-		BT_ERR("Failed to store Node %s value", path);
-	} else {
-		BT_DBG("Stored Node %s value", path);
-	}
+          err = settings_save_one(path, str);
+          if (err) {
+              BT_ERR("Failed to store Node %s value", path);
+          } else {
+              BT_DBG("Stored Node %s value", path);
+          }
 #endif
 }
 
@@ -541,8 +540,8 @@ static void clear_cdb_app_key(uint16_t app_idx)
 
 static void schedule_cdb_store(int flag)
 {
-	atomic_set_bit(bt_mesh_cdb.flags, flag);
-	bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CDB_PENDING);
+    bt_mesh_atomic_set_bit(bt_mesh_cdb.flags, flag);
+    bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CDB_PENDING);
 }
 
 static void update_cdb_net_settings(void)
@@ -702,54 +701,53 @@ int bt_mesh_cdb_create(const uint8_t key[16])
 {
 	struct bt_mesh_cdb_subnet *sub;
 
-	if (atomic_test_and_set_bit(bt_mesh_cdb.flags,
-				    BT_MESH_CDB_VALID)) {
-		return -EALREADY;
-	}
+          if (bt_mesh_atomic_test_and_set_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
+              return -EALREADY;
+          }
 
-	sub = bt_mesh_cdb_subnet_alloc(BT_MESH_KEY_PRIMARY);
-	if (sub == NULL) {
-		return -ENOMEM;
-	}
+          sub = bt_mesh_cdb_subnet_alloc(BT_MESH_KEY_PRIMARY);
+          if (sub == NULL) {
+              return -ENOMEM;
+          }
 
-	memcpy(sub->keys[0].net_key, key, 16);
-	bt_mesh_cdb.iv_index = 0;
+          memcpy(sub->keys[0].net_key, key, 16);
+          bt_mesh_cdb.iv_index = 0;
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		update_cdb_net_settings();
-		update_cdb_subnet_settings(sub, true);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+              update_cdb_net_settings();
+              update_cdb_subnet_settings(sub, true);
+          }
 
-	return 0;
+          return 0;
 }
 
 void bt_mesh_cdb_clear(void)
 {
 	int i;
 
-	atomic_clear_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID);
+          bt_mesh_atomic_clear_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID);
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.nodes); ++i) {
-		if (bt_mesh_cdb.nodes[i].addr != BT_MESH_ADDR_UNASSIGNED) {
-			bt_mesh_cdb_node_del(&bt_mesh_cdb.nodes[i], true);
-		}
-	}
+          for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.nodes); ++i) {
+              if (bt_mesh_cdb.nodes[i].addr != BT_MESH_ADDR_UNASSIGNED) {
+                  bt_mesh_cdb_node_del(&bt_mesh_cdb.nodes[i], true);
+              }
+          }
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i) {
-		if (bt_mesh_cdb.subnets[i].net_idx != BT_MESH_KEY_UNUSED) {
-			bt_mesh_cdb_subnet_del(&bt_mesh_cdb.subnets[i], true);
-		}
-	}
+          for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.subnets); ++i) {
+              if (bt_mesh_cdb.subnets[i].net_idx != BT_MESH_KEY_UNUSED) {
+                  bt_mesh_cdb_subnet_del(&bt_mesh_cdb.subnets[i], true);
+              }
+          }
 
-	for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i) {
-		if (bt_mesh_cdb.app_keys[i].net_idx != BT_MESH_KEY_UNUSED) {
-			bt_mesh_cdb_app_key_del(&bt_mesh_cdb.app_keys[i], true);
-		}
-	}
+          for (i = 0; i < ARRAY_SIZE(bt_mesh_cdb.app_keys); ++i) {
+              if (bt_mesh_cdb.app_keys[i].net_idx != BT_MESH_KEY_UNUSED) {
+                  bt_mesh_cdb_app_key_del(&bt_mesh_cdb.app_keys[i], true);
+              }
+          }
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		update_cdb_net_settings();
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+              update_cdb_net_settings();
+          }
 }
 
 void bt_mesh_cdb_iv_update(uint32_t iv_index, bool iv_update)
@@ -758,12 +756,12 @@ void bt_mesh_cdb_iv_update(uint32_t iv_index, bool iv_update)
 
 	bt_mesh_cdb.iv_index = iv_index;
 
-	atomic_set_bit_to(bt_mesh_cdb.flags, BT_MESH_CDB_IVU_IN_PROGRESS,
-			  iv_update);
+          bt_mesh_atomic_set_bit_to(bt_mesh_cdb.flags,
+                                    BT_MESH_CDB_IVU_IN_PROGRESS, iv_update);
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
-		update_cdb_net_settings();
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS)) {
+              update_cdb_net_settings();
+          }
 }
 
 struct bt_mesh_cdb_subnet *bt_mesh_cdb_subnet_alloc(uint16_t net_idx)
@@ -830,11 +828,11 @@ uint8_t bt_mesh_cdb_subnet_flags(const struct bt_mesh_cdb_subnet *sub)
 		flags |= BT_MESH_NET_FLAG_KR;
 	}
 
-	if (atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_IVU_IN_PROGRESS)) {
-		flags |= BT_MESH_NET_FLAG_IVU;
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_IVU_IN_PROGRESS)) {
+              flags |= BT_MESH_NET_FLAG_IVU;
+          }
 
-	return flags;
+          return flags;
 }
 
 struct bt_mesh_cdb_node *bt_mesh_cdb_node_alloc(const uint8_t uuid[16], uint16_t addr,
@@ -861,12 +859,12 @@ struct bt_mesh_cdb_node *bt_mesh_cdb_node_alloc(const uint8_t uuid[16], uint16_t
 			node->addr = addr;
 			node->num_elem = num_elem;
 			node->net_idx = net_idx;
-			atomic_set(node->flags, 0);
-			return node;
-		}
-	}
+                              bt_mesh_atomic_set(node->flags, 0);
+                              return node;
+                    }
+          }
 
-	return NULL;
+          return NULL;
 }
 
 void bt_mesh_cdb_node_del(struct bt_mesh_cdb_node *node, bool store)
@@ -1004,20 +1002,20 @@ static void store_cdb_pending_net(void)
 	BT_DBG("");
 
 	net.iv_index = bt_mesh_cdb.iv_index;
-	net.iv_update = atomic_test_bit(bt_mesh_cdb.flags,
-					BT_MESH_CDB_IVU_IN_PROGRESS);
+          net.iv_update = bt_mesh_atomic_test_bit(bt_mesh_cdb.flags,
+                                                  BT_MESH_CDB_IVU_IN_PROGRESS);
 
-	str = settings_str_from_bytes(&net, sizeof(net), buf, sizeof(buf));
-	if (!str) {
-		BT_ERR("Unable to encode Network as value");
-		return;
-	}
-	err = settings_save_one("bt_mesh/cdb/Net", str);
-	if (err) {
-		BT_ERR("Failed to store Network value");
-	} else {
-		BT_DBG("Stored Network value");
-	}
+          str = settings_str_from_bytes(&net, sizeof(net), buf, sizeof(buf));
+          if (!str) {
+              BT_ERR("Unable to encode Network as value");
+              return;
+          }
+          err = settings_save_one("bt_mesh/cdb/Net", str);
+          if (err) {
+              BT_ERR("Failed to store Network value");
+          } else {
+              BT_DBG("Stored Network value");
+          }
 #endif
 }
 
@@ -1098,25 +1096,22 @@ static void store_cdb_pending_keys(void)
 
 void bt_mesh_cdb_pending_store(void)
 {
-	if (atomic_test_and_clear_bit(bt_mesh_cdb.flags,
-				      BT_MESH_CDB_SUBNET_PENDING)) {
-		if (atomic_test_bit(bt_mesh_cdb.flags,
-				    BT_MESH_CDB_VALID)) {
-			store_cdb_pending_net();
-		} else {
-			clear_cdb_net();
-		}
-	}
+    if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_cdb.flags,
+                                          BT_MESH_CDB_SUBNET_PENDING)) {
+        if (bt_mesh_atomic_test_bit(bt_mesh_cdb.flags, BT_MESH_CDB_VALID)) {
+            store_cdb_pending_net();
+        } else {
+            clear_cdb_net();
+        }
+    }
 
-	if (atomic_test_and_clear_bit(bt_mesh_cdb.flags,
-				      BT_MESH_CDB_NODES_PENDING)) {
-		store_cdb_pending_nodes();
-	}
+    if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_cdb.flags, BT_MESH_CDB_NODES_PENDING)) {
+        store_cdb_pending_nodes();
+    }
 
-	if (atomic_test_and_clear_bit(bt_mesh_cdb.flags,
-				      BT_MESH_CDB_KEYS_PENDING)) {
-		store_cdb_pending_keys();
-	}
+    if (bt_mesh_atomic_test_and_clear_bit(bt_mesh_cdb.flags, BT_MESH_CDB_KEYS_PENDING)) {
+        store_cdb_pending_keys();
+    }
 }
 
 #if MYNEWT_VAL(BLE_MESH_SETTINGS)
