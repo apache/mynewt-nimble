@@ -510,7 +510,7 @@ ble_hci_sock_rx_msg(void)
             if (rc) {
                 ble_transport_free(data);
                 STATS_INC(hci_sock_stats, ierr);
-                return 0;
+                break;
             }
             break;
 #endif
