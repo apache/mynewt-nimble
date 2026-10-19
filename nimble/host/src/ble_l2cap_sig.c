@@ -970,6 +970,11 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
      * be asserted
      */
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* Note: to simplify implementation stop processing further channels on
      * error
@@ -1040,6 +1045,12 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        /* Channels were freed along with connection */
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* removed not accepted channels */
     for (i = 0; i < num_of_scids; i++) {
@@ -1136,8 +1147,12 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     }
 
     ble_hs_lock();
-    conn = ble_hs_conn_find(conn_handle);
-    assert(conn != NULL);
+    conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     for (i = 0; i < proc->connect.chan_cnt; i++) {
         chan = proc->connect.chan[i];
@@ -1213,6 +1228,11 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* Verify CID. Note, scid in the request is dcid for out local channel */
     scid = le16toh(req->scid);
@@ -1255,7 +1275,9 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
         ble_hs_lock();
         conn = ble_hs_conn_find_assert(conn_handle);
-        ble_hs_conn_delete_chan(conn, chan);
+        if (conn != NULL) {
+            ble_hs_conn_delete_chan(conn, chan);
+        }
         ble_hs_unlock();
         rsp->result = htole16(coc_err);
         goto failed;
@@ -1271,7 +1293,9 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     if (rc != 0) {
         ble_hs_lock();
         conn = ble_hs_conn_find_assert(conn_handle);
-        ble_hs_conn_delete_chan(conn, chan);
+        if (conn != NULL) {
+            ble_hs_conn_delete_chan(conn, chan);
+        }
         ble_hs_unlock();
         return 0;
     }
@@ -1604,6 +1628,11 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     req = (struct ble_l2cap_sig_disc_req *) (*om)->om_data;
     scid = le16toh(req->scid);
