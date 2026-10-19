@@ -21,8 +21,8 @@ syscfg.defs:
         value: 1
         restrictions:
             # For now, LC3 encoded audio data, with 48kHz sample rate is supported only.
-            - '(LC3_SAMPLING_FREQ == 48000) if 0'
-            - '(LC3_FRAME_DURATION == 10000) is 0'
+            - '(LC3_SAMPLING_FREQ == 48000) if 1'
+            - '(LC3_FRAME_DURATION == 10000) if 1'
 
     ISO_HCI_FEEDBACK:
         description: Enable HCI feedback for resampler. This reduces jitter between USB and ISO.
