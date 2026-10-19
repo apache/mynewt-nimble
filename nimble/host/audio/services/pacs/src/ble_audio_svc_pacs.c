@@ -178,6 +178,10 @@ ble_svc_audio_pacs_sink_pac_read_access(struct ble_gatt_access_ctxt *ctxt)
     uint8_t *pac_count;
 
     pac_count = os_mbuf_extend(ctxt->om, sizeof(uint8_t));
+    if (pac_count == NULL) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
     rc = ble_audio_codec_foreach(BLE_AUDIO_CODEC_DIR_SINK_BIT,
                                  codec_record_to_pacs_entry, (void *)&cb_arg);
 
@@ -197,6 +201,10 @@ ble_svc_audio_pacs_source_pac_read_access(struct ble_gatt_access_ctxt *ctxt)
     uint8_t *pac_count;
 
     pac_count = os_mbuf_extend(ctxt->om, sizeof(uint8_t));
+    if (pac_count == NULL) {
+        return BLE_ATT_ERR_INSUFFICIENT_RES;
+    }
+
     rc = ble_audio_codec_foreach(BLE_AUDIO_CODEC_DIR_SOURCE_BIT,
                                  codec_record_to_pacs_entry, (void *)&cb_arg);
 
