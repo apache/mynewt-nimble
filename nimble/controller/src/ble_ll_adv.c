@@ -3755,6 +3755,9 @@ ble_ll_adv_ext_set_param_v2(const uint8_t *cmdbuf, uint8_t len,
     }
 
     advsm = ble_ll_adv_sm_get(cmd->params_v1.adv_handle);
+    if (!advsm) {
+        return BLE_ERR_MEM_CAPACITY;
+    }
 
     if (advsm->pri_phy == BLE_HCI_LE_PHY_CODED) {
         advsm->pri_phy_opt = ble_ll_adv_convert_phy_opt(cmd->pri_phy_opt);
