@@ -271,7 +271,7 @@ jobs:
       - name: newt test all
         run: |
              cd build
-             newt test all
+             newt test -q all
       - name: Save ccache
         if: always()
         uses: ./.github/actions/ccache-save
