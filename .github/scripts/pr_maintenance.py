@@ -30,6 +30,10 @@ is done through GitHub API using gh tool.
 - Pull requests with new head commit are reported for path based
   labeling, which is done by actions/labeler in the workflow.
 
+Pull requests without activity for MAX_AGE_DAYS are skipped, also
+when marked with 'stale' label (set by stale workflow) until new commit
+is pushed.
+
 'Check workflows' status also marks pull request head as processed: it
 is tied to head commit and its description contains base branch
 workflows tree it was checked against, so only new or changed pull
@@ -49,7 +53,11 @@ import sys
 CI_LABEL = "needs-ci-approval"
 WORKFLOWS_LABEL = "workflows-update"
 STATUS_CONTEXT = "Check workflows"
+STALE_LABEL = "stale"
 SKIPPED = f"Skipped, '{WORKFLOWS_LABEL}' label present"
+
+# Keep in sync with days-before-pr-stale in stale.yml
+MAX_AGE_DAYS = 365
 
 # Runs never approved stay waiting forever, skip old ones
 CI_RUNS_MAX_AGE_DAYS = 30
@@ -83,6 +91,7 @@ query (
       }
       nodes {
         number
+        updatedAt
         headRefOid
         baseRefName
         labels(first: 100) {
@@ -99,6 +108,7 @@ query (
           nodes {
             commit {
               oid
+              committedDate
               status {
                 context(name: $context) {
                   state
@@ -160,11 +170,21 @@ def list_pulls():
                           "-f", f"query={PULLS_QUERY}",
                           "-f", f"owner={owner}", "-f", f"repo={repo}",
                           "-f", f"context={STATUS_CONTEXT}"))
+    since = (date.today() - timedelta(days=MAX_AGE_DAYS)).isoformat()
     pulls = []
+    skipped = 0
 
     for page in pages:
         for node in page["data"]["repository"]["pullRequests"]["nodes"]:
+            labels = [l["name"] for l in node["labels"]["nodes"]]
             commit = node["commits"]["nodes"][0]["commit"]
+            # Adding stale label updates pull request, stale workflow
+            # removes label only on its next run but rebase is new commit
+            if node["updatedAt"] < since or \
+                    (STALE_LABEL in labels and commit["committedDate"] < since):
+                skipped += 1
+                continue
+
             # Commits list is limited, skip pull request if head is missing
             if commit["oid"] != node["headRefOid"]:
                 print(f"#{node['number']}: head commit not found, skipping")
@@ -174,11 +194,13 @@ def list_pulls():
             pulls.append({
                 "number": node["number"],
                 "head": commit["oid"],
-                "labels": [l["name"] for l in node["labels"]["nodes"]],
+                "labels": labels,
                 "status": (commit["status"] or {}).get("context"),
                 "base_name": node["baseRefName"],
                 "base_head": base.get("oid"),
             })
+
+    print(f"{skipped} stale pull requests skipped")
 
     trees = workflows_trees([p["head"] for p in pulls] +
                             [p["base_head"] for p in pulls if p["base_head"]])
