@@ -28,8 +28,8 @@ is done through GitHub API using gh tool.
   base branch changed since merge base, and removed otherwise.
 - 'workflows-update' label is set on pull requests modifying .github
   (compared to merge base), and removed otherwise.
-- All pull requests are reported for path based labeling, which is
-  done by actions/labeler in the workflow.
+- Pull requests are reported for path based labeling, which is done by
+  actions/labeler in the workflow.
 
 Workflows labels are informative only, workflow runs of contributors
 without write access need approval anyway.
@@ -37,6 +37,10 @@ without write access need approval anyway.
 Pull requests without activity for MAX_AGE_DAYS are skipped, also
 when marked with 'stale' label (set by stale workflow) until new commit
 is pushed.
+
+Workflows and path labels are updated only for pull requests changed
+since previous successful run, unless .github of their base branch
+changed too. Merge base and labels can't change otherwise.
 """
 
 from datetime import date, timedelta
@@ -61,6 +65,9 @@ CI_RUNS_MAX_AGE_DAYS = 30
 TREES_PER_QUERY = 100
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "")
+BRANCH = os.environ.get("GITHUB_REF_NAME", "master")
+WORKFLOW = os.environ.get("GITHUB_WORKFLOW_REF",
+                          "pr_maintenance.yml").split("@")[0].split("/")[-1]
 
 PULLS_QUERY = """
 query (
@@ -83,6 +90,7 @@ query (
         number
         updatedAt
         headRefOid
+        baseRefName
         labels(first: 100) {
           nodes {
             name
@@ -152,8 +160,23 @@ def merge_base(base, head):
               "--jq", ".merge_base_commit.sha").strip()
 
 
+def previous_run():
+    """Returns previous successful run of this workflow, or None"""
+    try:
+        return json.loads(gh("api", f"repos/{REPO}/actions/workflows/"
+                             f"{WORKFLOW}/runs?branch={BRANCH}"
+                             f"&status=success&per_page=1",
+                             "--jq", ".workflow_runs[0]"))
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to get previous run: {e.stderr.strip()}")
+        return None
+
+
 def list_pulls():
-    """Returns list of pull requests and number of errors"""
+    """
+    Returns list of pull requests and number of errors. Merge base tree
+    is set only for pull requests marked as changed.
+    """
     owner, repo = REPO.split("/")
     pages = json.loads(gh("api", "graphql", "--paginate", "--slurp",
                           "-f", f"query={PULLS_QUERY}",
@@ -183,13 +206,21 @@ def list_pulls():
                 "number": node["number"],
                 "head": commit["oid"],
                 "labels": labels,
+                "updated": node["updatedAt"],
+                "base_name": node["baseRefName"],
                 "base_head": base.get("oid"),
             })
 
     print(f"{skipped} stale pull requests skipped")
 
+    previous = previous_run()
+    if previous:
+        print(f"Previous run started {previous['created_at']} on "
+              f"{previous['head_sha']}")
+
     trees = github_trees([p["head"] for p in pulls] +
-                         [p["base_head"] for p in pulls if p["base_head"]])
+                         [p["base_head"] for p in pulls if p["base_head"]] +
+                         ([previous["head_sha"]] if previous else []))
     merge_bases = {}
     errors = 0
 
@@ -197,6 +228,16 @@ def list_pulls():
         base_tree = trees.get(pull["base_head"])
         pull["tree"] = trees[pull["head"]]
         pull["base_tree"] = base_tree
+
+        # Previous run started before last update of pull request (any
+        # push or base change updates it) or before .github of base
+        # branch changed, so its labels may be out of date
+        pull["changed"] = not previous or \
+            pull["updated"] >= previous["created_at"] or \
+            pull["base_name"] != previous["head_branch"] or \
+            base_tree != trees[previous["head_sha"]]
+        if not pull["changed"]:
+            continue
 
         # Same tree as base means pull request neither modifies .github
         # nor is out of date, merge base is not needed
@@ -300,15 +341,17 @@ def main():
     except subprocess.CalledProcessError as e:
         sys.exit(f"Failed to list pull requests: {e.stderr.strip()}")
 
-    print(f"{len(pulls)} open pull requests")
+    changed = [p for p in pulls if p["changed"]]
+    print(f"{len(pulls)} open pull requests, {len(changed)} changed")
     # Written first so following step can handle pull requests even if
     # updating labels fails
-    write_outputs({"pr-numbers": "\n".join(str(p["number"]) for p in pulls)})
+    write_outputs({"pr-numbers": "\n".join(str(p["number"])
+                                           for p in changed)})
     errors += update_ci_label(pulls)
     # Pull requests without merge base tree failed and were reported
-    pulls = [p for p in pulls if "merge_base_tree" in p]
-    errors += update_outdated_label(pulls)
-    errors += update_update_label(pulls)
+    changed = [p for p in changed if "merge_base_tree" in p]
+    errors += update_outdated_label(changed)
+    errors += update_update_label(changed)
 
     if errors:
         sys.exit(f"{errors} error(s) occurred")
