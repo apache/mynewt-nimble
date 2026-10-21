@@ -26,10 +26,9 @@ description: >
   are cached and working trees are checked out after restore, which
   keeps cache small and lets each system check out files with its own
   git settings. Cache is created on Linux and shared with other
-  systems. Single cache is shared by all projects since newt skips
-  repositories not used by project. Cache should be saved only by one
-  job using project with all repositories and only from master branch,
-  since only caches from default branch are available to pull requests.
+  systems. Cache should be saved only by one job and only from master
+  branch, since only caches from default branch are available to pull
+  requests.
 
 inputs:
   project:

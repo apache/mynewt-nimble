@@ -283,12 +283,8 @@ jobs:
         run: |
              sudo apt-get update
              sudo apt-get install -y gcc-multilib ccache
-      # Unit tests project limits repositories to those which tests
-      # should be run for
       - name: Restore project
         uses: ./.github/actions/newt-project-restore
-        with:
-          project: .github/project_newt_test_all.yml
       - name: Restore ccache
         uses: ./.github/actions/ccache-restore
         with:
