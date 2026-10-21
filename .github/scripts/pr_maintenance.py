@@ -24,9 +24,12 @@ is done through GitHub API using gh tool.
 
 - 'needs-ci-approval' label is set on pull requests with workflow runs
   waiting for approval on their head commit, and removed otherwise.
-- 'Check workflows' commit status reports whether .github/workflows of
-  pull request head matches base branch ('workflows-update' label skips
-  the check).
+- 'workflows-outdated' label is set on pull requests if .github of
+  base branch changed since merge base, and removed otherwise. It is
+  informative only.
+- 'Check workflows' commit status reports whether .github of pull
+  request head matches base branch ('workflows-update' label skips the
+  check).
 - Pull requests with new head commit are reported for path based
   labeling, which is done by actions/labeler in the workflow.
 
@@ -35,9 +38,9 @@ when marked with 'stale' label (set by stale workflow) until new commit
 is pushed.
 
 'Check workflows' status also marks pull request head as processed: it
-is tied to head commit and its description contains base branch
-workflows tree it was checked against, so only new or changed pull
-requests are processed.
+is tied to head commit and its description contains base branch .github
+tree it was checked against, so only new or changed pull requests are
+processed.
 
 Usage:
   pr_maintenance.py check   - update labels, write step outputs
@@ -52,6 +55,7 @@ import sys
 
 CI_LABEL = "needs-ci-approval"
 WORKFLOWS_LABEL = "workflows-update"
+OUTDATED_LABEL = "workflows-outdated"
 STATUS_CONTEXT = "Check workflows"
 STALE_LABEL = "stale"
 SKIPPED = f"Skipped, '{WORKFLOWS_LABEL}' label present"
@@ -65,7 +69,7 @@ CI_RUNS_MAX_AGE_DAYS = 30
 # Limit API usage, remaining pull requests are handled by next runs
 MAX_PULLS_PER_RUN = 20
 
-# Workflows trees are queried with object() which returns null if path
+# .github trees are queried with object() which returns null if path
 # doesn't exist, Commit.file() fails whole query (and gh pagination) instead
 TREES_PER_QUERY = 100
 
@@ -132,7 +136,7 @@ query ($owner: String!, $repo: String!) {
 }
 """
 
-TREE_FIELD = 'c%d: object(expression: "%s:.github/workflows") { oid }'
+TREE_FIELD = 'c%d: object(expression: "%s:.github") { oid }'
 
 
 def gh(*args):
@@ -145,8 +149,8 @@ def error(message):
     print(f"::error::{message}")
 
 
-def workflows_trees(commits):
-    """Returns dict of commit to its .github/workflows tree (or None)"""
+def github_trees(commits):
+    """Returns dict of commit to its .github tree (or None)"""
     owner, repo = REPO.split("/")
     commits = sorted(set(commits))
     trees = {}
@@ -164,7 +168,13 @@ def workflows_trees(commits):
     return trees
 
 
+def merge_base(base, head):
+    return gh("api", f"repos/{REPO}/compare/{base}...{head}?per_page=1",
+              "--jq", ".merge_base_commit.sha").strip()
+
+
 def list_pulls():
+    """Returns list of pull requests and number of errors"""
     owner, repo = REPO.split("/")
     pages = json.loads(gh("api", "graphql", "--paginate", "--slurp",
                           "-f", f"query={PULLS_QUERY}",
@@ -202,18 +212,70 @@ def list_pulls():
 
     print(f"{skipped} stale pull requests skipped")
 
-    trees = workflows_trees([p["head"] for p in pulls] +
-                            [p["base_head"] for p in pulls if p["base_head"]])
+    trees = github_trees([p["head"] for p in pulls] +
+                         [p["base_head"] for p in pulls if p["base_head"]])
+    merge_bases = {}
+    errors = 0
 
     for pull in pulls:
-        base_head = pull.pop("base_head")
-        base_name = pull.pop("base_name")
-        base_tree = trees.get(base_head)
+        base_tree = trees.get(pull["base_head"])
         pull["tree"] = trees[pull["head"]]
         pull["base_tree"] = base_tree
-        pull["base"] = f"{base_name}@{(base_tree or 'none')[:12]}"
+        pull["base"] = f"{pull['base_name']}@{(base_tree or 'none')[:12]}"
 
-    return pulls
+        # Same tree as base means pull request neither modifies .github
+        # nor is out of date, merge base is not needed
+        if pull["tree"] == base_tree or not pull["base_head"]:
+            pull["merge_base_tree"] = base_tree
+            continue
+
+        try:
+            merge_bases[pull["number"]] = merge_base(pull["base_head"],
+                                                     pull["head"])
+        except subprocess.CalledProcessError as e:
+            error(f"#{pull['number']}: {e.stderr.strip()}")
+            errors += 1
+
+    trees = github_trees(merge_bases.values())
+    for pull in pulls:
+        if pull["number"] in merge_bases:
+            pull["merge_base_tree"] = trees[merge_bases[pull["number"]]]
+
+    return pulls, errors
+
+
+def sync_label(pulls, label, color, wanted):
+    """
+    Sets label on pull requests for which wanted() returns True and
+    removes it from others, returns number of errors
+    """
+    issue = f"repos/{REPO}/issues"
+    label_created = False
+    errors = 0
+
+    for pull in pulls:
+        has_label = label in pull["labels"]
+        if wanted(pull) == has_label:
+            continue
+
+        try:
+            if has_label:
+                gh("api", "-X", "DELETE",
+                   f"{issue}/{pull['number']}/labels/{label}")
+                print(f"#{pull['number']}: removed '{label}' label")
+            else:
+                if not label_created:
+                    gh("label", "create", label, "-R", REPO, "--force",
+                       "--color", color)
+                    label_created = True
+                gh("api", "-X", "POST", f"{issue}/{pull['number']}/labels",
+                   "-f", f"labels[]={label}")
+                print(f"#{pull['number']}: added '{label}' label")
+        except subprocess.CalledProcessError as e:
+            error(f"#{pull['number']}: {e.stderr.strip()}")
+            errors += 1
+
+    return errors
 
 
 def update_ci_label(pulls):
@@ -228,33 +290,14 @@ def update_ci_label(pulls):
         error(f"Failed to list workflow runs: {e.stderr.strip()}")
         return 1
 
-    issue = f"repos/{REPO}/issues"
-    label_created = False
-    errors = 0
+    return sync_label(pulls, CI_LABEL, "E3650b",
+                      lambda p: p["head"] in waiting)
 
-    for pull in pulls:
-        has_label = CI_LABEL in pull["labels"]
-        if (pull["head"] in waiting) == has_label:
-            continue
 
-        try:
-            if has_label:
-                gh("api", "-X", "DELETE",
-                   f"{issue}/{pull['number']}/labels/{CI_LABEL}")
-                print(f"#{pull['number']}: removed '{CI_LABEL}' label")
-            else:
-                if not label_created:
-                    gh("label", "create", CI_LABEL, "-R", REPO, "--force",
-                       "--color", "E3650b")
-                    label_created = True
-                gh("api", "-X", "POST", f"{issue}/{pull['number']}/labels",
-                   "-f", f"labels[]={CI_LABEL}")
-                print(f"#{pull['number']}: added '{CI_LABEL}' label")
-        except subprocess.CalledProcessError as e:
-            error(f"#{pull['number']}: {e.stderr.strip()}")
-            errors += 1
-
-    return errors
+def update_outdated_label(pulls):
+    """Returns number of errors"""
+    return sync_label(pulls, OUTDATED_LABEL, "FEF2C0",
+                      lambda p: p["base_tree"] != p["merge_base_tree"])
 
 
 def workflows_status(pull):
@@ -265,10 +308,10 @@ def workflows_status(pull):
         new = {"state": "success", "description": SKIPPED}
     elif pull["tree"] == pull["base_tree"]:
         new = {"state": "success",
-               "description": f"Workflows match {pull['base']}"}
+               "description": f".github matches {pull['base']}"}
     else:
         new = {"state": "failure",
-               "description": f"Workflows differ from {pull['base']}, "
+               "description": f".github differs from {pull['base']}, "
                               f"rebase or apply '{WORKFLOWS_LABEL}' label"}
 
     if status and (status["state"], status["description"]) == \
@@ -280,15 +323,18 @@ def workflows_status(pull):
 
 def check():
     """
-    Updates CI approval label and returns number of errors and step
-    outputs:
+    Updates CI approval and outdated labels, returns number of errors
+    and step outputs:
     pr-numbers - newline separated pull requests for path based labeling
     statuses - JSON list of workflows commit statuses to report
     """
-    pulls = list_pulls()
+    pulls, errors = list_pulls()
     print(f"{len(pulls)} open pull requests")
-    errors = update_ci_label(pulls)
-    statuses = [s for s in map(workflows_status, pulls) if s]
+    errors += update_ci_label(pulls)
+    # Pull requests without merge base tree failed and were reported
+    pulls_ok = [p for p in pulls if "merge_base_tree" in p]
+    errors += update_outdated_label(pulls_ok)
+    statuses = [s for s in map(workflows_status, pulls_ok) if s]
     statuses = statuses[:MAX_PULLS_PER_RUN]
     reported = {s["sha"] for s in statuses}
 
