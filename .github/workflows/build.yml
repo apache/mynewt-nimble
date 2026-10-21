@@ -207,26 +207,13 @@ jobs:
   gcc-target:
     name: Build GCC test target
     needs: prepare
-    strategy:
-      fail-fast: false
-      # Limit number of parallel jobs, ASF policy limits job concurrency
-      # level per workflow
-      max-parallel: 4
-      matrix:
-        gcc: ['15.2.Rel1', '14.2.Rel1', '13.2.Rel1', '12.2.Rel1', '11.3.Rel1', '10.3-2021.10', '9-2020-q2', '8-2019-q3']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
-        with:
-          release: ${{ matrix.gcc }}
       - name: Restore project
         uses: ./.github/actions/newt-project-restore
-      - name: Restore ccache
-        uses: ./.github/actions/ccache-restore
-        with:
-          key: gcc-target-${{ matrix.gcc }}
-      - name: Build test target
+      - name: Create test target
+        id: target
         shell: bash
         run: |
              cd build
@@ -234,12 +221,57 @@ jobs:
              newt target set cc_test bsp="@apache-mynewt-core/hw/bsp/nordic_pca10056"
              newt target set cc_test app="@apache-mynewt-nimble/apps/btshell"
              cp -f ../.github/test_build_apps_syscfg.yml targets/cc_test/syscfg.yml
-             newt build cc_test
+      - name: Restore ccache
+        uses: ./.github/actions/ccache-restore
+        with:
+          key: gcc-target
+          max-size: 1G
+      # Build with remaining releases even if build with one fails
+      - name: Build with GCC 15.2.Rel1
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 15.2.Rel1
+      - name: Build with GCC 14.2.Rel1
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 14.2.Rel1
+      - name: Build with GCC 13.2.Rel1
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 13.2.Rel1
+      - name: Build with GCC 12.2.Rel1
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 12.2.Rel1
+      - name: Build with GCC 11.3.Rel1
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 11.3.Rel1
+      - name: Build with GCC 10.3-2021.10
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 10.3-2021.10
+      - name: Build with GCC 9-2020-q2
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 9-2020-q2
+      - name: Build with GCC 8-2019-q3
+        if: ${{ !cancelled() && steps.target.outcome == 'success' }}
+        uses: ./.github/actions/gcc-target-build
+        with:
+          release: 8-2019-q3
       - name: Save ccache
         if: always()
         uses: ./.github/actions/ccache-save
         with:
-          key: gcc-target-${{ matrix.gcc }}
+          key: gcc-target
 
   unit-tests:
     name: Run unit tests
