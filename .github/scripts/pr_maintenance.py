@@ -30,17 +30,16 @@ is done through GitHub API using gh tool.
 - 'Check workflows' commit status reports whether .github of pull
   request head matches base branch ('workflows-update' label skips the
   check).
-- Pull requests with new head commit are reported for path based
-  labeling, which is done by actions/labeler in the workflow.
+- All pull requests are reported for path based labeling, which is
+  done by actions/labeler in the workflow.
 
 Pull requests without activity for MAX_AGE_DAYS are skipped, also
 when marked with 'stale' label (set by stale workflow) until new commit
 is pushed.
 
-'Check workflows' status also marks pull request head as processed: it
-is tied to head commit and its description contains base branch .github
-tree it was checked against, so only new or changed pull requests are
-processed.
+'Check workflows' status is tied to head commit and its description
+contains base branch .github tree it was checked against, so it is
+reported only for new or changed pull requests.
 
 Usage:
   pr_maintenance.py check   - update labels, write step outputs
@@ -336,17 +335,12 @@ def check():
     errors += update_outdated_label(pulls_ok)
     statuses = [s for s in map(workflows_status, pulls_ok) if s]
     statuses = statuses[:MAX_PULLS_PER_RUN]
-    reported = {s["sha"] for s in statuses}
-
-    # No status on head commit means pull request was updated
-    labels = [str(p["number"]) for p in pulls
-              if not p["status"] and p["head"] in reported]
 
     for status in statuses:
         print(f"{status['sha']}: {status['description']}")
 
     return errors, {
-        "pr-numbers": "\n".join(labels),
+        "pr-numbers": "\n".join(str(p["number"]) for p in pulls),
         "statuses": json.dumps(statuses),
     }
 
