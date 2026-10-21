@@ -22,14 +22,9 @@ description: >
   Restore newt and newt project prepared by prepare job of the same
   workflow run, so that external repositories are downloaded only once
   per run. Project contains only .git directories of repositories,
-  working trees are checked out after restore. Project file is replaced
-  with one provided by job.
+  working trees are checked out after restore.
 
 inputs:
-  project:
-    description: Project file to use (relative to repository root)
-    required: false
-    default: .github/project.yml
   path:
     description: Directory to restore project to
     required: false
@@ -54,12 +49,9 @@ runs:
         echo "$GITHUB_WORKSPACE/.newt-bin" >> "$GITHUB_PATH"
         bash "$GITHUB_WORKSPACE/.github/scripts/checkout_repos.sh" "${{ inputs.path }}"
 
-    # Repositories were set up by prepare job for tested commit, so
-    # only project file needs to be updated. Project file may limit
-    # repositories used by newt (e.g. for unit tests).
-    - name: Set up project file
+    # Project was set up and upgraded by prepare job for tested commit
+    - name: Show project info
       shell: bash
       run: |
-        cp -f "${{ inputs.project }}" "${{ inputs.path }}/project.yml"
         cd "${{ inputs.path }}"
         newt info
