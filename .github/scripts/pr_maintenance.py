@@ -25,25 +25,18 @@ is done through GitHub API using gh tool.
 - 'needs-ci-approval' label is set on pull requests with workflow runs
   waiting for approval on their head commit, and removed otherwise.
 - 'workflows-outdated' label is set on pull requests if .github of
-  base branch changed since merge base, and removed otherwise. It is
-  informative only.
-- 'Check workflows' commit status reports whether .github of pull
-  request head matches base branch ('workflows-update' label skips the
-  check).
+  base branch changed since merge base, and removed otherwise.
+- 'workflows-update' label is set on pull requests modifying .github
+  (compared to merge base), and removed otherwise.
 - All pull requests are reported for path based labeling, which is
   done by actions/labeler in the workflow.
+
+Workflows labels are informative only, workflow runs of contributors
+without write access need approval anyway.
 
 Pull requests without activity for MAX_AGE_DAYS are skipped, also
 when marked with 'stale' label (set by stale workflow) until new commit
 is pushed.
-
-'Check workflows' status is tied to head commit and its description
-contains base branch .github tree it was checked against, so it is
-reported only for new or changed pull requests.
-
-Usage:
-  pr_maintenance.py check   - update labels, write step outputs
-  pr_maintenance.py report  - report statuses from STATUSES variable
 """
 
 from datetime import date, timedelta
@@ -53,20 +46,15 @@ import subprocess
 import sys
 
 CI_LABEL = "needs-ci-approval"
-WORKFLOWS_LABEL = "workflows-update"
+UPDATE_LABEL = "workflows-update"
 OUTDATED_LABEL = "workflows-outdated"
-STATUS_CONTEXT = "Check workflows"
 STALE_LABEL = "stale"
-SKIPPED = f"Skipped, '{WORKFLOWS_LABEL}' label present"
 
 # Keep in sync with days-before-pr-stale in stale.yml
 MAX_AGE_DAYS = 365
 
 # Runs never approved stay waiting forever, skip old ones
 CI_RUNS_MAX_AGE_DAYS = 30
-
-# Limit API usage, remaining pull requests are handled by next runs
-MAX_PULLS_PER_RUN = 20
 
 # .github trees are queried with object() which returns null if path
 # doesn't exist, Commit.file() fails whole query (and gh pagination) instead
@@ -78,7 +66,6 @@ PULLS_QUERY = """
 query (
   $owner: String!
   $repo: String!
-  $context: String!
   $endCursor: String
 ) {
   repository(owner: $owner, name: $repo) {
@@ -96,7 +83,6 @@ query (
         number
         updatedAt
         headRefOid
-        baseRefName
         labels(first: 100) {
           nodes {
             name
@@ -112,12 +98,6 @@ query (
             commit {
               oid
               committedDate
-              status {
-                context(name: $context) {
-                  state
-                  description
-                }
-              }
             }
           }
         }
@@ -177,8 +157,7 @@ def list_pulls():
     owner, repo = REPO.split("/")
     pages = json.loads(gh("api", "graphql", "--paginate", "--slurp",
                           "-f", f"query={PULLS_QUERY}",
-                          "-f", f"owner={owner}", "-f", f"repo={repo}",
-                          "-f", f"context={STATUS_CONTEXT}"))
+                          "-f", f"owner={owner}", "-f", f"repo={repo}"))
     since = (date.today() - timedelta(days=MAX_AGE_DAYS)).isoformat()
     pulls = []
     skipped = 0
@@ -204,8 +183,6 @@ def list_pulls():
                 "number": node["number"],
                 "head": commit["oid"],
                 "labels": labels,
-                "status": (commit["status"] or {}).get("context"),
-                "base_name": node["baseRefName"],
                 "base_head": base.get("oid"),
             })
 
@@ -220,7 +197,6 @@ def list_pulls():
         base_tree = trees.get(pull["base_head"])
         pull["tree"] = trees[pull["head"]]
         pull["base_tree"] = base_tree
-        pull["base"] = f"{pull['base_name']}@{(base_tree or 'none')[:12]}"
 
         # Same tree as base means pull request neither modifies .github
         # nor is out of date, merge base is not needed
@@ -299,69 +275,10 @@ def update_outdated_label(pulls):
                       lambda p: p["base_tree"] != p["merge_base_tree"])
 
 
-def workflows_status(pull):
-    """Returns status to report, or None if reported one is up to date"""
-    status = pull["status"]
-
-    if WORKFLOWS_LABEL in pull["labels"]:
-        new = {"state": "success", "description": SKIPPED}
-    elif pull["tree"] == pull["base_tree"]:
-        new = {"state": "success",
-               "description": f".github matches {pull['base']}"}
-    else:
-        new = {"state": "failure",
-               "description": f".github differs from {pull['base']}, "
-                              f"rebase or apply '{WORKFLOWS_LABEL}' label"}
-
-    if status and (status["state"], status["description"]) == \
-            (new["state"], new["description"]):
-        return None
-
-    return {"sha": pull["head"], **new}
-
-
-def check():
-    """
-    Updates CI approval and outdated labels, returns number of errors
-    and step outputs:
-    pr-numbers - newline separated pull requests for path based labeling
-    statuses - JSON list of workflows commit statuses to report
-    """
-    pulls, errors = list_pulls()
-    print(f"{len(pulls)} open pull requests")
-    errors += update_ci_label(pulls)
-    # Pull requests without merge base tree failed and were reported
-    pulls_ok = [p for p in pulls if "merge_base_tree" in p]
-    errors += update_outdated_label(pulls_ok)
-    statuses = [s for s in map(workflows_status, pulls_ok) if s]
-    statuses = statuses[:MAX_PULLS_PER_RUN]
-
-    for status in statuses:
-        print(f"{status['sha']}: {status['description']}")
-
-    return errors, {
-        "pr-numbers": "\n".join(str(p["number"]) for p in pulls),
-        "statuses": json.dumps(statuses),
-    }
-
-
-def report(statuses, target_url):
-    """Reports statuses computed by check(), returns number of errors"""
-    errors = 0
-
-    for status in statuses:
-        try:
-            gh("api", "-X", "POST", f"repos/{REPO}/statuses/{status['sha']}",
-               "-f", f"state={status['state']}",
-               "-f", f"description={status['description']}",
-               "-f", f"context={STATUS_CONTEXT}",
-               "-f", f"target_url={target_url}")
-            print(f"{status['sha']}: {status['state']}")
-        except subprocess.CalledProcessError as e:
-            error(f"{status['sha']}: {e.stderr.strip()}")
-            errors += 1
-
-    return errors
+def update_update_label(pulls):
+    """Returns number of errors"""
+    return sync_label(pulls, UPDATE_LABEL, "FBCA04",
+                      lambda p: p["tree"] != p["merge_base_tree"])
 
 
 def write_outputs(outputs):
@@ -374,20 +291,24 @@ def write_outputs(outputs):
 
 
 def main():
-    if sys.argv[1:] == ["check"]:
-        try:
-            errors, outputs = check()
-        except subprocess.CalledProcessError as e:
-            sys.exit(f"Failed to list pull requests: {e.stderr.strip()}")
-        # Outputs are written even on errors so following steps can
-        # handle pull requests that were processed successfully
-        write_outputs(outputs)
-    elif sys.argv[1:] == ["report"]:
-        url = f"{os.environ['GITHUB_SERVER_URL']}/{REPO}/actions/runs/" \
-              f"{os.environ['GITHUB_RUN_ID']}"
-        errors = report(json.loads(os.environ["STATUSES"]), url)
-    else:
-        sys.exit(__doc__)
+    """
+    Updates labels and writes step outputs:
+    pr-numbers - newline separated pull requests for path based labeling
+    """
+    try:
+        pulls, errors = list_pulls()
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"Failed to list pull requests: {e.stderr.strip()}")
+
+    print(f"{len(pulls)} open pull requests")
+    # Written first so following step can handle pull requests even if
+    # updating labels fails
+    write_outputs({"pr-numbers": "\n".join(str(p["number"]) for p in pulls)})
+    errors += update_ci_label(pulls)
+    # Pull requests without merge base tree failed and were reported
+    pulls = [p for p in pulls if "merge_base_tree" in p]
+    errors += update_outdated_label(pulls)
+    errors += update_update_label(pulls)
 
     if errors:
         sys.exit(f"{errors} error(s) occurred")

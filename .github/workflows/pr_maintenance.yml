@@ -18,7 +18,7 @@
 #
 
 
-# Maintenance of open pull requests (labels and workflows status check).
+# Maintenance of open pull requests labels.
 # This runs periodically from master instead of pull_request_target, so
 # no pull request code or configuration is used with elevated privileges.
 
@@ -34,7 +34,6 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
-  statuses: write
 
 concurrency:
   group: ${{ github.workflow }}
@@ -52,13 +51,13 @@ jobs:
           sparse-checkout: .github
           persist-credentials: false
 
-      - name: Check pull requests
+      - name: Update pull requests labels
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 .github/scripts/pr_maintenance.py check
+        run: python3 .github/scripts/pr_maintenance.py
 
-      # Following steps run also if previous step failed, so that error in
+      # Following step runs also if previous step failed, so that error in
       # one pull request doesn't block processing of others
 
       - name: Assign labels based on paths
@@ -68,12 +67,3 @@ jobs:
           pr-number: ${{ steps.check.outputs.pr-numbers }}
           sync-labels: true
           configuration-path: .github/labeler_cfg.yml
-
-      - name: Report workflows status
-        if: >-
-          ${{ !cancelled() && steps.check.outputs.statuses != '' &&
-              steps.check.outputs.statuses != '[]' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          STATUSES: ${{ steps.check.outputs.statuses }}
-        run: python3 .github/scripts/pr_maintenance.py report
