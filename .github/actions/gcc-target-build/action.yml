@@ -1,0 +1,65 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Build GCC test target
+description: >
+  Install given release of GNU Arm Embedded Toolchain, build cc_test
+  target with it and remove it afterwards. Used to build test target with
+  many toolchain releases in single job. Expects project with cc_test
+  target restored in build directory and ccache restored.
+
+inputs:
+  release:
+    description: GNU Arm Embedded Toolchain release name
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install toolchain
+      id: gcc
+      uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+      with:
+        release: ${{ inputs.release }}
+
+    - name: Build target
+      shell: bash
+      env:
+        GCC_PATH: ${{ steps.gcc.outputs.path }}
+      run: |
+        # Toolchain action only prepends to PATH so it also contains
+        # previously installed releases. Set PATH explicitly, ccache
+        # wrappers first so that they find this toolchain as next one.
+        export PATH="$RUNNER_TEMP/ccache-bin:$GCC_PATH:$PATH"
+        arm-none-eabi-gcc --version | head -1
+        cd build
+        # Command lines are same for all releases, so newt would not
+        # rebuild objects built with previous toolchain release.
+        rm -rf bin
+        newt build cc_test
+
+    - name: Remove toolchain
+      if: always() && steps.gcc.outputs.path != ''
+      shell: bash
+      env:
+        GCC_PATH: ${{ steps.gcc.outputs.path }}
+      run: |
+        # Toolchain is installed in directory in home directory
+        dir="${GCC_PATH#"$HOME"/}"
+        rm -rf "$HOME/${dir%%/*}"

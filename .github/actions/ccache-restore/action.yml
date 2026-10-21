@@ -21,7 +21,8 @@ name: Restore ccache
 description: >
   Install ccache, put it in front of compilers used by newt and restore
   ccache directory from cache. Must be used after toolchain is installed
-  so that ccache wrappers are found in PATH before real compilers.
+  so that ccache wrappers are found in PATH before real compilers (unless
+  job sets PATH itself, see gcc-target-build).
   Supported only on Linux, does nothing on other systems.
 
 inputs:
