@@ -26,7 +26,7 @@ name: Pull request maintenance
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '12,27,42,57 * * * *'
   workflow_dispatch:
 
 permissions:
