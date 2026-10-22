@@ -64,4 +64,4 @@ runs:
       uses: actions/cache/save@v6
       with:
         path: ${{ runner.temp }}/ccache
-        key: ccache-${{ inputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+        key: ccache-${{ env.CCACHE_IMAGE }}-${{ inputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
