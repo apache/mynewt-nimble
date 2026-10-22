@@ -60,6 +60,14 @@ runs:
       env:
         GCC_PATH: ${{ steps.gcc.outputs.path }}
       run: |
-        # Toolchain is installed in directory in home directory
-        dir="${GCC_PATH#"$HOME"/}"
-        rm -rf "$HOME/${dir%%/*}"
+        # Toolchain is installed in directory in home directory, never
+        # remove anything if it is elsewhere (it would remove $HOME).
+        case "$GCC_PATH" in
+          "$HOME"/[!/]*)
+            dir="${GCC_PATH#"$HOME"/}"
+            rm -rf "${HOME:?}/${dir%%/*}"
+            ;;
+          *)
+            echo "::warning::Toolchain not in $HOME, not removed: $GCC_PATH"
+            ;;
+        esac
