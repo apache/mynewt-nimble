@@ -27,15 +27,12 @@
 
 struct ble_cs_event {
     uint8_t type;
-    union
-    {
-        struct
-        {
+    union {
+        struct {
             uint16_t conn_handle;
             uint8_t status;
         } procedure_complete;
     };
-    
 };
 
 typedef int ble_cs_event_fn(struct ble_cs_event *event, void *arg);
@@ -45,7 +42,6 @@ struct ble_cs_initiator_procedure_start_params {
     ble_cs_event_fn *cb;
     void *cb_arg;
 };
-
 struct ble_cs_reflector_setup_params {
     ble_cs_event_fn *cb;
     void *cb_arg;
