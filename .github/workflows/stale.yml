@@ -42,6 +42,7 @@ jobs:
   stale:
     if: github.repository == 'apache/mynewt-nimble'
     runs-on: ubuntu-slim
+    timeout-minutes: 60
     steps:
       - uses: actions/stale@v11
         with:
