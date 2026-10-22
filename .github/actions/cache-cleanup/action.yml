@@ -20,9 +20,10 @@
 name: Remove superseded caches
 description: >
   Remove caches superseded by newer ones. Caches are saved only from
-  master branch with unique keys (e.g. ccache-<job>-<run_id>-<attempt>)
-  and only newest entry of each kind is used by later runs, so older
-  entries only take space from repository cache quota. Should be used
+  master branch with unique keys (e.g.
+  ccache-<image>-<job>-<run_id>-<attempt>) and only newest entry of each
+  kind is used by later runs, so older entries only take space from
+  repository cache quota. Should be used
   from job run after all jobs saving caches are completed. Requires
   actions: write permission.
 
