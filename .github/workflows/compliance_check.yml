@@ -64,8 +64,9 @@ jobs:
             core.setOutput('skip', hasLabel);
 
       - name: check style
-        if: steps.label_check.outputs.skip != 'true'
         shell: bash
+        env:
+          SKIP_STYLE_CHECK: ${{ steps.label_check.outputs.skip }}
         run: |
           set +e
           INFO_URL="https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
@@ -78,14 +79,15 @@ jobs:
             echo ""
             echo "For formatting guidelines, see:"
             echo "  $INFO_URL"
+            if [ "$SKIP_STYLE_CHECK" = "true" ]; then
+              echo "::warning::Ignoring formatting issues because" \
+                   "'skip-style-check' label is present."
+              exit 0
+            fi
             exit 1
           else
             echo "All good, no formatting issues."
           fi
-
-      - name: Skip style-check if label present
-        if: steps.label_check.outputs.skip == 'true'
-        run: echo "Skipping style check because 'skip-style-check' label is present."
 
   style_license:
     name: Licensing
