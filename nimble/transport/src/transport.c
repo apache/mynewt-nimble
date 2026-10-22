@@ -275,27 +275,26 @@ ble_transport_ipc_free(void *buf)
 static os_error_t
 ble_transport_acl_put(struct os_mempool_ext *mpe, void *data, void *arg)
 {
+    os_error_t err;
+#if BLE_TRANSPORT_IPC_ON_HS
     struct os_mbuf *om;
     struct os_mbuf_pkthdr *pkthdr;
-    bool do_put;
     bool from_ll;
-    os_error_t err;
 
     om = data;
     pkthdr = OS_MBUF_PKTHDR(om);
-
-    do_put = true;
     from_ll = (pkthdr->omp_flags & OMP_FLAG_FROM_MASK) == OMP_FLAG_FROM_LL;
+#endif
+
     err = 0;
 
-    if (from_ll && transport_put_acl_from_ll_cb) {
+#if MYNEWT_VAL(BLE_HS_FLOW_CTRL)
+    if (transport_put_acl_from_ll_cb) {
         err = transport_put_acl_from_ll_cb(mpe, data, arg);
-        do_put = false;
     }
-
-    if (do_put) {
+#else
         err = os_memblock_put_from_cb(&mpe->mpe_mp, data);
-    }
+#endif
 
 #if BLE_TRANSPORT_IPC_ON_HS
     if (from_ll && !err) {
