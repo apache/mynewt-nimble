@@ -163,13 +163,19 @@ def merge_base(base, head):
 def previous_run():
     """Returns previous successful run of this workflow, or None"""
     try:
-        return json.loads(gh("api", f"repos/{REPO}/actions/workflows/"
+        runs = json.loads(gh("api", f"repos/{REPO}/actions/workflows/"
                              f"{WORKFLOW}/runs?branch={BRANCH}"
-                             f"&status=success&per_page=1",
-                             "--jq", ".workflow_runs[0]"))
+                             f"&status=success&per_page=1"))
     except subprocess.CalledProcessError as e:
         print(f"Failed to get previous run: {e.stderr.strip()}")
         return None
+
+    # No successful run yet, e.g. right after workflow was added
+    if not runs["workflow_runs"]:
+        print("No previous successful run")
+        return None
+
+    return runs["workflow_runs"][0]
 
 
 def list_pulls():
