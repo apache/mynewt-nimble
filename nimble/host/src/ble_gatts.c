@@ -1372,6 +1372,7 @@ ble_gatts_start(void)
         goto done;
     }
 
+    memset(ble_gatts_clt_cfgs, 0, sizeof(*ble_gatts_clt_cfgs));
     /* Fill the cache. */
     idx = 0;
     ha = NULL;
