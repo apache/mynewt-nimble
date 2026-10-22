@@ -39,6 +39,7 @@ jobs:
   newt:
     name: Build newt
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - name: Build newt
@@ -61,6 +62,7 @@ jobs:
     name: Prepare project
     needs: newt
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - name: Install newt
@@ -100,6 +102,7 @@ jobs:
       matrix:
         shard: [0, 1]
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
@@ -136,6 +139,7 @@ jobs:
     name: Build all test targets
     needs: prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
@@ -182,6 +186,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
@@ -208,6 +213,7 @@ jobs:
     name: Build GCC test target
     needs: prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - name: Restore project
@@ -277,6 +283,7 @@ jobs:
     name: Run unit tests
     needs: prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - name: Install Dependencies
@@ -309,6 +316,7 @@ jobs:
   ports:
     name: Build ports
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
@@ -397,6 +405,7 @@ jobs:
       !cancelled() && github.ref == 'refs/heads/master' &&
       github.event_name != 'pull_request'
     runs-on: ubuntu-slim
+    timeout-minutes: 60
     permissions:
       actions: write
       contents: read

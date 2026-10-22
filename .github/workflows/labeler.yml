@@ -30,6 +30,7 @@ jobs:
     # pr-size-labeler is Docker action which is not supported by
     # ubuntu-slim runner
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Assign labels based on the PR's size
         uses: codelytv/pr-size-labeler@v1.12.0

@@ -26,6 +26,7 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-slim
+    timeout-minutes: 60
     permissions:
       contents: write
       pull-requests: write
