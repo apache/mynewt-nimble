@@ -852,13 +852,17 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
         goto failed;
     }
 
+    /* Update while locked, as channel TX may be in progress in other task */
+    for (i = 0; i < cid_cnt; i++) {
+        chan[i]->coc_tx.mtu = req->mtu;
+        chan[i]->peer_coc_mps = req->mps;
+    }
+
     ble_l2cap_sig_tx_nolock(conn_handle, txom);
 
     ble_hs_unlock();
 
     for (i = 0; i < cid_cnt; i++) {
-        chan[i]->coc_tx.mtu = req->mtu;
-        chan[i]->peer_coc_mps = req->mps;
         ble_l2cap_event_coc_reconfigured(conn_handle, 0, chan[i], true);
     }
 

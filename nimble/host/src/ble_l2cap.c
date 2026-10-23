@@ -338,6 +338,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr hdr;
     struct os_mbuf *rx_frags;
+    bool disconnecting;
     uint16_t rx_len;
     uint16_t rx_cid;
     int rc;
@@ -417,6 +418,11 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
 
     chan = ble_hs_conn_chan_find_by_scid(conn, rx_cid);
 
+    /* Flag is set by ble_l2cap_disconnect() which may be called from other
+     * task, read it while locked.
+     */
+    disconnecting = chan && (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING);
+
     ble_hs_unlock();
 
     if (!chan) {
@@ -426,7 +432,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
     }
 
     /* disconnect pending, drop data */
-    if (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING) {
+    if (disconnecting) {
         os_mbuf_free_chain(rx_frags);
         return 0;
     }
