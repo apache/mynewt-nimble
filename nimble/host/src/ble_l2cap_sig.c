@@ -1506,10 +1506,12 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     return 0;
 
 failed:
-    /* clean up on failure, ble_l2cap_chan_free() handles NULL as well */
+    /* clean up on failure, channels may be allocated only partially */
     for (i = 0; i < num; i++) {
-        proc->connect.chan[i]->cb = NULL;
-        ble_l2cap_chan_free(conn, proc->connect.chan[i]);
+        if (proc->connect.chan[i]) {
+            proc->connect.chan[i]->cb = NULL;
+            ble_l2cap_chan_free(conn, proc->connect.chan[i]);
+        }
     }
 
     ble_l2cap_sig_proc_free(proc);
