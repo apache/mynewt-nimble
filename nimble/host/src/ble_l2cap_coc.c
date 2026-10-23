@@ -727,14 +727,14 @@ ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
 {
     struct ble_l2cap_coc_endpoint *tx;
 
-
     tx = &chan->coc_tx;
 
+    ble_hs_lock();
     if (OS_MBUF_PKTLEN(sdu_tx) > tx->mtu) {
+        ble_hs_unlock();
         return BLE_HS_EBADDATA;
     }
 
-    ble_hs_lock();
     if (tx->sdus[0]) {
         ble_hs_unlock();
         return BLE_HS_EBUSY;
