@@ -109,6 +109,15 @@ ble_store_util_delete_peer(const ble_addr_t *peer_id_addr)
         return rc;
     }
 
+    memset(&key, 0, sizeof key);
+    key.csfc.peer_addr = *peer_id_addr;
+
+    /* Tolerate stores that do not handle the CSFC object type. */
+    rc = ble_store_util_delete_all(BLE_STORE_OBJ_TYPE_CSFC, &key);
+    if (rc != 0 && rc != BLE_HS_ENOTSUP) {
+        return rc;
+    }
+
     return 0;
 }
 
