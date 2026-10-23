@@ -697,6 +697,9 @@ ble_l2cap_test_event(struct ble_l2cap_event *event, void *arg)
     struct event *ev = &t->event[t->event_cnt++];
     struct os_mbuf *sdu_rx;
 
+    /* Application callbacks shall never be called with host locked */
+    TEST_ASSERT(!ble_hs_locked_by_cur_task());
+
     assert(ev->type == event->type);
     ev->handled = 1;
     switch (event->type) {
