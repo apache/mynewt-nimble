@@ -3312,9 +3312,9 @@ ble_ll_ctrl_tx_done(struct os_mbuf *txpdu, struct ble_ll_conn_sm *connsm)
         if (connsm->conn_role == BLE_LL_CONN_ROLE_PERIPHERAL) {
             connsm->enc_data.enc_state = CONN_ENC_S_ENCRYPTED;
             connsm->flags.encrypt_paused = 0;
-            if (connsm->flags.le_ping_supp) {
-                ble_ll_conn_auth_pyld_timer_start(connsm);
-            }
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_PING)
+            ble_ll_conn_auth_pyld_timer_start(connsm);
+#endif
         }
         break;
     case BLE_LL_CTRL_PAUSE_ENC_RSP:
