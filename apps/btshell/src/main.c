@@ -2738,6 +2738,7 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
         return rc;
     }
 
+    /* SDU is consumed on success and when stalled */
     rc = ble_l2cap_send(coc->chan, sdu_tx);
     if (rc) {
         if (rc == BLE_HS_ESTALLED) {
@@ -2745,8 +2746,8 @@ btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
           coc->stalled = true;
         } else {
             console_printf("Could not send data rc=%d\n", rc);
+            os_mbuf_free_chain(sdu_tx);
         }
-        os_mbuf_free_chain(sdu_tx);
     }
 
     return rc;
