@@ -442,6 +442,52 @@ TEST_CASE_SELF(ble_l2cap_test_case_frag_timeout)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_frag_too_long)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL, NULL);
+
+    /* Receive the first fragment of PDU exceeding channel MTU */
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, BLE_L2CAP_TEST_CID, 1000);
+    TEST_ASSERT(rc == BLE_HS_EBADDATA);
+
+    /* Ensure fragment was not buffered */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->rx_frags == NULL);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_l2cap_test_case_frag_invalid_cid)
+{
+    struct ble_hs_conn *conn;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }), NULL, NULL);
+
+    /* Receive the first fragment of PDU for unknown CID */
+    rc = ble_l2cap_test_util_rx_first_frag(2, 14, 1234, 30);
+    TEST_ASSERT(rc == BLE_HS_ENOENT);
+
+    /* Ensure fragment was not buffered */
+    ble_hs_lock();
+    conn = ble_hs_conn_find(2);
+    TEST_ASSERT_FATAL(conn != NULL);
+    TEST_ASSERT(conn->rx_frags == NULL);
+    ble_hs_unlock();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 /*****************************************************************************
  * $unsolicited response                                                     *
  *****************************************************************************/
@@ -685,6 +731,8 @@ struct test_data {
     uint16_t event_iter;
     uint16_t psm;
     uint16_t mtu;
+    /* If set, used by peer as DCID in connection response */
+    uint16_t peer_dcid;
     uint8_t num;
     struct ble_l2cap_chan *chan[5];
 };
@@ -799,7 +847,7 @@ ble_l2cap_test_coc_connect_multi(struct test_data *t)
      * only*/
     rsp->credits = htole16(10);
     for (i = 0; i < t->num; i++) {
-        rsp->dcids[i] = htole16(current_cid + i);
+        rsp->dcids[i] = htole16(t->peer_dcid ? t->peer_dcid : current_cid + i);
     }
     rsp->mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     rsp->mtu = htole16(t->mtu);
@@ -855,7 +903,7 @@ ble_l2cap_test_coc_connect(struct test_data *t)
     /* Use some different parameters for peer. Just keep mtu same for testing
      * only*/
     rsp.credits = htole16(10);
-    rsp.dcid = htole16(current_cid);
+    rsp.dcid = htole16(t->peer_dcid ? t->peer_dcid : current_cid);
     rsp.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS) + 16);
     rsp.mtu = htole16(t->mtu);
     rsp.result = htole16(ev->l2cap_status);
@@ -1178,6 +1226,53 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_cid)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_rsp_invalid_dcid)
+{
+    struct test_data t;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 1;
+
+    /* Peer accepts connection but uses fixed ATT channel CID as DCID */
+    t.peer_dcid = BLE_L2CAP_CID_ATT;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[0].app_status = BLE_HS_EBADDATA;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi_rsp_invalid_dcid)
+{
+    struct test_data t;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 1;
+    t.num = 1;
+
+    /* Peer accepts connection but uses DCID outside of dynamic range */
+    t.peer_dcid = 0x0007;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[0].app_status = BLE_HS_EREJECT;
+
+    ble_l2cap_test_coc_connect_multi(&t);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+#endif
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_insuff_authen)
 {
     struct test_data t;
@@ -1463,6 +1558,74 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_no_mem)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct os_mbuf *hoard[BLE_L2CAP_TEST_COC_BUF_COUNT];
+    struct hci_data_hdr hci_hdr;
+    struct test_data t = {};
+    struct os_mbuf *sdu;
+    uint8_t buf[240] = { 0 };
+    uint8_t id;
+    int num;
+    int rc;
+    int i;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    /* LE frame with SDU which does not fit into single SDU buffer block */
+    sdu = os_msys_get_pkthdr(0, 0);
+    TEST_ASSERT_FATAL(sdu != NULL);
+
+    rc = os_mbuf_append(sdu, buf, sizeof(buf));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    sdu = os_mbuf_prepend_pullup(sdu, 2);
+    TEST_ASSERT_FATAL(sdu != NULL);
+    put_le16(sdu->om_data, sizeof(buf));
+
+    /* Exhaust SDU buffer pool */
+    for (num = 0; num < ARRAY_SIZE(hoard); num++) {
+        hoard[num] = os_mbuf_get(&sdu_os_mbuf_pool, 0);
+        if (hoard[num] == NULL) {
+            break;
+        }
+    }
+
+    hci_hdr = BLE_HS_TEST_UTIL_L2CAP_HCI_HDR(
+        2, BLE_HCI_PB_FIRST_FLUSH, BLE_L2CAP_HDR_SZ + OS_MBUF_PKTLEN(sdu));
+
+    rc = ble_hs_test_util_l2cap_rx_first_frag(2, t.chan[0]->scid, &hci_hdr, sdu);
+    TEST_ASSERT(rc == BLE_HS_ENOMEM);
+
+    for (i = 0; i < num; i++) {
+        os_mbuf_free(hoard[i]);
+    }
+
+    /* Ensure channel is being disconnected */
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &req, sizeof(req));
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi)
 {
     struct test_data t;
@@ -1519,6 +1682,8 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_frag_multiple();
     ble_l2cap_test_case_frag_channels();
     ble_l2cap_test_case_frag_timeout();
+    ble_l2cap_test_case_frag_too_long();
+    ble_l2cap_test_case_frag_invalid_cid();
     ble_l2cap_test_case_sig_unsol_rsp();
     ble_l2cap_test_case_sig_update_accept();
     ble_l2cap_test_case_sig_update_reject();
@@ -1529,6 +1694,10 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_conn_invalid_psm();
     ble_l2cap_test_case_sig_coc_conn_out_of_resource();
     ble_l2cap_test_case_sig_coc_conn_invalid_cid();
+    ble_l2cap_test_case_sig_coc_conn_rsp_invalid_dcid();
+#if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
+    ble_l2cap_test_case_sig_coc_conn_multi_rsp_invalid_dcid();
+#endif
     ble_l2cap_test_case_sig_coc_conn_insuff_authen();
     ble_l2cap_test_case_sig_coc_conn_insuff_author();
     ble_l2cap_test_case_sig_coc_incoming_conn_invalid_psm();
@@ -1541,6 +1710,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
+    ble_l2cap_test_case_coc_recv_data_no_mem();
     ble_l2cap_test_case_sig_coc_conn_multi();
     ble_l2cap_test_case_server_create_remove();
 }

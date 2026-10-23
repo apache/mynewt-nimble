@@ -287,6 +287,17 @@ ble_l2cap_get_mtu(struct ble_l2cap_chan *chan)
     return chan->my_mtu;
 }
 
+static bool
+ble_l2cap_rx_len_valid(struct ble_l2cap_chan *chan, uint16_t len)
+{
+    if (chan->dcid >= BLE_L2CAP_COC_CID_START &&
+        chan->dcid <= BLE_L2CAP_COC_CID_END && len > chan->my_coc_mps) {
+        return false;
+    }
+
+    return len <= ble_l2cap_get_mtu(chan);
+}
+
 static void
 ble_l2cap_rx_free(struct ble_hs_conn *conn)
 {
@@ -367,7 +378,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
 #if MYNEWT_VAL(BLE_L2CAP_JOIN_RX_FRAGS)
         os_mbuf_pack_chains(conn->rx_frags, om);
 #else
-        os_mbuf_concat(conn->rx_frag, om);
+        os_mbuf_concat(conn->rx_frags, om);
 #endif
         break;
     default:
@@ -391,6 +402,27 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
 
         conn->rx_len = hdr.len;
         conn->rx_cid = hdr.cid;
+
+        /* If more fragments are expected validate PDU length and CID now
+         * so that invalid PDU is not buffered until fully received.
+         */
+        if (OS_MBUF_PKTLEN(conn->rx_frags) < hdr.len) {
+            chan = ble_hs_conn_chan_find_by_scid(conn, hdr.cid);
+            if (!chan) {
+                ble_l2cap_rx_free(conn);
+                ble_hs_unlock();
+                ble_l2cap_sig_reject_invalid_cid_tx(conn_handle, 0, 0, hdr.cid);
+                return BLE_HS_ENOENT;
+            }
+
+            if (!(chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING) &&
+                !ble_l2cap_rx_len_valid(chan, hdr.len)) {
+                ble_l2cap_rx_free(conn);
+                ble_hs_unlock();
+                ble_l2cap_disconnect(chan);
+                return BLE_HS_EBADDATA;
+            }
+        }
     }
 
     /* Process fragments */
@@ -422,14 +454,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
         return 0;
     }
 
-    if (chan->dcid >= BLE_L2CAP_COC_CID_START &&
-        chan->dcid <= BLE_L2CAP_COC_CID_END && rx_len > chan->my_coc_mps) {
-        ble_l2cap_disconnect(chan);
-        os_mbuf_free_chain(rx_frags);
-        return BLE_HS_EBADDATA;
-    }
-
-    if (rx_len > ble_l2cap_get_mtu(chan)) {
+    if (!ble_l2cap_rx_len_valid(chan, rx_len)) {
         ble_l2cap_disconnect(chan);
         os_mbuf_free_chain(rx_frags);
         return BLE_HS_EBADDATA;
