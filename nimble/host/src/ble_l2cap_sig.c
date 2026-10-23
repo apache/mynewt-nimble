@@ -1762,6 +1762,27 @@ ble_l2cap_sig_disconnect_nolock(struct ble_l2cap_chan *chan)
     return 0;
 }
 
+/**
+ * Called when a connection oriented channel is being freed.  Drops references
+ * to the channel held by pending procedures, so they do not access it once
+ * freed (e.g. when peer disconnects channel while our disconnect request is
+ * pending).
+ */
+void
+ble_l2cap_sig_coc_chan_freed(struct ble_l2cap_chan *chan)
+{
+    struct ble_l2cap_sig_proc *proc;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    STAILQ_FOREACH(proc, &ble_l2cap_sig_procs, next) {
+        if (proc->op == BLE_L2CAP_SIG_PROC_OP_DISCONNECT &&
+            proc->disconnect.chan == chan) {
+            proc->disconnect.chan = NULL;
+        }
+    }
+}
+
 static int
 ble_l2cap_sig_le_credits_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
                             struct os_mbuf **om)

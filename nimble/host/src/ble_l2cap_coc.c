@@ -415,6 +415,8 @@ ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan
         return;
     }
 
+    ble_l2cap_sig_coc_chan_freed(chan);
+
     ble_l2cap_event_coc_disconnected(chan);
 
     if (conn && chan->scid) {

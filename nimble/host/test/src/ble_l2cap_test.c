@@ -1477,6 +1477,58 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_broken_pending_disc)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_crossing)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct ble_l2cap_sig_disc_req peer_req;
+    struct test_data t;
+    uint8_t peer_id = 10;
+    uint8_t id_rsp;
+    uint8_t id;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    rc = ble_l2cap_disconnect(t.chan[0]);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    /* Peer disconnects the same channel before responding to our request.
+     * Note that source and destination CIDs are from peer perspective.
+     */
+    peer_req.dcid = req.scid;
+    peer_req.scid = req.dcid;
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(
+        2, BLE_L2CAP_SIG_OP_DISCONN_REQ, peer_id, &peer_req, sizeof(peer_req));
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+    id_rsp = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                                  &peer_req, sizeof(peer_req));
+    TEST_ASSERT(id_rsp == peer_id);
+
+    /* Channel is gone, response to our request shall be ignored */
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &req, sizeof(req));
+    TEST_ASSERT(rc == 0);
+
+    ble_l2cap_test_util_verify_no_sig_procs();
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
 {
     struct test_data t;
@@ -1632,6 +1684,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_invalid_cid_in_disconnect_req();
     ble_l2cap_test_case_sig_coc_conn_broken_pending_connect();
     ble_l2cap_test_case_sig_coc_conn_broken_pending_disc();
+    ble_l2cap_test_case_sig_coc_disconnect_crossing();
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
