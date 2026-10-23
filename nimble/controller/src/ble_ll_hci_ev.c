@@ -649,6 +649,11 @@ ble_ll_hci_ev_send_vs_llcp_trace(uint8_t type, uint16_t handle, uint16_t count,
     struct ble_hci_ev_vs *ev;
     struct ble_hci_ev *hci_ev;
 
+    /* Truncate PDU if it does not fit in event */
+    if (length > BLE_HCI_MAX_DATA_LEN - sizeof(*ev) - 8) {
+        length = BLE_HCI_MAX_DATA_LEN - sizeof(*ev) - 8;
+    }
+
     hci_ev = ble_transport_alloc_evt(1);
     if (hci_ev) {
         hci_ev->opcode = BLE_HCI_EVCODE_VS;
