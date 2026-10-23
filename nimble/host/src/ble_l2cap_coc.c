@@ -623,6 +623,7 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
 failed:
     os_mbuf_free_chain(tx->sdus[0]);
     tx->sdus[0] = NULL;
+    tx->data_offset = 0;
 
     os_mbuf_free_chain(txom);
     if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
