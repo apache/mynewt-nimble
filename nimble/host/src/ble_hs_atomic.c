@@ -38,6 +38,10 @@ ble_hs_atomic_conn_delete(uint16_t conn_handle)
     }
     ble_hs_unlock();
 
+#if NIMBLE_BLE_CONNECT
+    ble_l2cap_coc_notify_disconnected();
+#endif
+
     return conn != NULL ? 0 : BLE_HS_ENOTCONN;
 }
 

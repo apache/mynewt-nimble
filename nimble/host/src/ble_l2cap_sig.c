@@ -1297,6 +1297,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_delete_chan(conn, chan);
         ble_hs_unlock();
+        ble_l2cap_coc_notify_disconnected();
         return 0;
     }
 
@@ -1397,6 +1398,8 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
     proc = ble_l2cap_sig_proc_alloc();
     if (!proc) {
+        /* Failure is reported with return code, no disconnected event */
+        chan->cb = NULL;
         ble_l2cap_chan_free(conn, chan);
         return BLE_HS_ENOMEM;
     }
@@ -1410,6 +1413,7 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ, proc->id,
                                 sizeof(*req), &txom);
     if (!req) {
+        chan->cb = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return BLE_HS_ENOMEM;
@@ -1423,6 +1427,7 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
     rc = ble_l2cap_sig_tx_nolock(proc->conn_handle, txom);
     if (rc != 0) {
+        chan->cb = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return rc;
@@ -1655,6 +1660,8 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     ble_hs_unlock();
 
     ble_l2cap_sig_tx(conn_handle, txom);
+
+    ble_l2cap_coc_notify_disconnected();
     return 0;
 }
 
@@ -1679,6 +1686,8 @@ ble_l2cap_sig_coc_disconnect_cb(struct ble_l2cap_sig_proc *proc, int status)
         ble_l2cap_chan_free(NULL, chan);
     }
     ble_hs_unlock();
+
+    ble_l2cap_coc_notify_disconnected();
 }
 
 static int
