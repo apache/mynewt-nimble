@@ -23,6 +23,10 @@
 #define MYNEWT_VAL(_name)                       MYNEWT_VAL_ ## _name
 #define MYNEWT_VAL_CHOICE(_name, _val)          MYNEWT_VAL_ ## _name ## __ ## _val
 
+#ifndef MYNEWT_VAL_COMPILER_WERROR
+#define MYNEWT_VAL_COMPILER_WERROR (1)
+#endif
+
 #ifndef MYNEWT_VAL_PKG_compiler_sim
 #define MYNEWT_VAL_PKG_compiler_sim (1)
 #endif
