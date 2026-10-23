@@ -426,7 +426,11 @@ struct ble_l2cap_event {
             /** The L2CAP channel of the relevant L2CAP connection. */
             struct ble_l2cap_chan *chan;
 
-            /** The mbuf with received SDU. */
+            /**
+             * The mbuf with received SDU. Ownership is passed to the
+             * application, which is responsible for freeing it (or reusing
+             * it with ble_l2cap_recv_ready()).
+             */
             struct os_mbuf *sdu_rx;
         } receive;
 
@@ -571,6 +575,12 @@ int ble_l2cap_remove_server(uint16_t psm);
  * @param psm           The Protocol/Service Multiplexer (PSM) for the connection.
  * @param mtu           The Maximum Transmission Unit (MTU) size for the connection.
  * @param sdu_rx        Pointer to the receive Service Data Unit (SDU) buffer.
+ *                      On success the buffer is consumed: it is passed back
+ *                      to the application with BLE_L2CAP_EVENT_COC_DATA_RECEIVED
+ *                      or freed by the host when the channel is released
+ *                      (connection failed or channel disconnected).
+ *                      On failure the buffer is not consumed and remains
+ *                      owned by the caller.
  * @param cb            Pointer to the callback function to be invoked when the connection is established.
  * @param cb_arg        An optional argument to be passed to the callback function.
  *
@@ -601,6 +611,9 @@ int ble_l2cap_disconnect(struct ble_l2cap_chan *chan);
  *
  * @param chan          Pointer to the L2CAP channel structure representing the channel to send the SDU on.
  * @param sdu_tx        Pointer to the os_mbuf structure containing the SDU (Service Data Unit) to send.
+ *                      The buffer is consumed only if 0 or BLE_HS_ESTALLED is
+ *                      returned. On any other return value it remains owned
+ *                      by the caller.
  *
  * @return              0 on success;
  *                      BLE_HS_ESTALLED: if there was not enough credits available to send whole SDU.
@@ -618,6 +631,11 @@ int ble_l2cap_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx);
  *
  * @param chan          Pointer to the L2CAP channel structure to check.
  * @param sdu_rx        Pointer to the os_mbuf structure to receive the incoming SDU.
+ *                      On success the buffer is consumed: it is passed back
+ *                      to the application with BLE_L2CAP_EVENT_COC_DATA_RECEIVED
+ *                      or freed by the host when the channel is released.
+ *                      On failure the buffer is not consumed and remains
+ *                      owned by the caller.
  *
  * @return              0 if the channel is ready to receive an SDU;
  *                      A non-zero value on failure.

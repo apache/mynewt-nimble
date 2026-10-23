@@ -506,7 +506,7 @@ ble_l2cap_event_coc_unstalled(struct ble_l2cap_chan *chan, int status)
 /* WARNING: this function is called from different task contexts. We expect the
  * host to be locked (ble_hs_lock()) before entering this function! */
 static int
-ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
+ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan, bool free_on_error)
 {
     struct ble_l2cap_coc_endpoint *tx;
     uint16_t len;
@@ -621,7 +621,9 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
     return 0;
 
 failed:
-    os_mbuf_free_chain(tx->sdus[0]);
+    if (free_on_error) {
+        os_mbuf_free_chain(tx->sdus[0]);
+    }
     tx->sdus[0] = NULL;
     tx->data_offset = 0;
 
@@ -668,7 +670,7 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
     chan->coc_tx.credits += credits;
 
     /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
-    ble_l2cap_coc_continue_tx(chan);
+    ble_l2cap_coc_continue_tx(chan, true);
 }
 
 int
@@ -680,16 +682,6 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     if (!sdu_rx) {
         return BLE_HS_EINVAL;
     }
-
-    if (chan->coc_rx.sdus[0] != NULL &&
-        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx &&
-        BLE_L2CAP_SDU_BUFF_CNT != 1) {
-        return BLE_HS_EBUSY;
-    }
-
-    chan->coc_rx.sdus[chan->coc_rx.next_sdu_alloc_idx] = sdu_rx;
-    chan->coc_rx.next_sdu_alloc_idx =
-        (chan->coc_rx.next_sdu_alloc_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
 
     ble_hs_lock();
     conn = ble_hs_conn_find(chan->conn_handle);
@@ -704,6 +696,18 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
         ble_hs_unlock();
         return BLE_HS_ENOENT;
     }
+
+    /* SDU buffer is consumed only if 0 is returned */
+    if (chan->coc_rx.sdus[0] != NULL &&
+        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx &&
+        BLE_L2CAP_SDU_BUFF_CNT != 1) {
+        ble_hs_unlock();
+        return BLE_HS_EBUSY;
+    }
+
+    chan->coc_rx.sdus[chan->coc_rx.next_sdu_alloc_idx] = sdu_rx;
+    chan->coc_rx.next_sdu_alloc_idx =
+        (chan->coc_rx.next_sdu_alloc_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
 
     /* We want to back only that much credits which remote side is missing
      * to be able to send complete SDU.
@@ -721,7 +725,7 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 
 /**
  * Transmits a packet over a connection-oriented channel.  This function only
- * consumes the supplied mbuf on success.
+ * consumes the supplied mbuf on success (0 or BLE_HS_ESTALLED).
  */
 int
 ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
@@ -742,9 +746,10 @@ ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
     }
     tx->sdus[0] = sdu_tx;
 
-
-    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
-    return ble_l2cap_coc_continue_tx(chan);
+    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx().
+     * On failure SDU is not consumed and remains owned by the caller.
+     */
+    return ble_l2cap_coc_continue_tx(chan, false);
 }
 
 int

@@ -1396,8 +1396,11 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
     proc = ble_l2cap_sig_proc_alloc();
     if (!proc) {
-        /* Failure is reported with return code, no disconnected event */
+        /* Failure is reported with return code, no disconnected event. SDU
+         * buffer is not consumed on failure.
+         */
         chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         return BLE_HS_ENOMEM;
     }
@@ -1412,6 +1415,7 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
                                 sizeof(*req), &txom);
     if (!req) {
         chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return BLE_HS_ENOMEM;
@@ -1426,6 +1430,7 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     rc = ble_l2cap_sig_tx_nolock(proc->conn_handle, txom);
     if (rc != 0) {
         chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return rc;
@@ -1506,10 +1511,13 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     return 0;
 
 failed:
-    /* clean up on failure, channels may be allocated only partially */
+    /* clean up on failure, channels may be allocated only partially. SDU
+     * buffers are not consumed on failure.
+     */
     for (i = 0; i < num; i++) {
         if (proc->connect.chan[i]) {
             proc->connect.chan[i]->cb = NULL;
+            proc->connect.chan[i]->coc_rx.sdus[0] = NULL;
             ble_l2cap_chan_free(conn, proc->connect.chan[i]);
         }
     }

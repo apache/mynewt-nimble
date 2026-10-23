@@ -1631,6 +1631,63 @@ TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_failed_too_big_sdu)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_no_mem)
+{
+    struct os_mbuf *msys_om = NULL;
+    struct os_mbuf *om;
+    struct os_mbuf *sdu;
+    struct test_data t;
+    uint8_t buf[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    int num_sdu_free;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 3;
+
+    t.event[0].type = BLE_L2CAP_TEST_EVENT_COC_CONNECT;
+    t.event[1].type = BLE_L2CAP_TEST_EVENT_COC_SEND_DATA;
+    t.event[1].data = buf;
+    t.event[1].data_len = sizeof(buf);
+    t.event[2].type = BLE_L2CAP_TEST_EVENT_COC_DISCONNECT;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    sdu = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    TEST_ASSERT_FATAL(sdu != NULL);
+    rc = os_mbuf_append(sdu, buf, sizeof(buf));
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Exhaust mbufs used for L2CAP PDUs */
+    while ((om = os_msys_get_pkthdr(0, 0)) != NULL) {
+        if (msys_om == NULL) {
+            msys_om = om;
+        } else {
+            os_mbuf_concat(msys_om, om);
+        }
+    }
+
+    num_sdu_free = sdu_coc_mbuf_mempool.mp_num_free;
+
+    /* SDU is not consumed on failure */
+    rc = ble_l2cap_send(t.chan[0], sdu);
+    TEST_ASSERT(rc == BLE_HS_ENOMEM);
+    TEST_ASSERT(sdu_coc_mbuf_mempool.mp_num_free == num_sdu_free);
+
+    os_mbuf_free_chain(msys_om);
+    rc = os_mbuf_free_chain(sdu);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /* Channel is still usable */
+    ble_l2cap_test_coc_send_data(&t);
+    ble_l2cap_test_coc_disc(&t);
+
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_coc_recv_data_succeed)
 {
     struct test_data t = {};
@@ -1739,6 +1796,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi_no_chan_mem)
     struct os_mbuf *sdu_rx[2];
     void *blocks[MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) + MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)];
     struct test_data t;
+    int num_sdu_free;
     int num_blocks;
     int rc;
     int i;
@@ -1762,14 +1820,20 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi_no_chan_mem)
         TEST_ASSERT_FATAL(sdu_rx[i] != NULL);
     }
 
+    num_sdu_free = sdu_coc_mbuf_mempool.mp_num_free;
+
     rc = ble_l2cap_enhanced_connect(2, t.psm, t.mtu, ARRAY_SIZE(sdu_rx),
                                     sdu_rx, ble_l2cap_test_event, &t);
     TEST_ASSERT(rc == BLE_HS_ENOMEM);
     TEST_ASSERT(t.event_cnt == 0);
     TEST_ASSERT(ble_l2cap_chan_pool.mp_num_free == 1);
 
-    /* Buffer of the allocated channel was freed with it */
-    os_mbuf_free_chain(sdu_rx[1]);
+    /* SDU buffers are not consumed on failure */
+    TEST_ASSERT_FATAL(sdu_coc_mbuf_mempool.mp_num_free == num_sdu_free);
+    for (i = 0; i < ARRAY_SIZE(sdu_rx); i++) {
+        rc = os_mbuf_free_chain(sdu_rx[i]);
+        TEST_ASSERT(rc == 0);
+    }
 
     for (i = 0; i < num_blocks; i++) {
         os_memblock_put(&ble_l2cap_chan_pool, blocks[i]);
@@ -1836,6 +1900,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_disconnect_invalid_rsp();
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
+    ble_l2cap_test_case_coc_send_data_no_mem();
     ble_l2cap_test_case_coc_recv_data_succeed();
     ble_l2cap_test_case_sig_coc_conn_multi();
     ble_l2cap_test_case_sig_coc_reconfig_rsp_after_disc();
