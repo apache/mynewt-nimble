@@ -1207,6 +1207,25 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Prepares and sends a response for pending ATT request.
+ *
+ * @param conn_handle           The connection over which to authorize a
+ *                                  pending ATT procedure
+ * @param cid                   L2CAP channel ID on which request has been
+ *                                  received
+ * @param att_err               ATT error code: 0 to accept and execute the
+ *                                  procedure, or an ATT error code (e.g.
+ *                                  BLE_ATT_ERR_INSUFFICIENT_AUTHOR) to reject.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOENT if no matching pending request
+ *                              is found on the channel;
+ *                              other BLE_HS error codes on failure.
+ */
+int ble_gatts_authorize_pending_att_req(uint16_t conn_handle, uint16_t cid,
+                                        uint8_t att_err);
+
 #ifdef __cplusplus
 }
 #endif
