@@ -862,6 +862,7 @@ rx_stress_10_l2cap_event(struct ble_l2cap_event *event, void *arg)
         } else {
             MODLOG_DFLT(ERROR, "Sending data via L2CAP failed with error "
                         "code %d\n", rc);
+            os_mbuf_free_chain(data_buf);
         }
     }
 
