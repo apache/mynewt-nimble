@@ -74,13 +74,22 @@ ble_l2cap_chan_alloc(uint16_t conn_handle)
 void
 ble_l2cap_chan_free(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
-    int rc;
-
     if (chan == NULL) {
         return;
     }
 
-    ble_l2cap_coc_cleanup_chan(conn, chan);
+    if (ble_l2cap_coc_cleanup_chan(conn, chan)) {
+        /* Channel is released after application is notified */
+        return;
+    }
+
+    ble_l2cap_chan_release(chan);
+}
+
+void
+ble_l2cap_chan_release(struct ble_l2cap_chan *chan)
+{
+    int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     memset(chan, 0xff, sizeof *chan);

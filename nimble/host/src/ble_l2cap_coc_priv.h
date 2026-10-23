@@ -68,7 +68,8 @@ struct ble_l2cap_chan * ble_l2cap_coc_chan_alloc(struct ble_hs_conn *conn,
                                                  struct os_mbuf *sdu_rx,
                                                  ble_l2cap_event_fn *cb,
                                                  void *cb_arg);
-void ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+bool ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+void ble_l2cap_coc_notify_disconnected(void);
 void ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
                                     uint16_t credits);
 int ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan,
@@ -101,8 +102,14 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     return BLE_HS_ENOTSUP;
 }
 
-static inline void
+static inline bool
 ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
+{
+    return false;
+}
+
+static inline void
+ble_l2cap_coc_notify_disconnected(void)
 {}
 
 static inline int
