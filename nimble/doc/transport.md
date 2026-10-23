@@ -120,7 +120,7 @@ assuming it's properly configured (see above).
 ### Combined build
 
 This setup runs both NimBLE host and controller on the same core. It's a typical
-configuration when running application on SoCs like nRF51 or nRF52.
+configuration when running application on SoCs like nRF51, nRF52 or nRF54L.
 
 Note: this is the default configuration, no need to set it explicitly.
 
@@ -134,7 +134,7 @@ BLE_TRANSPORT_LL: native
 This setup makes NimBLE controller accessible to external host connected via
 e.g. UART or USB, so it can be used as an external Bluetooth LE controller.
 The controller runs on the same core as external interface. It's typically
-used with `blehci` application running on SoCs like nRF51 or nRF52.
+used with `blehci` application running on SoCs like nRF51, nRF52 or nRF54L.
 
 ```yaml
 BLE_TRANSPORT_HS: uart

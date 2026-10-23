@@ -53,15 +53,6 @@
 #define PHY_GPIOTE_FEM_LNA  (PHY_GPIOTE_FEM_PA - PHY_USE_FEM_LNA)
 #endif
 
-static inline void
-phy_gpiote_configure(int idx, int pin)
-{
-    nrf_gpio_cfg_output(pin);
-    nrf_gpiote_task_configure(NRF_GPIOTE, idx, pin, NRF_GPIOTE_POLARITY_NONE,
-                              NRF_GPIOTE_INITIAL_VALUE_LOW);
-    nrf_gpiote_task_enable(NRF_GPIOTE, idx);
-}
-
 #if PHY_USE_DEBUG
 void phy_debug_init(void);
 #endif
@@ -79,18 +70,7 @@ void phy_fem_disable(void);
 
 void phy_ppi_init(void);
 
-#ifdef NRF52_SERIES
-#include "nrf52/phy_ppi.h"
-#endif
-
 void phy_txpower_set(int8_t dbm);
 int8_t phy_txpower_round(int8_t dbm);
-
-#ifdef NRF52_SERIES
-#include "nrf52/phy_ppi.h"
-#endif
-#ifdef NRF53_SERIES
-#include "nrf53/phy_ppi.h"
-#endif
 
 #endif /* H_PHY_PRIV_ */
