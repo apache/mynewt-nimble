@@ -20,12 +20,11 @@
 name: Build
 
 on:
-  push:
-    branches:
-      - master
   pull_request:
+  schedule:
+    - cron: '52 1 * * *'
 
-# New push to master or pull request cancels its in-progress run
+# New push to pull request cancels its in-progress run
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

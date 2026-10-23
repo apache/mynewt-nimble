@@ -20,9 +20,6 @@
 name: Check ports syscfg update
 
 on:
-  push:
-    branches:
-      - 'master'
   schedule:
     - cron: '37 21 * * *'
 
