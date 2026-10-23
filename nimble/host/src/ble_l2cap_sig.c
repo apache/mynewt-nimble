@@ -747,7 +747,7 @@ ble_l2cap_sig_coc_connect_cb(struct ble_l2cap_sig_proc *proc, int status)
     /* Free not connected channels*/
 
     ble_hs_lock();
-    conn = ble_hs_conn_find(chan->conn_handle);
+    conn = ble_hs_conn_find(proc->conn_handle);
     for (i = 0; i < proc->connect.chan_cnt; i++) {
         chan = proc->connect.chan[i];
         if (chan) {
