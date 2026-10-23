@@ -1,0 +1,38 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# BabbleSim libraries are built as 32-bit, so force 32-bit code generation.
+compiler.path.cc: "gcc"
+compiler.path.cpp: "g++"
+compiler.path.as: "gcc"
+compiler.path.archive: "ar"
+compiler.path.objdump: "objdump"
+compiler.path.objsize: "size"
+compiler.path.objcopy: "objcopy"
+compiler.flags.base: [-m32, -Wall, -Werror, -ggdb, -ffunction-sections, -fdata-sections, -fno-common, -DMN_LINUX]
+compiler.ld.resolve_circular_deps: true
+
+compiler.flags.default: [compiler.flags.base, -O1]
+compiler.flags.optimized: [compiler.flags.base, -Os]
+compiler.flags.speed: [compiler.flags.base, -O2]
+compiler.flags.debug: [compiler.flags.base, -O0]
+compiler.as.flags: [-m32, -x, assembler-with-cpp]
+compiler.ld.mapfile: false
+compiler.ld.binfile: false
+compiler.ld.flags: -m32 -lm -lutil -Wl,--gc-sections
