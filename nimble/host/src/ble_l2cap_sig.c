@@ -255,12 +255,13 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against/
  * @param id                    The identifier to match against.
+ * @param match_id              Whether to match against the identifier.
  *
  * @return                      1 if the proc matches; 0 otherwise.
  */
 static int
-ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
-                           uint16_t conn_handle, uint8_t op, uint8_t id)
+ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc, uint16_t conn_handle,
+                           uint8_t op, uint8_t id, bool match_id)
 {
     if (conn_handle != proc->conn_handle) {
         return 0;
@@ -270,7 +271,7 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
         return 0;
     }
 
-    if (id != proc->id) {
+    if (match_id && id != proc->id) {
         return 0;
     }
 
@@ -290,8 +291,8 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
  *                                  null on failure.
  */
 static struct ble_l2cap_sig_proc *
-ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
-                           uint8_t identifier)
+ble_l2cap_sig_proc_extract_common(uint16_t conn_handle, uint8_t op,
+                                  uint8_t identifier, bool match_id)
 {
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_proc *prev;
@@ -300,7 +301,7 @@ ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
 
     prev = NULL;
     STAILQ_FOREACH(proc, &ble_l2cap_sig_procs, next) {
-        if (ble_l2cap_sig_proc_matches(proc, conn_handle, op, identifier)) {
+        if (ble_l2cap_sig_proc_matches(proc, conn_handle, op, identifier, match_id)) {
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
             } else {
@@ -314,6 +315,22 @@ ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
     ble_hs_unlock();
 
     return proc;
+}
+
+static struct ble_l2cap_sig_proc *
+ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op, uint8_t identifier)
+{
+    return ble_l2cap_sig_proc_extract_common(conn_handle, op, identifier, true);
+}
+
+/**
+ * Same as ble_l2cap_sig_proc_extract() but matches any identifier.  Used to
+ * clean up all procedures of a broken connection.
+ */
+static struct ble_l2cap_sig_proc *
+ble_l2cap_sig_proc_extract_any(uint16_t conn_handle, uint8_t op)
+{
+    return ble_l2cap_sig_proc_extract_common(conn_handle, op, 0, false);
 }
 
 static int
@@ -1954,32 +1971,31 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_l2cap_sig_proc *proc;
 
-    /* If there were any pending procedure, indicate to the application that it
-     * did not complete.
+    /* If there were any pending procedures, indicate to the application that
+     * they did not complete.
      */
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE)) != NULL) {
         ble_l2cap_sig_update_call_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT)) != NULL) {
         ble_l2cap_sig_coc_connect_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
-    proc = ble_l2cap_sig_proc_extract(conn_handle,
-                                      BLE_L2CAP_SIG_PROC_OP_DISCONNECT, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_DISCONNECT)) != NULL) {
         ble_l2cap_sig_coc_disconnect_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG)) != NULL) {
         ble_l2cap_sig_coc_reconfig_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }

@@ -31,6 +31,7 @@
 #define BLE_L2CAP_TEST_COC_MTU       (256)
 /* We use same pool for incoming and outgoing sdu */
 #define BLE_L2CAP_TEST_COC_BUF_COUNT (6 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define BLE_L2CAP_TEST_SIG_TIMEOUT_MS (30000)
 
 static uint16_t ble_l2cap_test_update_conn_handle;
 static int ble_l2cap_test_update_status;
@@ -1115,6 +1116,17 @@ ble_l2cap_test_set_chan_test_conf(uint16_t psm, uint16_t mtu, struct test_data *
     t->mtu = mtu;
 }
 
+static void
+ble_l2cap_test_util_verify_no_sig_procs(void)
+{
+    /* No signaling procedure shall be pending */
+    TEST_ASSERT_FATAL(ble_l2cap_sig_timer() == BLE_HS_FOREVER);
+
+    /* Let any (incorrectly) pending procedure expire */
+    os_time_advance(ble_npl_time_ms_to_ticks32(BLE_L2CAP_TEST_SIG_TIMEOUT_MS));
+    TEST_ASSERT(ble_l2cap_sig_timer() == BLE_HS_FOREVER);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_invalid_psm)
 {
     struct test_data t;
@@ -1385,6 +1397,86 @@ TEST_CASE_SELF(ble_l2cap_test_case_invalid_cid_in_disconnect_req)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_broken_pending_connect)
+{
+    struct ble_l2cap_sig_le_con_req req = {};
+    struct os_mbuf *sdu_rx;
+    struct test_data t;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 1;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[0].app_status = (uint8_t)BLE_HS_HCI_ERR(BLE_ERR_REM_USER_CONN_TERM);
+
+    ble_l2cap_test_util_create_conn(2, ((uint8_t[]){ 1, 2, 3, 4, 5, 6 }),
+                                    ble_l2cap_test_util_conn_cb, NULL);
+
+    sdu_rx = os_mbuf_get_pkthdr(&sdu_os_mbuf_pool, 0);
+    TEST_ASSERT_FATAL(sdu_rx != NULL);
+
+    rc = ble_l2cap_connect(2, t.psm, t.mtu, sdu_rx, ble_l2cap_test_event, &t);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    req.credits =
+        htole16(ble_l2cap_calculate_credits(t.mtu, MYNEWT_VAL(BLE_L2CAP_COC_MPS)));
+    req.mps = htole16(MYNEWT_VAL(BLE_L2CAP_COC_MPS));
+    req.mtu = htole16(t.mtu);
+    req.psm = htole16(t.psm);
+    req.scid = htole16(current_cid);
+    ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ,
+                                         &req, sizeof(req));
+
+    /* Link is lost before peer responds */
+    ble_hs_test_util_hci_rx_disconn_complete_event(2, 0, BLE_ERR_REM_USER_CONN_TERM);
+
+    /* Application is notified immediately, not after procedure timeout */
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_l2cap_test_util_verify_no_sig_procs();
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_broken_pending_disc)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct test_data t;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    rc = ble_l2cap_disconnect(t.chan[0]);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+    ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ, &req,
+                                         sizeof(req));
+
+    /* Link is lost before peer responds */
+    ble_hs_test_util_hci_rx_disconn_complete_event(2, 0, BLE_ERR_REM_USER_CONN_TERM);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    /* Disconnect procedure must not outlive the channel it points to */
+    ble_l2cap_test_util_verify_no_sig_procs();
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
 {
     struct test_data t;
@@ -1538,6 +1630,8 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_incoming_disconnect_succeed();
     ble_l2cap_test_case_sig_coc_incoming_disconnect_failed();
     ble_l2cap_test_case_invalid_cid_in_disconnect_req();
+    ble_l2cap_test_case_sig_coc_conn_broken_pending_connect();
+    ble_l2cap_test_case_sig_coc_conn_broken_pending_disc();
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
