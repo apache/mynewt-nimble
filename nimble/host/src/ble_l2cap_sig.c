@@ -1700,8 +1700,12 @@ ble_l2cap_sig_disc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     rsp = (struct ble_l2cap_sig_disc_rsp *)(*om)->om_data;
     if (chan->dcid != le16toh(rsp->dcid) || chan->scid != le16toh(rsp->scid)) {
-        /* This response is incorrect, lets wait for timeout */
-        ble_l2cap_sig_proc_start(proc);
+        /* This response is incorrect, lets wait for timeout. Keep original
+         * expiration time so peer cannot extend procedure indefinitely.
+         */
+        ble_hs_lock();
+        ble_l2cap_sig_proc_insert(proc);
+        ble_hs_unlock();
         return 0;
     }
 

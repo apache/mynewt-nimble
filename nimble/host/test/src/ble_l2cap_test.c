@@ -1529,6 +1529,52 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_crossing)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_disconnect_invalid_rsp)
+{
+    struct ble_l2cap_sig_disc_req req;
+    struct ble_l2cap_sig_disc_rsp rsp;
+    struct test_data t;
+    uint8_t id;
+    int rc;
+
+    ble_l2cap_test_util_init();
+
+    ble_l2cap_test_set_chan_test_conf(BLE_L2CAP_TEST_PSM, BLE_L2CAP_TEST_COC_MTU, &t);
+    t.expected_num_of_ev = 2;
+
+    t.event[0].type = BLE_L2CAP_EVENT_COC_CONNECTED;
+    t.event[1].type = BLE_L2CAP_EVENT_COC_DISCONNECTED;
+
+    ble_l2cap_test_coc_connect(&t);
+
+    rc = ble_l2cap_disconnect(t.chan[0]);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    req.dcid = htole16(t.chan[0]->dcid);
+    req.scid = htole16(t.chan[0]->scid);
+    id = ble_hs_test_util_verify_tx_l2cap_sig(BLE_L2CAP_SIG_OP_DISCONN_REQ,
+                                              &req, sizeof(req));
+
+    /* Response with mismatched CIDs shall be ignored */
+    rsp.dcid = req.dcid;
+    rsp.scid = htole16(le16toh(req.scid) + 1);
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &rsp, sizeof(rsp));
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(t.event_cnt == 1);
+
+    /* Valid response completes the procedure */
+    rsp.scid = req.scid;
+    rc = ble_hs_test_util_inject_rx_l2cap_sig(2, BLE_L2CAP_SIG_OP_DISCONN_RSP,
+                                              id, &rsp, sizeof(rsp));
+    TEST_ASSERT(rc == 0);
+    TEST_ASSERT(t.expected_num_of_ev == t.event_cnt);
+
+    ble_l2cap_test_util_verify_no_sig_procs();
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_l2cap_test_case_coc_send_data_succeed)
 {
     struct test_data t;
@@ -1685,6 +1731,7 @@ TEST_SUITE(ble_l2cap_test_suite)
     ble_l2cap_test_case_sig_coc_conn_broken_pending_connect();
     ble_l2cap_test_case_sig_coc_conn_broken_pending_disc();
     ble_l2cap_test_case_sig_coc_disconnect_crossing();
+    ble_l2cap_test_case_sig_coc_disconnect_invalid_rsp();
     ble_l2cap_test_case_coc_send_data_succeed();
     ble_l2cap_test_case_coc_send_data_failed_too_big_sdu();
     ble_l2cap_test_case_coc_recv_data_succeed();
