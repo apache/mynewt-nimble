@@ -106,9 +106,9 @@ jobs:
         run: |
              mkdir repos
              git clone --depth=1 https://github.com/apache/mynewt-core repos/apache-mynewt-core
-             wget https://archive.apache.org/dist/creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz
-             tar zxf apache-rat-0.17-bin.tar.gz apache-rat-0.17/apache-rat-0.17.jar
-             mv apache-rat-0.17/apache-rat-0.17.jar apache-rat.jar
+             wget https://archive.apache.org/dist/creadur/apache-rat-0.18/apache-rat-0.18-bin.tar.gz
+             tar zxf apache-rat-0.18-bin.tar.gz apache-rat-0.18/apache-rat-0.18.jar
+             mv apache-rat-0.18/apache-rat-0.18.jar apache-rat.jar
       - name: Check licensing
         shell: bash
         run: |

@@ -20,9 +20,6 @@
 name: Check ports syscfg update
 
 on:
-  push:
-    branches:
-      - 'master'
   schedule:
     - cron: '37 21 * * *'
 
@@ -37,7 +34,7 @@ jobs:
     if: github.event.repository.fork == false
     steps:
       - uses: actions/checkout@v7
-      - uses: carlosperate/arm-none-eabi-gcc-action@v1.14.0
+      - uses: carlosperate/arm-none-eabi-gcc-action@0edbb000a5a98e2292b051b463bff6f512547118 # v1.14.0
         with:
           release: '15.2.Rel1'
       - name: Install Dependencies
@@ -79,7 +76,7 @@ jobs:
           cd ../../..
           rm -rf build
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           author: Mynewt Bot <dev@mynewt.apache.org>
           token: ${{ secrets.GITHUB_TOKEN }}
