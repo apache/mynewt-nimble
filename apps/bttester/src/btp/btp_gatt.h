@@ -321,6 +321,11 @@ struct btp_gatt_notify_mult_val_cmd {
     uint16_t handles[0];
 } __packed;
 
+#define BTP_GATT_READ_SUPPORTED_EVENTS 0x24
+struct btp_gatt_read_supported_events_rp {
+    uint8_t data[0];
+} __packed;
+
 /* GATT events */
 #define BTP_GATT_EV_NOTIFICATION        0x80
 struct btp_gatt_notification_ev {
