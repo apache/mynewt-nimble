@@ -59,28 +59,28 @@ struct os_mbuf *bt_mesh_adv_create_from_pool(struct os_mbuf_pool *pool,
 	struct bt_mesh_adv *adv;
 	struct os_mbuf *buf;
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
-		BT_WARN("Refusing to allocate buffer while suspended");
-		return NULL;
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_SUSPENDED)) {
+              BT_WARN("Refusing to allocate buffer while suspended");
+              return NULL;
+          }
 
-	buf = os_mbuf_get_pkthdr(pool, BT_MESH_ADV_USER_DATA_SIZE);
-	if (!buf) {
-		return NULL;
-	}
+          buf = os_mbuf_get_pkthdr(pool, BT_MESH_ADV_USER_DATA_SIZE);
+          if (!buf) {
+              return NULL;
+          }
 
-	adv = get_id(net_buf_id(buf));
-	BT_MESH_ADV(buf) = adv;
+          adv = get_id(net_buf_id(buf));
+          BT_MESH_ADV(buf) = adv;
 
-	memset(adv, 0, sizeof(*adv));
+          memset(adv, 0, sizeof(*adv));
 
-	adv->type         = type;
-	adv->xmit         = xmit;
+          adv->type = type;
+          adv->xmit = xmit;
 
-	adv->ref_cnt = 1;
-	ble_npl_event_set_arg(&adv->ev, buf);
+          adv->ref_cnt = 1;
+          ble_npl_event_set_arg(&adv->ev, buf);
 
-	return buf;
+          return buf;
 }
 
 struct os_mbuf *bt_mesh_adv_create(enum bt_mesh_adv_type type, uint8_t xmit,

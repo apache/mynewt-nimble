@@ -47,7 +47,7 @@
 	(((w16) >>  8) & 0xFF)
 
 static sys_slist_t idle_waiters;
-static atomic_t pending_notifications;
+static bt_mesh_atomic_t pending_notifications;
 
 static void proxy_send_beacons(struct ble_npl_event *work);
 
@@ -881,15 +881,15 @@ void notify_complete(void)
 {
 	sys_snode_t *n;
 
-	if (atomic_dec(&pending_notifications) > 1) {
-		return;
-	}
+          if (bt_mesh_atomic_dec(&pending_notifications) > 1) {
+              return;
+          }
 
-	BT_DBG("");
+          BT_DBG("");
 
-	while ((n = sys_slist_get(&idle_waiters))) {
-		CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
-	}
+          while ((n = sys_slist_get(&idle_waiters))) {
+              CONTAINER_OF(n, struct bt_mesh_proxy_idle_cb, n)->cb();
+          }
 }
 
 static int proxy_send(uint16_t conn_handle,
@@ -906,10 +906,10 @@ static int proxy_send(uint16_t conn_handle,
 	notify_complete();
 
 	if (!err) {
-		atomic_inc(&pending_notifications);
-	}
+              bt_mesh_atomic_inc(&pending_notifications);
+          }
 
-	return err;
+          return err;
 }
 
 int bt_mesh_proxy_adv_start(void)

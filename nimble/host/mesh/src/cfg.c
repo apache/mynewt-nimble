@@ -31,27 +31,27 @@ struct cfg_val {
 
 void bt_mesh_beacon_set(bool beacon)
 {
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_BEACON) == beacon) {
-		return;
-	}
+    if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_BEACON) == beacon) {
+        return;
+    }
 
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_BEACON, beacon);
+    bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_BEACON, beacon);
 
-	if (beacon) {
-		bt_mesh_beacon_enable();
-	} else {
-		bt_mesh_beacon_disable();
-	}
+    if (beacon) {
+        bt_mesh_beacon_enable();
+    } else {
+        bt_mesh_beacon_disable();
+    }
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+    if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+        bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+        bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+    }
 }
 
 bool bt_mesh_beacon_enabled(void)
 {
-	return atomic_test_bit(bt_mesh.flags, BT_MESH_BEACON);
+    return bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_BEACON);
 }
 
 static int feature_set(int feature_flag, enum bt_mesh_feat_state state)
@@ -61,22 +61,22 @@ static int feature_set(int feature_flag, enum bt_mesh_feat_state state)
 		return -EINVAL;
 	}
 
-	if (atomic_test_bit(bt_mesh.flags, feature_flag) ==
-	    (state == BT_MESH_FEATURE_ENABLED)) {
-		return -EALREADY;
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh.flags, feature_flag) ==
+              (state == BT_MESH_FEATURE_ENABLED)) {
+              return -EALREADY;
+          }
 
-	atomic_set_bit_to(bt_mesh.flags, feature_flag,
-			  (state == BT_MESH_FEATURE_ENABLED));
+          bt_mesh_atomic_set_bit_to(bt_mesh.flags, feature_flag,
+                                    (state == BT_MESH_FEATURE_ENABLED));
 
-	return 0;
+          return 0;
 }
 
 static enum bt_mesh_feat_state feature_get(int feature_flag)
 {
-	return atomic_test_bit(bt_mesh.flags, feature_flag) ?
-		       BT_MESH_FEATURE_ENABLED :
-		       BT_MESH_FEATURE_DISABLED;
+    return bt_mesh_atomic_test_bit(bt_mesh.flags, feature_flag)
+               ? BT_MESH_FEATURE_ENABLED
+               : BT_MESH_FEATURE_DISABLED;
 }
 
 int bt_mesh_gatt_proxy_set(enum bt_mesh_feat_state gatt_proxy)
@@ -94,12 +94,12 @@ int bt_mesh_gatt_proxy_set(enum bt_mesh_feat_state gatt_proxy)
 
 	bt_mesh_hb_feature_changed(BT_MESH_FEAT_PROXY);
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+              bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+          }
 
-	return 0;
+          return 0;
 }
 
 enum bt_mesh_feat_state bt_mesh_gatt_proxy_get(void)
@@ -123,12 +123,12 @@ int bt_mesh_default_ttl_set(uint8_t default_ttl)
 
 	bt_mesh.default_ttl = default_ttl;
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+              bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+          }
 
-	return 0;
+          return 0;
 }
 
 uint8_t bt_mesh_default_ttl_get(void)
@@ -151,16 +151,16 @@ int bt_mesh_friend_set(enum bt_mesh_feat_state friendship)
 
 	bt_mesh_hb_feature_changed(BT_MESH_FEAT_FRIEND);
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+              bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+          }
 
-	if (friendship == BT_MESH_FEATURE_DISABLED) {
-		bt_mesh_friends_clear();
-	}
+          if (friendship == BT_MESH_FEATURE_DISABLED) {
+              bt_mesh_friends_clear();
+          }
 
-	return 0;
+          return 0;
 }
 
 enum bt_mesh_feat_state bt_mesh_friend_get(void)
@@ -180,10 +180,10 @@ void bt_mesh_net_transmit_set(uint8_t xmit)
 
 	bt_mesh.net_xmit = xmit;
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+              bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+          }
 }
 
 uint8_t bt_mesh_net_transmit_get(void)
@@ -211,12 +211,12 @@ int bt_mesh_relay_set(enum bt_mesh_feat_state relay, uint8_t xmit)
 	bt_mesh.relay_xmit = xmit;
 	bt_mesh_hb_feature_changed(BT_MESH_FEAT_RELAY);
 
-	if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
-	    atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
-	}
+          if (IS_ENABLED(CONFIG_BT_SETTINGS) &&
+              bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+              bt_mesh_settings_store_schedule(BT_MESH_SETTINGS_CFG_PENDING);
+          }
 
-	return 0;
+          return 0;
 }
 
 enum bt_mesh_feat_state bt_mesh_relay_get(void)
@@ -332,11 +332,11 @@ static void store_pending_cfg(void)
 
 void bt_mesh_cfg_pending_store(void)
 {
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
-		store_pending_cfg();
-	} else {
-		clear_cfg();
-	}
+    if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_VALID)) {
+        store_pending_cfg();
+    } else {
+        clear_cfg();
+    }
 }
 
 static struct conf_handler bt_mesh_cfg_conf_handler = {
@@ -371,18 +371,18 @@ void bt_mesh_cfg_default_set(void)
 #endif
 
 	if (CONFIG_BT_MESH_RELAY_ENABLED) {
-		atomic_set_bit(bt_mesh.flags, BT_MESH_RELAY);
-	}
+              bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_RELAY);
+          }
 
-	if (CONFIG_BT_MESH_BEACON_ENABLED) {
-		atomic_set_bit(bt_mesh.flags, BT_MESH_BEACON);
-	}
+          if (CONFIG_BT_MESH_BEACON_ENABLED) {
+              bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_BEACON);
+          }
 
-	if (CONFIG_BT_MESH_GATT_PROXY_ENABLED) {
-		atomic_set_bit(bt_mesh.flags, BT_MESH_GATT_PROXY);
-	}
+          if (CONFIG_BT_MESH_GATT_PROXY_ENABLED) {
+              bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_GATT_PROXY);
+          }
 
-	if (CONFIG_BT_MESH_FRIEND_ENABLED) {
-		atomic_set_bit(bt_mesh.flags, BT_MESH_FRIEND);
-	}
+          if (CONFIG_BT_MESH_FRIEND_ENABLED) {
+              bt_mesh_atomic_set_bit(bt_mesh.flags, BT_MESH_FRIEND);
+          }
 }

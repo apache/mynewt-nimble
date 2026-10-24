@@ -24,7 +24,7 @@
 #include "crypto.h"
 #include "beacon.h"
 #include "foundation.h"
-#include "atomic.h"
+#include "mesh/atomic.h"
 
 #define PROVISIONED_INTERVAL      (K_SECONDS(10))
 
@@ -235,27 +235,28 @@ static void beacon_send(struct ble_npl_event *work)
 	BT_DBG("");
 
 	if (bt_mesh_is_provisioned()) {
-		if (!bt_mesh_beacon_enabled() &&
-		!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
-			return;
-		}
+              if (!bt_mesh_beacon_enabled() &&
+                  !bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
+                  return;
+              }
 
-		update_beacon_observation();
-		(void)bt_mesh_subnet_find(secure_beacon_send, NULL);
+              update_beacon_observation();
+              (void)bt_mesh_subnet_find(secure_beacon_send, NULL);
 
-		k_work_schedule(&beacon_timer, PROVISIONED_INTERVAL);
+              k_work_schedule(&beacon_timer, PROVISIONED_INTERVAL);
 
-		return;
-	}
+              return;
+          }
 
-	if (IS_ENABLED(BLE_MESH_PB_ADV)) {
-		/* Don't send anything if we have an active provisioning link */
-		if (!bt_mesh_prov_active()) {
-			unprovisioned_beacon_send();
-		}
+          if (IS_ENABLED(BLE_MESH_PB_ADV)) {
+              /* Don't send anything if we have an active provisioning link */
+              if (!bt_mesh_prov_active()) {
+                  unprovisioned_beacon_send();
+              }
 
-		k_work_schedule(&beacon_timer, K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
-	}
+              k_work_schedule(&beacon_timer,
+                              K_SECONDS(MYNEWT_VAL(BLE_MESH_UNPROV_BEACON_INT)));
+          }
 }
 
 struct beacon_params {
@@ -356,13 +357,13 @@ static void secure_beacon_recv(struct os_mbuf *buf)
 	BT_DBG("net_idx 0x%04x iv_index 0x%08x, current iv_index 0x%08x",
 	       sub->net_idx, params.iv_index, bt_mesh.iv_index);
 
-	if (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
-	    (atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
-	     BT_MESH_IV_UPDATE(params.flags))) {
-		bt_mesh_beacon_ivu_initiator(false);
-	}
+          if (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR) &&
+              (bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_IN_PROGRESS) ==
+               BT_MESH_IV_UPDATE(params.flags))) {
+              bt_mesh_beacon_ivu_initiator(false);
+          }
 
-	bt_mesh_net_iv_update(params.iv_index, BT_MESH_IV_UPDATE(params.flags));
+          bt_mesh_net_iv_update(params.iv_index, BT_MESH_IV_UPDATE(params.flags));
 
 update_stats:
 	if (bt_mesh_beacon_enabled() &&
@@ -435,18 +436,18 @@ void bt_mesh_beacon_init(void)
 
 void bt_mesh_beacon_ivu_initiator(bool enable)
 {
-	atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_INITIATOR, enable);
+    bt_mesh_atomic_set_bit_to(bt_mesh.flags, BT_MESH_IVU_INITIATOR, enable);
 
-	/* Fire the beacon handler straight away if it's not already pending -
-	 * in which case we'll fire according to the ongoing periodic sending.
-	 * If beacons are disabled, the handler will exit early.
-	 *
-	 * An alternative solution would be to check whether beacons are enabled
-	 * here, and cancel if not. As the cancel operation may fail, we would
-	 * still have to implement an early exit mechanism, so we might as well
-	 * just use this every time.
-	 */
-	k_work_schedule(&beacon_timer, K_NO_WAIT);
+    /* Fire the beacon handler straight away if it's not already pending -
+     * in which case we'll fire according to the ongoing periodic sending.
+     * If beacons are disabled, the handler will exit early.
+     *
+     * An alternative solution would be to check whether beacons are enabled
+     * here, and cancel if not. As the cancel operation may fail, we would
+     * still have to implement an early exit mechanism, so we might as well
+     * just use this every time.
+     */
+    k_work_schedule(&beacon_timer, K_NO_WAIT);
 }
 
 static void subnet_beacon_enable(struct bt_mesh_subnet *sub)
@@ -468,8 +469,8 @@ void bt_mesh_beacon_enable(void)
 
 void bt_mesh_beacon_disable(void)
 {
-	if (!atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
-		/* If this fails, we'll do an early exit in the work handler. */
-		(void)k_work_cancel_delayable(&beacon_timer);
-	}
+    if (!bt_mesh_atomic_test_bit(bt_mesh.flags, BT_MESH_IVU_INITIATOR)) {
+        /* If this fails, we'll do an early exit in the work handler. */
+        (void)k_work_cancel_delayable(&beacon_timer);
+    }
 }
