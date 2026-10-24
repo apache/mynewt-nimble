@@ -24,6 +24,9 @@ syscfg.vals:
     LOG_IMPLEMENTATION: stub
     STATS_IMPLEMENTATION: full
 
+syscfg.vals.BLE_LL_HCI_VS_EVENT_ON_ASSERT:
+    OS_ASSERT_CB: 1
+
 syscfg.vals.'!BLE_TRANSPORT_NETCORE':
     # Use UART by default if not built on netcore
     BLE_TRANSPORT_HS: uart
