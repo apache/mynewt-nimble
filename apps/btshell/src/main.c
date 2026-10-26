@@ -2352,6 +2352,7 @@ btshell_l2cap_coc_add(uint16_t conn_handle, struct ble_l2cap_chan *chan)
         return ENOMEM;
     }
 
+    memset(coc, 0, sizeof(*coc));
     coc->chan = chan;
 
     prev = NULL;
@@ -2835,6 +2836,7 @@ btshell_broadcast_base_add(uint8_t adv_instance, uint32_t presentation_delay)
         return ENOMEM;
     }
 
+    memset(base, 0, sizeof(*base));
     free_base_idx = btshell_base_find_free();
     if (free_base_idx < 0) {
         return ENOMEM;
@@ -2867,6 +2869,7 @@ btshell_broadcast_big_sub_add(uint8_t adv_instance,
         return ENOMEM;
     }
 
+    memset(big_sub, 0, sizeof(*big_sub));
     base = btshell_base_find(adv_instance);
     if (!base) {
         os_memblock_put(&btshell_big_sub_pool, big_sub);
@@ -2879,6 +2882,7 @@ btshell_broadcast_big_sub_add(uint8_t adv_instance,
             os_memblock_put(&btshell_big_sub_pool, big_sub);
             return ENOMEM;
         }
+        memset(new_metadata, 0, sizeof(*new_metadata));
         memcpy(new_metadata, metadata, metadata_len);
     }
 
@@ -2889,6 +2893,7 @@ btshell_broadcast_big_sub_add(uint8_t adv_instance,
             os_memblock_put(&btshell_metadata_pool, new_metadata);
             return ENOMEM;
         }
+        memset(new_codec_spec_cfg, 0, sizeof(*new_codec_spec_cfg));
         memcpy(new_codec_spec_cfg, codec_spec_cfg, codec_spec_cfg_len);
     }
 
@@ -2938,12 +2943,15 @@ btshell_broadcast_bis_add(uint8_t adv_instance,
         return ENOMEM;
     }
 
+    memset(bis, 0, sizeof *bis);
+
     if (codec_spec_cfg_len > 0) {
         new_codec_spec_cfg = os_memblock_get(&btshell_codec_spec_pool);
         if (!new_codec_spec_cfg) {
             os_memblock_put(&btshell_bis_pool, bis);
             return ENOMEM;
         }
+        memset(new_codec_spec_cfg, 0, sizeof(*new_codec_spec_cfg));
         memcpy(new_codec_spec_cfg, codec_spec_cfg, codec_spec_cfg_len);
     }
 
@@ -2984,6 +2992,8 @@ btshell_broadcast_create(uint8_t adv_instance,
     if (!big_params_ptr) {
         return ENOMEM;
     }
+
+    memset(big_params_ptr, 0, sizeof(*big_params_ptr));
 
     *big_params_ptr = big_params;
 

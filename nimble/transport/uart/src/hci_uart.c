@@ -185,6 +185,7 @@ ble_transport_to_hs_evt_impl(void *buf)
         return -ENOMEM;
     }
 
+    memset(txe, 0, sizeof(*txe));
     txe->type = HCI_H4_EVT;
     txe->sent_type = 0;
     txe->len = 2 + ((uint8_t *)buf)[1];
@@ -213,6 +214,7 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
         return -ENOMEM;
     }
 
+    memset(txe, 0, sizeof(*txe));
     txe->type = HCI_H4_ACL;
     txe->sent_type = 0;
     txe->len = OS_MBUF_PKTLEN(om);
@@ -241,6 +243,7 @@ ble_transport_to_hs_iso_impl(struct os_mbuf *om)
         return -ENOMEM;
     }
 
+    memset(txe, 0, sizeof(*txe));
     txe->type = HCI_H4_ISO;
     txe->sent_type = 0;
     txe->len = OS_MBUF_PKTLEN(om);
