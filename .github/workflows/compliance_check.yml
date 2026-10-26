@@ -36,7 +36,6 @@ jobs:
   style_check:
     name: Coding style
     runs-on: ubuntu-slim
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -92,7 +91,6 @@ jobs:
   style_license:
     name: Licensing
     runs-on: ubuntu-slim
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -117,7 +115,6 @@ jobs:
   style_doxygen:
     name: Doxygen Style
     runs-on: ubuntu-slim
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -150,7 +147,6 @@ jobs:
   commits-check:
     name: Check commit messages
     runs-on: ubuntu-slim
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
