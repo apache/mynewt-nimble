@@ -123,8 +123,23 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install Dependencies
+        id: install
+        shell: bash
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y doxygen graphviz
+      - name: Install Dependencies (fallback mirror)
+        if: steps.install.outcome == 'failure'
         shell: bash
         run: |
+             # https://github.com/actions/runner-images/issues/14823
+             sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+             # Timeout may have interrupted dpkg in previous step, which makes
+             # apt-get refuse to install anything until this is run. No-op if
+             # dpkg was not interrupted.
+             sudo dpkg --configure -a
              sudo apt-get update
              sudo apt-get install -y doxygen graphviz
       - name: Check Doxygen
