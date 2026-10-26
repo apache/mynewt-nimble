@@ -393,7 +393,6 @@ jobs:
       !cancelled() && github.ref == 'refs/heads/master' &&
       github.event_name != 'pull_request'
     runs-on: ubuntu-slim
-    timeout-minutes: 60
     permissions:
       actions: write
       contents: read

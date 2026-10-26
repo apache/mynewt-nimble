@@ -42,9 +42,6 @@ jobs:
   maintenance:
     if: github.repository == 'apache/mynewt-nimble'
     runs-on: ubuntu-slim
-    # Shorter than schedule interval, so that hung run doesn't delay
-    # following ones
-    timeout-minutes: 4
     steps:
       - uses: actions/checkout@v7
         with:
