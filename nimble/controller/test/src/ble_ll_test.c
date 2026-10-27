@@ -29,6 +29,7 @@ TEST_SUITE_DECL(ble_ll_isoal_test_suite);
 TEST_SUITE_DECL(ble_ll_iso_test_suite);
 TEST_SUITE_DECL(ble_ll_cs_drbg_test_suite);
 TEST_SUITE_DECL(ble_ll_hci_test_suite);
+TEST_SUITE_DECL(ble_ll_conn_proc_test_suite);
 
 int
 main(int argc, char **argv)
@@ -40,6 +41,7 @@ main(int argc, char **argv)
     ble_ll_iso_test_suite();
     ble_ll_cs_drbg_test_suite();
     ble_ll_hci_test_suite();
+    ble_ll_conn_proc_test_suite();
 
     return tu_any_failed;
 }
