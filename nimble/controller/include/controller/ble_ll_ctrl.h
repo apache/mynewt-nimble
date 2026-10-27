@@ -53,6 +53,9 @@ extern "C" {
 /* LL control procedure timeout */
 #define BLE_LL_CTRL_PROC_TIMEOUT_MS     (40000) /* ms */
 
+/* Max retries of connection parameters request rejected due to collision */
+#define BLE_LL_CTRL_CONN_PARAM_REQ_RETRIES_MAX (6)
+
 /*
  * LL CTRL PDU format
  *  -> Opcode   (1 byte)
