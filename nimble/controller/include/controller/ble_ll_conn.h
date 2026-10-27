@@ -270,6 +270,7 @@ struct ble_ll_conn_sm
 
     /* connection event mgmt */
     uint8_t reject_reason;
+    uint8_t conn_param_req_retries;
     uint8_t host_reply_opcode;
     uint8_t central_sca;
     uint8_t tx_win_size;
