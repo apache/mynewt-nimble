@@ -835,6 +835,66 @@ ble_ll_scan_aux_rx_isr_start(uint8_t pdu_type, struct ble_mbuf_hdr *rxhdr)
     return 0;
 }
 
+/*
+ * Verifies that Extended Header Length fits in PDU and that all fields
+ * indicated by Extended Header Flags fit in Extended Header.
+ */
+static bool
+ble_ll_scan_aux_ext_hdr_valid(const uint8_t *rxbuf)
+{
+    uint8_t pdu_len;
+    uint8_t eh_len;
+    uint8_t eh_flags;
+    uint8_t len;
+
+    pdu_len = rxbuf[1];
+    if (pdu_len == 0) {
+        return false;
+    }
+
+    eh_len = rxbuf[2] & 0x3f;
+    if (eh_len > pdu_len - 1) {
+        return false;
+    }
+
+    if (eh_len == 0) {
+        return true;
+    }
+
+    eh_flags = rxbuf[3];
+    len = BLE_LL_EXT_ADV_FLAGS_SIZE;
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_ADVA_BIT)) {
+        len += BLE_LL_EXT_ADV_ADVA_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_TARGETA_BIT)) {
+        len += BLE_LL_EXT_ADV_TARGETA_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_CTE_INFO_BIT)) {
+        len += BLE_LL_EXT_ADV_CTE_INFO_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
+        len += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_AUX_PTR_BIT)) {
+        len += BLE_LL_EXT_ADV_AUX_PTR_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_SYNC_INFO_BIT)) {
+        len += BLE_LL_EXT_ADV_SYNC_INFO_SIZE;
+    }
+
+    if (eh_flags & (1 << BLE_LL_EXT_ADV_TX_POWER_BIT)) {
+        len += BLE_LL_EXT_ADV_TX_POWER_SIZE;
+    }
+
+    return len <= eh_len;
+}
+
 static int
 ble_ll_scan_aux_parse_to_aux_data(struct ble_ll_scan_aux_data *aux,
                                   uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
@@ -851,6 +911,10 @@ ble_ll_scan_aux_parse_to_aux_data(struct ble_ll_scan_aux_data *aux,
 
     /* PDU without at least Extended Header Length is invalid */
     if (pdu_len == 0) {
+        return -1;
+    }
+
+    if (!ble_ll_scan_aux_ext_hdr_valid(rxbuf)) {
         return -1;
     }
 
@@ -953,6 +1017,10 @@ ble_ll_scan_aux_ext_parse(uint8_t *rxbuf, struct ble_ll_scan_addr_data *addrd,
     pdu_len = rxbuf[1];
 
     if (pdu_len == 0) {
+        return -1;
+    }
+
+    if (!ble_ll_scan_aux_ext_hdr_valid(rxbuf)) {
         return -1;
     }
 
@@ -1501,6 +1569,10 @@ ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
         return -1;
     }
 
+    if (!ble_ll_scan_aux_ext_hdr_valid(rxbuf)) {
+        return -1;
+    }
+
     adv_mode = rxbuf[2] >> 6;
     eh_len = rxbuf[2] & 0x3f;
 
@@ -1511,9 +1583,10 @@ ble_ll_scan_aux_check_connect_rsp(uint8_t *rxbuf,
     eh_flags = rxbuf[3];
     eh_data = &rxbuf[4];
 
-    /* AUX_CONNECT_RSP without AdvA or TargetA is not valid */
-    if (!(eh_flags & ((1 << BLE_LL_EXT_ADV_ADVA_BIT) |
-                      (1 << BLE_LL_EXT_ADV_TARGETA_BIT)))) {
+    /* AUX_CONNECT_RSP without AdvA and TargetA is not valid */
+    if ((eh_flags &
+         ((1 << BLE_LL_EXT_ADV_ADVA_BIT) | (1 << BLE_LL_EXT_ADV_TARGETA_BIT))) !=
+        ((1 << BLE_LL_EXT_ADV_ADVA_BIT) | (1 << BLE_LL_EXT_ADV_TARGETA_BIT))) {
         return -1;
     }
 
