@@ -1100,6 +1100,15 @@ ble_ll_conn_hci_update(const uint8_t *cmdbuf, uint8_t len)
         }
     }
 
+    /*
+     * Connection update initiated by the peer is in progress. Its completion
+     * is reported to the host the same way as completion of this request
+     * would be, so reject the request until it was reported.
+     */
+    if (connsm->flags.conn_update_sched || connsm->flags.conn_update_host_w4event) {
+        return BLE_ERR_LMP_COLLISION;
+    }
+
     /* Retrieve command data */
     hcu = &connsm->conn_param_req;
 #if MYNEWT_VAL(BLE_LL_CONN_STRICT_SCHED)
