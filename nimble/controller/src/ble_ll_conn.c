@@ -2353,6 +2353,37 @@ ble_ll_conn_move_anchor(struct ble_ll_conn_sm *connsm, uint16_t offset)
 }
 #endif
 
+/*
+ * Fails a locally initiated connection update that is still waiting for an
+ * instant to pass when the peer's connection update is applied, so that the
+ * host does not take the peer's update as completion of its request.
+ */
+static void
+ble_ll_conn_upd_cancel_pending(struct ble_ll_conn_sm *connsm)
+{
+    int ctrl_proc;
+
+    if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+        ctrl_proc = BLE_LL_CTRL_PROC_CONN_UPDATE;
+    } else if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
+        ctrl_proc = BLE_LL_CTRL_PROC_CONN_PARAM_REQ;
+    } else {
+        return;
+    }
+
+    if (connsm->cur_ctrl_proc == ctrl_proc) {
+        return;
+    }
+
+    CLR_PENDING_CTRL_PROC(connsm, ctrl_proc);
+    connsm->conn_param_req.handle = 0;
+
+    if (connsm->flags.conn_update_host_initd) {
+        connsm->flags.conn_update_host_initd = 0;
+        ble_ll_hci_ev_conn_update(connsm, BLE_ERR_LMP_COLLISION);
+    }
+}
+
 /**
  * Called to move to the next connection event.
  *
@@ -2568,6 +2599,8 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
         /* Set flag to send event to host if request was issued by host or
          * any of parameters changed (i.e. skip on anchor moves)
          */
+        ble_ll_conn_upd_cancel_pending(connsm);
+
         upd = &connsm->conn_update_req;
         if (connsm->flags.conn_update_host_initd ||
             (connsm->conn_itvl != upd->interval) ||

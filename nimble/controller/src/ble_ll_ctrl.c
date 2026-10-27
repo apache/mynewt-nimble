@@ -2068,9 +2068,12 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
                 /*
                  * The central rejected the request because of its own
                  * procedure with instant, retry once that instant has passed.
+                 * Connection update completion is reported to the host, so
+                 * fail the request in that case.
                  */
                 if ((ble_error == BLE_ERR_DIFF_TRANS_COLL) &&
-                    ble_ll_ctrl_instant_pending(connsm)) {
+                    ble_ll_ctrl_instant_pending(connsm) &&
+                    !connsm->flags.conn_update_sched) {
                     ble_npl_callout_stop(&connsm->ctrl_proc_rsp_timer);
                     connsm->cur_ctrl_proc = BLE_LL_CTRL_PROC_IDLE;
                     break;
