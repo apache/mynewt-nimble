@@ -120,6 +120,43 @@ int ble_hs_hci_send_vs_cmd(uint16_t ocf, const void *cmdbuf, uint8_t cmdlen,
                            void *rspbuf, uint8_t rsplen);
 #endif
 
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+/** Information the host read from the local controller during startup. */
+struct ble_hs_hci_local_info {
+    /** HCI version (Read Local Version Information). */
+    uint8_t hci_version;
+    /** HCI revision. */
+    uint16_t hci_revision;
+    /** LMP/PAL version. */
+    uint8_t lmp_version;
+    /** Manufacturer name (Bluetooth SIG company identifier). */
+    uint16_t manufacturer;
+    /** LMP/PAL subversion. */
+    uint16_t lmp_subversion;
+    /** LMP features page 0 (Read Local Supported Features); zero when the
+     *  host did not read it, as with an in-image controller. */
+    uint64_t lmp_features;
+    /** Supported commands bit mask (Read Local Supported Commands). */
+    uint8_t supported_commands[64];
+    /** ACL data packet length the host uses. */
+    uint16_t acl_data_len;
+    /** Number of ACL data packets the controller can buffer. */
+    uint16_t acl_num_pkts;
+};
+
+/**
+ * Retrieves the information the host read from the local controller during
+ * startup.
+ *
+ * @param out_info              On success, the controller information.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTSYNCED if the host has not
+ *                                  synchronized with the controller.
+ */
+int ble_hs_hci_get_local_info(struct ble_hs_hci_local_info *out_info);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
