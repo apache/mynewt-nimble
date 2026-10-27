@@ -27,3 +27,8 @@ syscfg.defs:
 
 syscfg.restrictions:
     - BLE_LL_RFMGMT_ENABLE_TIME == 0 || BLE_LL_RFMGMT_ENABLE_TIME >= 20
+
+syscfg.vals:
+    # Use precomputed AES tables. Generating them at runtime needs more
+    # stack than is available in LL task.
+    MBEDTLS_AES_ROM_TABLES: 1
