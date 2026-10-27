@@ -63,6 +63,7 @@ ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan, stru
 {
     int rc;
     struct os_mbuf_pkthdr *omp;
+    bool is_request;
 
     if (!txom) {
         if (conn->client_att_busy) {
@@ -80,7 +81,8 @@ ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan, stru
 
     BLE_HS_DBG_ASSERT_EVAL(txom->om_len >= 1);
 
-    if (ble_att_is_request_op(txom->om_data[0])) {
+    is_request = ble_att_is_request_op(txom->om_data[0]);
+    if (is_request) {
         if (conn->client_att_busy) {
             BLE_EATT_LOG_DEBUG("ATT Queue %p, client busy %d\n", txom, conn->client_att_busy);
             STAILQ_INSERT_TAIL(&conn->att_tx_q, OS_MBUF_PKTHDR(txom), omp_next);
@@ -93,7 +95,14 @@ ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan, stru
 
     ble_att_truncate_to_mtu(chan, txom);
     rc = ble_l2cap_tx(conn, chan, txom);
-    assert(rc == 0);
+    if (rc != 0) {
+        /* txom was consumed; no response will come for failed request */
+        BLE_EATT_LOG_ERROR("%s: tx failed rc=%d\n", __func__, rc);
+        if (is_request) {
+            conn->client_att_busy = false;
+        }
+    }
+
     return rc;
 }
 

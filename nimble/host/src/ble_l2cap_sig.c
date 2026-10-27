@@ -970,6 +970,11 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
      * be asserted
      */
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* Note: to simplify implementation stop processing further channels on
      * error
@@ -1040,6 +1045,12 @@ ble_l2cap_sig_credit_base_con_req_rx(uint16_t conn_handle,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        /* Channels were freed along with connection */
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* removed not accepted channels */
     for (i = 0; i < num_of_scids; i++) {
@@ -1097,6 +1108,7 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     int i;
     uint16_t duplicated_cids[5] = {};
     unsigned int num_of_dcids;
+    uint16_t dcid;
 
 #if !BLE_MONITOR
     BLE_HS_LOG(DEBUG, "L2CAP LE COC connection response received\n");
@@ -1135,26 +1147,31 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     }
 
     ble_hs_lock();
-    conn = ble_hs_conn_find(conn_handle);
-    assert(conn != NULL);
+    conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
 
     for (i = 0; i < proc->connect.chan_cnt; i++) {
         chan = proc->connect.chan[i];
-        if (rsp->dcids[i] == 0) {
-            /* Channel rejected, dont put it on the list.
+        dcid = le16toh(rsp->dcids[i]);
+        if (dcid < BLE_L2CAP_COC_CID_START || dcid > BLE_L2CAP_COC_CID_END) {
+            /* Channel rejected or invalid DCID, dont put it on the list.
              * User will get notified later in that function
              */
             chan->dcid = 0;
             continue;
         }
-        if (ble_hs_conn_chan_find_by_dcid(conn, rsp->dcids[i])) {
-            duplicated_cids[i] = rsp->dcids[i];
+        if (ble_hs_conn_chan_find_by_dcid(conn, dcid)) {
+            duplicated_cids[i] = dcid;
             chan->dcid = 0;
             continue;
         }
 
         chan->peer_coc_mps = le16toh(rsp->mps);
-        chan->dcid = le16toh(rsp->dcids[i]);
+        chan->dcid = dcid;
         chan->coc_tx.mtu = le16toh(rsp->mtu);
         chan->coc_tx.credits = le16toh(rsp->credits);
 
@@ -1211,6 +1228,11 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     /* Verify CID. Note, scid in the request is dcid for out local channel */
     scid = le16toh(req->scid);
@@ -1253,7 +1275,9 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
         ble_hs_lock();
         conn = ble_hs_conn_find_assert(conn_handle);
-        ble_hs_conn_delete_chan(conn, chan);
+        if (conn != NULL) {
+            ble_hs_conn_delete_chan(conn, chan);
+        }
         ble_hs_unlock();
         rsp->result = htole16(coc_err);
         goto failed;
@@ -1269,7 +1293,9 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     if (rc != 0) {
         ble_hs_lock();
         conn = ble_hs_conn_find_assert(conn_handle);
-        ble_hs_conn_delete_chan(conn, chan);
+        if (conn != NULL) {
+            ble_hs_conn_delete_chan(conn, chan);
+        }
         ble_hs_unlock();
         return 0;
     }
@@ -1292,6 +1318,7 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     struct ble_l2cap_sig_le_con_rsp *rsp;
     struct ble_l2cap_chan *chan;
     struct ble_hs_conn *conn;
+    uint16_t dcid;
     int rc;
 
 #if !BLE_MONITOR
@@ -1319,17 +1346,34 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         goto done;
     }
 
+    dcid = le16toh(rsp->dcid);
+    if (dcid < BLE_L2CAP_COC_CID_START || dcid > BLE_L2CAP_COC_CID_END) {
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        rc = BLE_HS_ENOTCONN;
+        goto done;
+    }
+
+    if (ble_hs_conn_chan_find_by_dcid(conn, dcid)) {
+        ble_hs_unlock();
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
     /* Fill up remote configuration
      * Note MPS is the L2CAP MTU
      */
     chan->peer_coc_mps = le16toh(rsp->mps);
-    chan->dcid = le16toh(rsp->dcid);
+    chan->dcid = dcid;
     chan->coc_tx.mtu = le16toh(rsp->mtu);
     chan->coc_tx.credits = le16toh(rsp->credits);
 
-    ble_hs_lock();
-    conn = ble_hs_conn_find(conn_handle);
-    assert(conn != NULL);
     ble_hs_conn_chan_insert(conn, chan);
     ble_hs_unlock();
 
@@ -1584,6 +1628,11 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     ble_hs_lock();
     conn = ble_hs_conn_find_assert(conn_handle);
+    if (conn == NULL) {
+        ble_hs_unlock();
+        os_mbuf_free_chain(txom);
+        return 0;
+    }
 
     req = (struct ble_l2cap_sig_disc_req *) (*om)->om_data;
     scid = le16toh(req->scid);
