@@ -1000,13 +1000,11 @@ ble_ll_conn_chk_csm_flags(struct ble_ll_conn_sm *connsm)
      */
     if (connsm->flags.conn_update_host_w4event) {
         update_status = BLE_ERR_SUCCESS;
-        if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE)) {
+        if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_UPDATE) {
             ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_UPDATE);
-        } else {
-            if (IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ)) {
-                ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
-                update_status = connsm->reject_reason;
-            }
+        } else if (connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ) {
+            ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+            update_status = connsm->reject_reason;
         }
         ble_ll_hci_ev_conn_update(connsm, update_status);
         connsm->flags.conn_update_host_w4event = 0;
