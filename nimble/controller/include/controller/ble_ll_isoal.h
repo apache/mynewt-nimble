@@ -141,6 +141,7 @@ void ble_ll_isoal_demux_init(struct ble_ll_isoal_demux *demux,
 void ble_ll_isoal_demux_reset(struct ble_ll_isoal_demux *demux);
 int ble_ll_isoal_demux_event_start(struct ble_ll_isoal_demux *demux, uint32_t timestamp);
 int ble_ll_isoal_demux_event_done(struct ble_ll_isoal_demux *demux);
+uint8_t ble_ll_isoal_demux_event_num_pdu(const struct ble_ll_isoal_demux *demux);
 void ble_ll_isoal_demux_pdu_put(struct ble_ll_isoal_demux *demux, uint8_t idx,
                                 struct os_mbuf *om);
 

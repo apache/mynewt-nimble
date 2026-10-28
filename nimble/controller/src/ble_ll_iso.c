@@ -554,6 +554,36 @@ ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
     return BLE_ERR_SUCCESS;
 }
 
+int
+ble_ll_iso_read_link_quality(const uint8_t *cmdbuf, uint8_t cmdlen,
+                             uint8_t *rspbuf, uint8_t *rsplen)
+{
+    const struct ble_hci_le_read_iso_link_quality_cp *cmd = (const void *)cmdbuf;
+    struct ble_hci_le_read_iso_link_quality_rp *rsp = (void *)rspbuf;
+    struct ble_ll_iso_conn *conn;
+    struct ble_ll_iso_rx *rx;
+
+    if (cmdlen != sizeof(*cmd)) {
+        return BLE_ERR_INV_HCI_CMD_PARMS;
+    }
+
+    conn = ble_ll_iso_conn_find_by_handle(le16toh(cmd->conn_handle));
+    if (conn == NULL || conn->rx == NULL) {
+        return BLE_ERR_UNK_CONN_ID;
+    }
+
+    rx = conn->rx;
+
+    memset(rsp, 0, sizeof(*rsp));
+    rsp->conn_handle = cmd->conn_handle;
+    rsp->crc_error_pkts = htole32(rx->link_quality.crc_error_pkts);
+    rsp->rx_unreceived_pkts = htole32(rx->link_quality.rx_unreceived_pkts);
+
+    *rsplen = sizeof(*rsp);
+
+    return BLE_ERR_SUCCESS;
+}
+
 struct ble_ll_iso_conn *
 ble_ll_iso_conn_find_by_handle(uint16_t conn_handle)
 {
@@ -922,6 +952,9 @@ ble_ll_iso_rx_event_start(struct ble_ll_iso_rx *rx, uint32_t timestamp)
 int
 ble_ll_iso_rx_event_done(struct ble_ll_iso_rx *rx)
 {
+    rx->link_quality.rx_unreceived_pkts +=
+        rx->params->bn - ble_ll_isoal_demux_event_num_pdu(&rx->demux);
+
     ble_ll_isoal_demux_event_done(&rx->demux);
 
     return 0;

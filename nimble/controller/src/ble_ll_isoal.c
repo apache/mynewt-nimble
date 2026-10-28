@@ -1070,6 +1070,21 @@ ble_ll_isoal_demux_event_done(struct ble_ll_isoal_demux *demux)
     return 0;
 }
 
+uint8_t
+ble_ll_isoal_demux_event_num_pdu(const struct ble_ll_isoal_demux *demux)
+{
+    struct os_mbuf_pkthdr *entry;
+    uint8_t num_pdu = 0;
+
+    STAILQ_FOREACH(entry, &demux->pdu_q, omp_next) {
+        if (pdu_idx_get(OS_MBUF_PKTHDR_TO_MBUF(entry)) < demux->config.bn) {
+            num_pdu++;
+        }
+    }
+
+    return num_pdu;
+}
+
 void
 ble_ll_isoal_demux_pdu_put(struct ble_ll_isoal_demux *demux, uint8_t idx,
                            struct os_mbuf *pdu)

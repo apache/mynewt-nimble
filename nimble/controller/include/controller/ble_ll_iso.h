@@ -29,6 +29,8 @@ extern "C" {
 
 /* HCI command handlers */
 int ble_ll_iso_read_tx_sync(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
+int ble_ll_iso_read_link_quality(const uint8_t *cmdbuf, uint8_t len,
+                                 uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_set_cig_param(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_set_cig_param_test(const uint8_t *cmdbuf, uint8_t len, uint8_t *rspbuf, uint8_t *rsplen);
 int ble_ll_iso_create_cis(const uint8_t *cmdbuf, uint8_t len);
