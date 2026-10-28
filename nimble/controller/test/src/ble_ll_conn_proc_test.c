@@ -311,6 +311,96 @@ TEST_CASE_SELF(test_ll_conn_param_req_retry_limit)
 
     ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
 }
+/*
+ * Central rejects the request with Different Transaction Collision and only
+ * then sends its channel map update in the same connection event. The
+ * request is retried once the channel map update instant has passed.
+ */
+TEST_CASE_SELF(test_ll_conn_param_req_retry_reject_before_chan_map)
+{
+    struct ble_ll_conn_sm *connsm;
+    int rc;
+
+    connsm = test_periph_conn_create();
+
+    rc = test_hci_conn_update(connsm, 0x0050);
+    TEST_ASSERT_FATAL(rc == 0);
+    TEST_ASSERT_FATAL(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+
+    test_rx_reject_ext_ind(connsm, BLE_LL_CTRL_CONN_PARM_REQ, BLE_ERR_DIFF_TRANS_COLL);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE);
+    TEST_ASSERT(IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ));
+    TEST_ASSERT(connsm->flags.conn_update_host_initd);
+
+    test_rx_chan_map_ind(connsm, connsm->event_cntr + 2);
+    TEST_ASSERT_FATAL(connsm->flags.chanmap_update_sched);
+
+    /* Request waits for the channel map update instant */
+    test_conn_event_end(connsm);
+    TEST_ASSERT(connsm->flags.chanmap_update_sched);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE);
+
+    test_conn_event_end(connsm);
+    TEST_ASSERT(!connsm->flags.chanmap_update_sched);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+}
+
+/*
+ * Central rejects the request with Different Transaction Collision without
+ * a procedure with instant known to the peripheral. The request is sent
+ * again in the next connection event.
+ */
+TEST_CASE_SELF(test_ll_conn_param_req_retry_reject_without_instant)
+{
+    struct ble_ll_conn_sm *connsm;
+    int rc;
+
+    connsm = test_periph_conn_create();
+
+    rc = test_hci_conn_update(connsm, 0x0050);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    test_rx_reject_ext_ind(connsm, BLE_LL_CTRL_CONN_PARM_REQ, BLE_ERR_DIFF_TRANS_COLL);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE);
+    TEST_ASSERT(IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ));
+
+    test_conn_event_end(connsm);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_CONN_PARAM_REQ);
+    TEST_ASSERT(connsm->conn_param_req_retries == 1);
+
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+}
+
+/*
+ * Central rejects the request with Different Transaction Collision and only
+ * then sends its connection update. The request fails when the central's
+ * update is applied instead of being taken as completed by it.
+ */
+TEST_CASE_SELF(test_ll_conn_param_req_retry_reject_before_conn_update)
+{
+    struct ble_ll_conn_sm *connsm;
+    int rc;
+
+    connsm = test_periph_conn_create();
+
+    rc = test_hci_conn_update(connsm, 0x0050);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    test_rx_reject_ext_ind(connsm, BLE_LL_CTRL_CONN_PARM_REQ, BLE_ERR_DIFF_TRANS_COLL);
+    test_rx_conn_update_ind(connsm, 0x0030, connsm->event_cntr + 1);
+    TEST_ASSERT_FATAL(connsm->flags.conn_update_sched);
+
+    /* Central's update is applied, the request fails */
+    test_conn_event_end(connsm);
+    TEST_ASSERT(connsm->conn_itvl == 0x0030);
+    TEST_ASSERT(!IS_PENDING_CTRL_PROC(connsm, BLE_LL_CTRL_PROC_CONN_PARAM_REQ));
+    TEST_ASSERT(!connsm->flags.conn_update_host_initd);
+    TEST_ASSERT(connsm->cur_ctrl_proc == BLE_LL_CTRL_PROC_IDLE);
+
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+}
 #endif
 
 TEST_SUITE(ble_ll_conn_proc_test_suite)
@@ -321,5 +411,8 @@ TEST_SUITE(ble_ll_conn_proc_test_suite)
     test_ll_conn_param_req_cancelled_by_conn_update();
     test_ll_conn_param_req_no_retry_on_conn_update();
     test_ll_conn_param_req_retry_limit();
+    test_ll_conn_param_req_retry_reject_before_chan_map();
+    test_ll_conn_param_req_retry_reject_without_instant();
+    test_ll_conn_param_req_retry_reject_before_conn_update();
 #endif
 }
