@@ -498,7 +498,15 @@ ble_hci_sock_rx_msg(void)
                 return -1;
             }
 
-            data = ble_transport_alloc_evt(0);
+            /* Advertising reports can be dropped if there is no free buffer
+             * in the discardable pool.
+             */
+            if (bhss->rx_data[1] == BLE_HCI_EVCODE_LE_META &&
+                bhss->rx_data[3] == BLE_HCI_LE_SUBEV_ADV_RPT) {
+                data = ble_transport_alloc_evt(1);
+            } else {
+                data = ble_transport_alloc_evt(0);
+            }
             if (!data) {
                 STATS_INC(hci_sock_stats, ierr);
                 break;
