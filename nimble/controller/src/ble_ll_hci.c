@@ -1328,6 +1328,9 @@ ble_ll_hci_le_cmd_proc(const uint8_t *cmdbuf, uint8_t len, uint16_t ocf,
     case BLE_HCI_OCF_LE_READ_ISO_TX_SYNC:
         rc = ble_ll_iso_read_tx_sync(cmdbuf, len, rspbuf, rsplen);
         break;
+    case BLE_HCI_OCF_LE_READ_ISO_LINK_QUALITY:
+        rc = ble_ll_iso_read_link_quality(cmdbuf, len, rspbuf, rsplen);
+        break;
     case BLE_HCI_OCF_LE_RD_BUF_SIZE_V2:
         if (len == 0) {
             rc = ble_ll_hci_le_read_bufsize_v2(rspbuf, rsplen);

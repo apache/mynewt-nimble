@@ -83,6 +83,12 @@ struct ble_ll_iso_rx {
         uint32_t failed_sdu_count;
     } test;
 
+    /* LE Read ISO Link Quality counters */
+    struct {
+        uint32_t crc_error_pkts;
+        uint32_t rx_unreceived_pkts;
+    } link_quality;
+
     /* ISOAL Demultiplexer */
     struct ble_ll_isoal_demux demux;
 

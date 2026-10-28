@@ -1389,6 +1389,10 @@ ble_ll_iso_big_sync_rx_isr_early_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr)
     big->rx_bis = NULL;
     big->ctrl_rx = 0;
 
+    if (data_subevent && !crc_ok) {
+        big->bis->rx.link_quality.crc_error_pkts++;
+    }
+
     if (crc_ok && !mic_ok && ble_ll_iso_big_sync_pending(big)) {
         big->term_reason = BLE_ERR_CONN_TERM_MIC;
     }
