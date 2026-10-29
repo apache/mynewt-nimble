@@ -21,6 +21,7 @@
 #include <string.h>
 #include <syscfg/syscfg.h>
 #include <testutil/testutil.h>
+#include <nimble/hci_common.h>
 #include <controller/ble_ll_conn.h>
 #include <controller/ble_ll_ctrl.h>
 #include "ble_ll_conn_priv.h"
@@ -228,6 +229,88 @@ TEST_CASE_SELF(test_ll_le_ping_latency)
     test_le_ping_teardown(connsm);
 }
 
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+static struct ble_ll_conn_sm *
+test_le_ping_conn_create(uint16_t itvl, uint16_t latency)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    connsm = ble_ll_conn_sm_get();
+    TEST_ASSERT_FATAL(connsm != NULL);
+
+    connsm->conn_role = BLE_LL_CONN_ROLE_PERIPHERAL;
+    ble_ll_conn_sm_new(connsm);
+
+    connsm->conn_state = BLE_LL_CONN_STATE_ESTABLISHED;
+    connsm->conn_itvl = itvl;
+    connsm->periph_latency = latency;
+
+    return connsm;
+}
+
+static int
+test_le_ping_wr_tmo(uint16_t handle, uint16_t tmo)
+{
+    struct ble_hci_cb_wr_auth_pyld_tmo_cp cmd;
+    struct ble_hci_cb_wr_auth_pyld_tmo_rp rsp;
+    uint8_t rsplen;
+    int rc;
+
+    cmd.conn_handle = htole16(handle);
+    cmd.tmo = htole16(tmo);
+    rsplen = 0;
+
+    rc = ble_ll_conn_hci_wr_auth_pyld_tmo((const uint8_t *)&cmd, sizeof(cmd),
+                                          (uint8_t *)&rsp, &rsplen);
+
+    TEST_ASSERT(rsplen == sizeof(rsp));
+    TEST_ASSERT(le16toh(rsp.conn_handle) == handle);
+
+    return rc;
+}
+
+TEST_CASE_SELF(test_ll_le_ping_hci_wr_tmo_range)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    /* 7.5 ms interval, any non-zero timeout is above minimum */
+    connsm = test_le_ping_conn_create(6, 0);
+
+    /* 0 is out of range */
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 0) == BLE_ERR_INV_HCI_CMD_PARMS);
+    TEST_ASSERT(connsm->auth_pyld_tmo == BLE_LL_CONN_DEF_AUTH_PYLD_TMO);
+
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 1) == 0);
+    TEST_ASSERT(connsm->auth_pyld_tmo == 1);
+
+    /* range is checked regardless of connection handle */
+    TEST_ASSERT(test_le_ping_wr_tmo(0x0eff, 0) == BLE_ERR_INV_HCI_CMD_PARMS);
+    TEST_ASSERT(test_le_ping_wr_tmo(0x0eff, 1) == BLE_ERR_UNK_CONN_ID);
+
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+}
+
+TEST_CASE_SELF(test_ll_le_ping_hci_wr_tmo_min)
+{
+    struct ble_ll_conn_sm *connsm;
+
+    /* 18.75 ms interval, minimum is rounded up to 20 ms */
+    connsm = test_le_ping_conn_create(15, 0);
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 1) == BLE_ERR_CMD_DISALLOWED);
+    TEST_ASSERT(connsm->auth_pyld_tmo == BLE_LL_CONN_DEF_AUTH_PYLD_TMO);
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 2) == 0);
+    TEST_ASSERT(connsm->auth_pyld_tmo == 2);
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+
+    /* 50 ms interval with latency 1, minimum is exactly 100 ms */
+    connsm = test_le_ping_conn_create(40, 1);
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 9) == BLE_ERR_CMD_DISALLOWED);
+    TEST_ASSERT(test_le_ping_wr_tmo(connsm->conn_handle, 10) == 0);
+    TEST_ASSERT(connsm->auth_pyld_tmo == 10);
+    ble_ll_conn_end(connsm, BLE_ERR_CONN_TERM_LOCAL);
+}
+#endif
+
 TEST_SUITE(ble_ll_le_ping_test_suite)
 {
     test_ll_le_ping_delay();
@@ -237,6 +320,10 @@ TEST_SUITE(ble_ll_le_ping_test_suite)
     test_ll_le_ping_not_encrypted();
     test_ll_le_ping_timeout();
     test_ll_le_ping_latency();
+#if MYNEWT_VAL(BLE_LL_ROLE_PERIPHERAL)
+    test_ll_le_ping_hci_wr_tmo_range();
+    test_ll_le_ping_hci_wr_tmo_min();
+#endif
 }
 
 #else
