@@ -70,7 +70,6 @@ ble_att_tx_with_conn(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan, stru
         }
         omp = STAILQ_FIRST(&conn->att_tx_q);
         if (omp == NULL) {
-            BLE_EATT_LOG_ERROR("%s: wakeup but nothing in the queue\n", __func__);
             return 0;
         }
         STAILQ_REMOVE_HEAD(&conn->att_tx_q, omp_next);
