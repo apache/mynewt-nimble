@@ -593,7 +593,7 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
         }
 
         if (ext_hdr_flags & (1 << BLE_LL_EXT_ADV_DATA_INFO_BIT)) {
-            if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT) {
+            if (MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)) {
                 *adi = (uint16_t *) ext_hdr + i;
             }
             i += BLE_LL_EXT_ADV_DATA_INFO_SIZE;
