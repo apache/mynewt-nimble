@@ -11,7 +11,7 @@ countries. It uses a spread spectrum, frequency hopping, full-duplex
 signal. BLE FHSS employs 40 2-MHz-wide channels to ensure greater
 reliability over longer distances. It also features 0-dBm (1 mW) power
 output and a typical maximum range of 50 meters. With Bluetooth 5
-specification range can be increased 4 times and speed 2 time.
+specification, range can be increased 4 times and speed 2 times.
 
 .. toctree::
    :hidden:
