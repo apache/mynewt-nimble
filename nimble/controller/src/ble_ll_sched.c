@@ -840,6 +840,11 @@ ble_ll_sched_adv_resched_pdu(struct ble_ll_sched_item *sch)
         OS_EXIT_CRITICAL(sr);
         return -1;
 #endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
+    case BLE_LL_STATE_BIG:
+        OS_EXIT_CRITICAL(sr);
+        return -1;
+#endif
     default:
         break;
     }
