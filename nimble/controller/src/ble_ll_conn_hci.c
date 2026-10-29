@@ -1940,22 +1940,27 @@ ble_ll_conn_hci_wr_auth_pyld_tmo(const uint8_t *cmdbuf, uint8_t len,
     rc = BLE_ERR_SUCCESS;
 
     handle = le16toh(cmd->conn_handle);
+    tmo = le16toh(cmd->tmo);
 
     connsm = ble_ll_conn_find_by_handle(handle);
-    if (!connsm) {
+    if (tmo == 0) {
+        /* Valid range is 0x0001 to 0xFFFF */
+        rc = BLE_ERR_INV_HCI_CMD_PARMS;
+    } else if (!connsm) {
         rc = BLE_ERR_UNK_CONN_ID;
     } else {
         /*
          * The timeout is in units of 10 msecs. We need to make sure that the
-         * timeout is greater than or equal to connItvl * (1 + peripheralLatency)
+         * timeout is greater than or equal to
+         * connItvl * connSubrateFactor * (1 + peripheralLatency), so round
+         * minimum value up.
          */
-        tmo = le16toh(cmd->tmo);
         min_tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS;
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
         min_tmo *= connsm->subrate_factor;
 #endif
         min_tmo *= (connsm->periph_latency + 1);
-        min_tmo /= 10000;
+        min_tmo = (min_tmo + 9999) / 10000;
 
         if (tmo < min_tmo) {
             rc = BLE_ERR_CMD_DISALLOWED;
