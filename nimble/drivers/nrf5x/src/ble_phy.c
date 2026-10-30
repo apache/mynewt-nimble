@@ -2338,6 +2338,7 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
 #endif
 #endif
 
+#if !MYNEWT_VAL(BLE_PHY_RFCLK_CUSTOM)
 void
 ble_phy_rfclk_enable(void)
 {
@@ -2367,6 +2368,7 @@ ble_phy_rfclk_disable(void)
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLKSTOP);
 #endif
 }
+#endif
 
 void
 ble_phy_tifs_txtx_set(uint16_t usecs, uint8_t anchor)
