@@ -1207,8 +1207,8 @@ struct ble_gap_event {
             /** BIG PHY */
             uint8_t phy;
 
-            /** Framing of BIS Data PDUs */
-            uint8_t framing : 1;
+            /** Framing of BIS Data PDUs (BLE_HCI_ISO_FRAMING_*) */
+            uint8_t framing;
 
             /** Encryption */
             uint8_t encryption : 1;
