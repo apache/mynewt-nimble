@@ -21,12 +21,14 @@
 #include "testutil/testutil.h"
 
 TEST_SUITE_DECL(ble_audio_base_parse_test_suite);
+TEST_SUITE_DECL(ble_audio_bass_test_suite);
 TEST_CASE_DECL(ble_audio_listener_register_test);
 
 TEST_SUITE(ble_audio_test)
 {
     ble_audio_base_parse_test_suite();
     ble_audio_listener_register_test();
+    ble_audio_bass_test_suite();
 }
 
 int
