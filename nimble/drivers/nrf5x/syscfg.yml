@@ -82,6 +82,12 @@ syscfg.defs:
             -17, -37).
        value: 0
 
+    BLE_PHY_RFCLK_CUSTOM:
+        description: >
+            The porting layer provides the RF clock control of the PHY, e.g.
+            to request the HFXO from its OS.
+        value: 0
+
     BLE_PHY_UBLOX_BMD345_PUBLIC_ADDR:
         description: >
             Ublox BMD-345 modules come with public address preprogrammed
