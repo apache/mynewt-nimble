@@ -353,6 +353,13 @@ static void gen_prov_cont(struct prov_rx *rx, struct os_mbuf *buf)
 
 	BT_DBG("len %u, seg_index %u", buf->om_len, seg);
 
+	/* Segment 0 is carried in Transaction Start PDU */
+	if (seg == 0 || seg > last_seg(RX_BUFFER_MAX)) {
+		BT_ERR("Invalid segment index %u", seg);
+		prov_failed(PROV_ERR_NVAL_FMT);
+		return;
+	}
+
           if (!adv_link.rx.seg && adv_link.rx.id == rx->xact_id) {
               if (!ack_pending()) {
                   BT_DBG("Resending ack");
