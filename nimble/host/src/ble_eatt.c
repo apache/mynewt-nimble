@@ -83,7 +83,8 @@ ble_eatt_find_not_busy(uint16_t conn_handle)
     struct ble_eatt *eatt;
 
     SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
-        if ((eatt->conn_handle == conn_handle) && !eatt->client_op) {
+        /* Skip bearers that are not connected yet */
+        if ((eatt->conn_handle == conn_handle) && eatt->chan && !eatt->client_op) {
             return eatt;
         }
     }
