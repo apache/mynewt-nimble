@@ -111,7 +111,8 @@ static int check_output_auth(bt_mesh_output_action_t output, uint8_t size)
 		return -EINVAL;
 	}
 
-	if (size > bt_mesh_prov->output_size) {
+	if (size > bt_mesh_prov->output_size || size == 0 ||
+	    size > PROV_IO_OOB_SIZE_MAX) {
 		return -EINVAL;
 	}
 
@@ -128,7 +129,8 @@ static int check_input_auth(bt_mesh_input_action_t input, uint8_t size)
 		return -EINVAL;
 	}
 
-	if (size > bt_mesh_prov->input_size) {
+	if (size > bt_mesh_prov->input_size || size == 0 ||
+	    size > PROV_IO_OOB_SIZE_MAX) {
 		return -EINVAL;
 	}
 

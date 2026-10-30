@@ -62,7 +62,7 @@ static void link_closed(enum prov_bearer_link_status status)
 
 static void protocol_timeout(struct ble_npl_event *work)
 {
-    if (!gatt_link.conn_handle) {
+    if (gatt_link.conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         /* Already disconnected */
         return;
     }
@@ -97,7 +97,7 @@ int bt_mesh_pb_gatt_open(uint16_t conn_handle)
 {
 	BT_DBG("conn %p", conn_handle);
 
-          if (gatt_link.conn_handle) {
+          if (gatt_link.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
               return -EBUSY;
           }
 
@@ -140,7 +140,7 @@ static int link_accept(const struct prov_bearer_cb *cb, void *cb_data)
 static int buf_send(struct os_mbuf *buf, prov_bearer_send_complete_t cb,
 		    void *cb_data)
 {
-    if (!gatt_link.conn_handle) {
+    if (gatt_link.conn_handle == BLE_HS_CONN_HANDLE_NONE) {
         return -ENOTCONN;
     }
 
@@ -159,6 +159,7 @@ static void clear_tx(void)
 
 void pb_gatt_init(void)
 {
+    gatt_link.conn_handle = BLE_HS_CONN_HANDLE_NONE;
     k_work_init_delayable(&gatt_link.prot_timer, protocol_timeout);
 }
 
