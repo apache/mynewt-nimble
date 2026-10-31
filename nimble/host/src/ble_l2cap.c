@@ -74,13 +74,22 @@ ble_l2cap_chan_alloc(uint16_t conn_handle)
 void
 ble_l2cap_chan_free(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
-    int rc;
-
     if (chan == NULL) {
         return;
     }
 
-    ble_l2cap_coc_cleanup_chan(conn, chan);
+    if (ble_l2cap_coc_cleanup_chan(conn, chan)) {
+        /* Channel is released after application is notified */
+        return;
+    }
+
+    ble_l2cap_chan_release(chan);
+}
+
+void
+ble_l2cap_chan_release(struct ble_l2cap_chan *chan)
+{
+    int rc;
 
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     memset(chan, 0xff, sizeof *chan);
@@ -329,6 +338,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
     struct ble_l2cap_chan *chan;
     struct ble_l2cap_hdr hdr;
     struct os_mbuf *rx_frags;
+    bool disconnecting;
     uint16_t rx_len;
     uint16_t rx_cid;
     int rc;
@@ -408,6 +418,11 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
 
     chan = ble_hs_conn_chan_find_by_scid(conn, rx_cid);
 
+    /* Flag is set by ble_l2cap_disconnect() which may be called from other
+     * task, read it while locked.
+     */
+    disconnecting = chan && (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING);
+
     ble_hs_unlock();
 
     if (!chan) {
@@ -417,7 +432,7 @@ ble_l2cap_rx(uint16_t conn_handle, uint8_t pb, struct os_mbuf *om)
     }
 
     /* disconnect pending, drop data */
-    if (chan->flags & BLE_L2CAP_CHAN_F_DISCONNECTING) {
+    if (disconnecting) {
         os_mbuf_free_chain(rx_frags);
         return 0;
     }

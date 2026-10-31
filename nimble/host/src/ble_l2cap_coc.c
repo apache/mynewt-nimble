@@ -52,6 +52,13 @@ static os_membuf_t ble_l2cap_coc_srv_mem[
 
 static struct os_mempool ble_l2cap_coc_srv_pool;
 
+/* Channels freed while host was locked, application is notified about their
+ * disconnection and they are released by ble_l2cap_coc_notify_disconnected().
+ */
+SLIST_HEAD(ble_l2cap_coc_chan_list, ble_l2cap_chan);
+
+static struct ble_l2cap_coc_chan_list ble_l2cap_coc_disconnected_chans;
+
 static struct ble_l2cap_coc_srv *
 ble_l2cap_coc_srv_alloc(void)
 {
@@ -407,25 +414,76 @@ ble_l2cap_event_coc_disconnected(struct ble_l2cap_chan *chan)
     chan->cb(&event, chan->cb_arg);
 }
 
-void
+static void
+ble_l2cap_coc_free_sdus(struct ble_l2cap_chan *chan)
+{
+    for (int i = 0; i < BLE_L2CAP_SDU_BUFF_CNT; i++) {
+        os_mbuf_free_chain(chan->coc_rx.sdus[i]);
+    }
+    os_mbuf_free_chain(chan->coc_tx.sdus[0]);
+}
+
+/**
+ * Cleans up connection oriented channel being freed.
+ *
+ * @return true if channel release is deferred until application is notified
+ *         about disconnection with ble_l2cap_coc_notify_disconnected(); false
+ *         if channel can be released immediately.
+ */
+bool
 ble_l2cap_coc_cleanup_chan(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan)
 {
     /* PSM 0 is used for fixed channels. */
     if (chan->psm == 0) {
-        return;
+        return false;
     }
 
-    ble_l2cap_event_coc_disconnected(chan);
+    ble_l2cap_sig_coc_chan_freed(chan);
 
     if (conn && chan->scid) {
         ble_l2cap_clear_used_cid(conn->l2cap_coc_cid_mask,
                                  chan->scid - BLE_L2CAP_COC_CID_START);
     }
 
-    for (int i = 0; i < BLE_L2CAP_SDU_BUFF_CNT; i++) {
-        os_mbuf_free_chain(chan->coc_rx.sdus[i]);
+    /* Application callback must not be called with host locked */
+    if (chan->cb) {
+        BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+        SLIST_INSERT_HEAD(&ble_l2cap_coc_disconnected_chans, chan, next);
+        return true;
     }
-    os_mbuf_free_chain(chan->coc_tx.sdus[0]);
+
+    ble_l2cap_coc_free_sdus(chan);
+    return false;
+}
+
+/**
+ * Notifies application about disconnected channels and releases them. Must be
+ * called with host unlocked after freeing channel that could have application
+ * callback set.
+ */
+void
+ble_l2cap_coc_notify_disconnected(void)
+{
+    struct ble_l2cap_chan *chan;
+
+    BLE_HS_DBG_ASSERT(!ble_hs_locked_by_cur_task());
+
+    while (1) {
+        ble_hs_lock();
+        chan = SLIST_FIRST(&ble_l2cap_coc_disconnected_chans);
+        if (chan) {
+            SLIST_REMOVE_HEAD(&ble_l2cap_coc_disconnected_chans, next);
+        }
+        ble_hs_unlock();
+
+        if (!chan) {
+            break;
+        }
+
+        ble_l2cap_event_coc_disconnected(chan);
+        ble_l2cap_coc_free_sdus(chan);
+        ble_l2cap_chan_release(chan);
+    }
 }
 
 static void
@@ -448,7 +506,7 @@ ble_l2cap_event_coc_unstalled(struct ble_l2cap_chan *chan, int status)
 /* WARNING: this function is called from different task contexts. We expect the
  * host to be locked (ble_hs_lock()) before entering this function! */
 static int
-ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
+ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan, bool free_on_error)
 {
     struct ble_l2cap_coc_endpoint *tx;
     uint16_t len;
@@ -563,8 +621,11 @@ ble_l2cap_coc_continue_tx(struct ble_l2cap_chan *chan)
     return 0;
 
 failed:
-    os_mbuf_free_chain(tx->sdus[0]);
+    if (free_on_error) {
+        os_mbuf_free_chain(tx->sdus[0]);
+    }
     tx->sdus[0] = NULL;
+    tx->data_offset = 0;
 
     os_mbuf_free_chain(txom);
     if (tx->flags & BLE_L2CAP_COC_FLAG_STALLED) {
@@ -609,7 +670,7 @@ ble_l2cap_coc_le_credits_update(uint16_t conn_handle, uint16_t dcid,
     chan->coc_tx.credits += credits;
 
     /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
-    ble_l2cap_coc_continue_tx(chan);
+    ble_l2cap_coc_continue_tx(chan, true);
 }
 
 int
@@ -621,16 +682,6 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
     if (!sdu_rx) {
         return BLE_HS_EINVAL;
     }
-
-    if (chan->coc_rx.sdus[0] != NULL &&
-        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx &&
-        BLE_L2CAP_SDU_BUFF_CNT != 1) {
-        return BLE_HS_EBUSY;
-    }
-
-    chan->coc_rx.sdus[chan->coc_rx.next_sdu_alloc_idx] = sdu_rx;
-    chan->coc_rx.next_sdu_alloc_idx =
-        (chan->coc_rx.next_sdu_alloc_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
 
     ble_hs_lock();
     conn = ble_hs_conn_find(chan->conn_handle);
@@ -645,6 +696,18 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
         ble_hs_unlock();
         return BLE_HS_ENOENT;
     }
+
+    /* SDU buffer is consumed only if 0 is returned */
+    if (chan->coc_rx.sdus[0] != NULL &&
+        chan->coc_rx.next_sdu_alloc_idx == chan->coc_rx.current_sdu_idx &&
+        BLE_L2CAP_SDU_BUFF_CNT != 1) {
+        ble_hs_unlock();
+        return BLE_HS_EBUSY;
+    }
+
+    chan->coc_rx.sdus[chan->coc_rx.next_sdu_alloc_idx] = sdu_rx;
+    chan->coc_rx.next_sdu_alloc_idx =
+        (chan->coc_rx.next_sdu_alloc_idx + 1) % BLE_L2CAP_SDU_BUFF_CNT;
 
     /* We want to back only that much credits which remote side is missing
      * to be able to send complete SDU.
@@ -662,36 +725,38 @@ ble_l2cap_coc_recv_ready(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_rx)
 
 /**
  * Transmits a packet over a connection-oriented channel.  This function only
- * consumes the supplied mbuf on success.
+ * consumes the supplied mbuf on success (0 or BLE_HS_ESTALLED).
  */
 int
 ble_l2cap_coc_send(struct ble_l2cap_chan *chan, struct os_mbuf *sdu_tx)
 {
     struct ble_l2cap_coc_endpoint *tx;
 
-
     tx = &chan->coc_tx;
 
+    ble_hs_lock();
     if (OS_MBUF_PKTLEN(sdu_tx) > tx->mtu) {
+        ble_hs_unlock();
         return BLE_HS_EBADDATA;
     }
 
-    ble_hs_lock();
     if (tx->sdus[0]) {
         ble_hs_unlock();
         return BLE_HS_EBUSY;
     }
     tx->sdus[0] = sdu_tx;
 
-
-    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx() */
-    return ble_l2cap_coc_continue_tx(chan);
+    /* leave the host locked on purpose when ble_l2cap_coc_continue_tx().
+     * On failure SDU is not consumed and remains owned by the caller.
+     */
+    return ble_l2cap_coc_continue_tx(chan, false);
 }
 
 int
 ble_l2cap_coc_init(void)
 {
     STAILQ_INIT(&ble_l2cap_coc_srvs);
+    SLIST_INIT(&ble_l2cap_coc_disconnected_chans);
 
     return os_mempool_init(&ble_l2cap_coc_srv_pool,
                            MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),

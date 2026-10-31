@@ -135,6 +135,7 @@ int ble_l2cap_sig_le_credits_nolock(uint16_t conn_handle, uint16_t scid,
                                     uint16_t credits);
 int ble_l2cap_sig_le_credits(uint16_t conn_handle, uint16_t scid,
                              uint16_t credits);
+void ble_l2cap_sig_coc_chan_freed(struct ble_l2cap_chan *chan);
 #else
 static inline int
 ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
