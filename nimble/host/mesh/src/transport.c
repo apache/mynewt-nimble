@@ -1536,9 +1536,7 @@ found_rx:
 		 */
 		net_buf_simple_init(seg_buf, 0);
 
-	    sdu = NET_BUF_SIMPLE(rx->len - APP_MIC_LEN(ASZMIC(hdr)));
-		net_buf_simple_init_with_data(
-			sdu, seg_buf->om_data, rx->len - APP_MIC_LEN(ASZMIC(hdr)));
+		sdu = NET_BUF_SIMPLE(rx->len - APP_MIC_LEN(ASZMIC(hdr)));
 
 		err = sdu_recv(net_rx, *hdr, ASZMIC(hdr), seg_buf, sdu, rx);
 		os_mbuf_free_chain(seg_buf);
