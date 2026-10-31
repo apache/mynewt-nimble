@@ -46,6 +46,7 @@ TEST_SUITE_DECL(ble_gatt_write_test_suite);
 TEST_SUITE_DECL(ble_gatts_notify_suite);
 TEST_SUITE_DECL(ble_gatts_read_test_suite);
 TEST_SUITE_DECL(ble_gatts_reg_suite);
+TEST_SUITE_DECL(ble_hci_h4_test_suite);
 TEST_SUITE_DECL(ble_hs_adv_test_suite);
 TEST_SUITE_DECL(ble_hs_conn_suite);
 TEST_SUITE_DECL(ble_hs_hci_suite);

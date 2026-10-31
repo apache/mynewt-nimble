@@ -109,6 +109,7 @@ hci_h4_ib_pull_min_len(struct hci_h4_sm *rxs,
 static int
 hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
 {
+    uint16_t data_len;
     int rc;
 
     rc = hci_h4_ib_pull_min_len(h4sm, ib);
@@ -130,13 +131,23 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
         break;
     case HCI_H4_ACL:
         assert(h4sm->allocs && h4sm->allocs->acl);
+
+        data_len = get_le16(&h4sm->hdr[2]);
+        h4sm->exp_len = data_len + 4;
+        if (data_len > MYNEWT_VAL(BLE_TRANSPORT_ACL_SIZE)) {
+            /* Packet does not fit in ACL buffer. Don't allocate buffer so
+             * the payload is consumed and dropped.
+             */
+            h4sm->om = NULL;
+            break;
+        }
+
         h4sm->om = h4sm->allocs->acl();
         if (!h4sm->om) {
             return -1;
         }
 
         os_mbuf_append(h4sm->om, h4sm->hdr, h4sm->len);
-        h4sm->exp_len = get_le16(&h4sm->hdr[2]) + 4;
         break;
     case HCI_H4_EVT:
         if (h4sm->hdr[0] == BLE_HCI_EVCODE_LE_META) {
@@ -150,6 +161,15 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
         }
 
         assert(h4sm->allocs && h4sm->allocs->evt);
+
+        h4sm->exp_len = h4sm->hdr[1] + 2;
+        if (h4sm->exp_len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
+            /* Event does not fit in event buffer. Don't allocate buffer so
+             * the payload is consumed and dropped.
+             */
+            h4sm->buf = NULL;
+            break;
+        }
 
         /* We can drop legacy advertising events if there's no free buffer in
          * discardable pool.
@@ -166,21 +186,26 @@ hci_h4_sm_w4_header(struct hci_h4_sm *h4sm, struct hci_h4_input_buffer *ib)
         if (h4sm->buf) {
             memcpy(h4sm->buf, h4sm->hdr, h4sm->len);
         }
-
-        h4sm->exp_len = h4sm->hdr[1] + 2;
-        if (h4sm->exp_len > MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE)) {
-            return -1;
-        }
         break;
     case HCI_H4_ISO:
         assert(h4sm->allocs && h4sm->allocs->iso);
+
+        data_len = BLE_HCI_ISO_LENGTH(get_le16(&h4sm->hdr[2]));
+        h4sm->exp_len = data_len + 4;
+        if (data_len > MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE)) {
+            /* Packet does not fit in ISO buffer. Don't allocate buffer so
+             * the payload is consumed and dropped.
+             */
+            h4sm->om = NULL;
+            break;
+        }
+
         h4sm->om = h4sm->allocs->iso();
         if (!h4sm->om) {
             return -1;
         }
 
         os_mbuf_append(h4sm->om, h4sm->hdr, h4sm->len);
-        h4sm->exp_len = BLE_HCI_ISO_LENGTH(get_le16(&h4sm->hdr[2])) + 4;
         break;
     default:
         assert(0);
@@ -209,7 +234,9 @@ hci_h4_sm_w4_payload(struct hci_h4_sm *h4sm,
         break;
     case HCI_H4_ACL:
     case HCI_H4_ISO:
-        assert(h4sm->om);
+        if (!h4sm->om) {
+            break;
+        }
 
         mbuf_len = OS_MBUF_PKTLEN(h4sm->om);
         rc = os_mbuf_append(h4sm->om, ib->buf, len);
