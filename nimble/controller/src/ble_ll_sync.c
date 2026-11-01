@@ -615,8 +615,8 @@ ble_ll_sync_parse_ext_hdr(struct os_mbuf *om, uint8_t **aux, int8_t *tx_power,
             i += BLE_LL_EXT_ADV_TX_POWER_SIZE;
         }
 
-        /* sanity check */
-        if (i > ext_hdr_len) {
+        /* sanity check, ext_hdr_len includes flags */
+        if (i >= ext_hdr_len) {
             return -1;
         }
 
@@ -1468,6 +1468,11 @@ ble_ll_sync_info_event(struct ble_ll_scan_addr_data *addrd,
         return;
     }
 
+    /* Channels Mask (37 bits), ignore if less than 2 channels are used */
+    if (ble_ll_utils_chan_map_used_get(&syncinfo[4]) < 2) {
+        return;
+    }
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PRIVACY)
     if (addrd->adva_resolved) {
         sm->flags |= BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED;
@@ -2005,6 +2010,11 @@ ble_ll_sync_periodic_ind(struct ble_ll_conn_sm *connsm,
     itvl = get_le16(syncinfo + 2);
     /* ignore if sync params are not valid */
     if ((phy_mode == 0) || (itvl < 6)) {
+        return;
+    }
+
+    /* ignore if less than 2 channels are used */
+    if (ble_ll_utils_chan_map_used_get(syncinfo + 4) < 2) {
         return;
     }
 
