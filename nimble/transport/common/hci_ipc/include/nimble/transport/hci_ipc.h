@@ -37,6 +37,7 @@ struct __attribute__((packed)) hci_ipc_hdr {
 struct hci_ipc_sm {
     struct hci_ipc_hdr hdr;
     uint8_t hdr_len;
+    uint8_t discard;
     uint16_t rem_len;
     uint16_t buf_len;
 

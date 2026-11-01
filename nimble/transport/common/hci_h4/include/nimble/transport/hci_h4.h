@@ -49,8 +49,8 @@ struct hci_h4_sm {
     uint8_t state;
     uint8_t pkt_type;
     uint8_t min_len;
-    uint16_t len;
-    uint16_t exp_len;
+    uint32_t len;
+    uint32_t exp_len;
     uint8_t hdr[4];
     union {
         uint8_t *buf;

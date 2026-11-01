@@ -495,7 +495,7 @@ ble_hci_sock_rx_msg(void)
                 STATS_INC(hci_sock_stats, ierr);
                 dprintf(1, "Too big HCI event (%d > %d), ignoring\n", len - 1,
                         MYNEWT_VAL(BLE_TRANSPORT_EVT_SIZE));
-                return -1;
+                break;
             }
 
             /* Advertising reports can be dropped if there is no free buffer
@@ -518,7 +518,7 @@ ble_hci_sock_rx_msg(void)
             if (rc) {
                 ble_transport_free(data);
                 STATS_INC(hci_sock_stats, ierr);
-                return 0;
+                break;
             }
             break;
 #endif
@@ -589,8 +589,12 @@ ble_hci_sock_rx_msg(void)
             OS_EXIT_CRITICAL(sr);
             break;
         default:
+            /* Unknown packet type, there is no way to resync so drop all
+             * received data. Note that len is not valid here.
+             */
             STATS_INC(hci_sock_stats, ierr);
-            break;
+            bhss->rx_off = 0;
+            return -1;
         }
 
         memmove(bhss->rx_data, &bhss->rx_data[len], bhss->rx_off - len);
