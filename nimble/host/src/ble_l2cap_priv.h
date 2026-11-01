@@ -107,6 +107,7 @@ struct os_mbuf *ble_l2cap_prepend_hdr(struct os_mbuf *om, uint16_t cid,
 
 struct ble_l2cap_chan *ble_l2cap_chan_alloc(uint16_t conn_handle);
 void ble_l2cap_chan_free(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan);
+void ble_l2cap_chan_release(struct ble_l2cap_chan *chan);
 
 bool ble_l2cap_is_mtu_req_sent(const struct ble_l2cap_chan *chan);
 
@@ -116,7 +117,10 @@ int ble_l2cap_tx(struct ble_hs_conn *conn, struct ble_l2cap_chan *chan,
 
 int ble_l2cap_init(void);
 
-/* Below experimental API is available when BLE_VERSION >= 52 */
+/* Below experimental API is available when BLE_VERSION >= 52.
+ * SDU buffers ownership in ble_l2cap_enhanced_connect() is same as for
+ * ble_l2cap_connect(): consumed on success, not consumed on failure.
+ */
 int ble_l2cap_enhanced_connect(uint16_t conn_handle,
                                uint16_t psm, uint16_t mtu,
                                uint8_t num, struct os_mbuf *sdu_rx[],

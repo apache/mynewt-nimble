@@ -255,12 +255,13 @@ ble_l2cap_sig_proc_free(struct ble_l2cap_sig_proc *proc)
  * @param conn_handle           The connection handle to match against.
  * @param op                    The op code to match against/
  * @param id                    The identifier to match against.
+ * @param match_id              Whether to match against the identifier.
  *
  * @return                      1 if the proc matches; 0 otherwise.
  */
 static int
-ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
-                           uint16_t conn_handle, uint8_t op, uint8_t id)
+ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc, uint16_t conn_handle,
+                           uint8_t op, uint8_t id, bool match_id)
 {
     if (conn_handle != proc->conn_handle) {
         return 0;
@@ -270,7 +271,7 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
         return 0;
     }
 
-    if (id != proc->id) {
+    if (match_id && id != proc->id) {
         return 0;
     }
 
@@ -290,8 +291,8 @@ ble_l2cap_sig_proc_matches(struct ble_l2cap_sig_proc *proc,
  *                                  null on failure.
  */
 static struct ble_l2cap_sig_proc *
-ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
-                           uint8_t identifier)
+ble_l2cap_sig_proc_extract_common(uint16_t conn_handle, uint8_t op,
+                                  uint8_t identifier, bool match_id)
 {
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_proc *prev;
@@ -300,7 +301,7 @@ ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
 
     prev = NULL;
     STAILQ_FOREACH(proc, &ble_l2cap_sig_procs, next) {
-        if (ble_l2cap_sig_proc_matches(proc, conn_handle, op, identifier)) {
+        if (ble_l2cap_sig_proc_matches(proc, conn_handle, op, identifier, match_id)) {
             if (prev == NULL) {
                 STAILQ_REMOVE_HEAD(&ble_l2cap_sig_procs, next);
             } else {
@@ -314,6 +315,22 @@ ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op,
     ble_hs_unlock();
 
     return proc;
+}
+
+static struct ble_l2cap_sig_proc *
+ble_l2cap_sig_proc_extract(uint16_t conn_handle, uint8_t op, uint8_t identifier)
+{
+    return ble_l2cap_sig_proc_extract_common(conn_handle, op, identifier, true);
+}
+
+/**
+ * Same as ble_l2cap_sig_proc_extract() but matches any identifier.  Used to
+ * clean up all procedures of a broken connection.
+ */
+static struct ble_l2cap_sig_proc *
+ble_l2cap_sig_proc_extract_any(uint16_t conn_handle, uint8_t op)
+{
+    return ble_l2cap_sig_proc_extract_common(conn_handle, op, 0, false);
 }
 
 static int
@@ -730,7 +747,7 @@ ble_l2cap_sig_coc_connect_cb(struct ble_l2cap_sig_proc *proc, int status)
     /* Free not connected channels*/
 
     ble_hs_lock();
-    conn = ble_hs_conn_find(chan->conn_handle);
+    conn = ble_hs_conn_find(proc->conn_handle);
     for (i = 0; i < proc->connect.chan_cnt; i++) {
         chan = proc->connect.chan[i];
         if (chan) {
@@ -835,13 +852,17 @@ ble_l2cap_sig_credit_base_reconfig_req_rx(uint16_t conn_handle,
         goto failed;
     }
 
+    /* Update while locked, as channel TX may be in progress in other task */
+    for (i = 0; i < cid_cnt; i++) {
+        chan[i]->coc_tx.mtu = req->mtu;
+        chan[i]->peer_coc_mps = req->mps;
+    }
+
     ble_l2cap_sig_tx_nolock(conn_handle, txom);
 
     ble_hs_unlock();
 
     for (i = 0; i < cid_cnt; i++) {
-        chan[i]->coc_tx.mtu = req->mtu;
-        chan[i]->peer_coc_mps = req->mps;
         ble_l2cap_event_coc_reconfigured(conn_handle, 0, chan[i], true);
     }
 
@@ -869,8 +890,9 @@ ble_l2cap_sig_coc_reconfig_cb(struct ble_l2cap_sig_proc *proc, int status)
     }
 
     for (i = 0; i< proc->reconfig.cid_cnt; i++) {
+        /* Channel may have been disconnected meanwhile */
         chan[i] = ble_hs_conn_chan_find_by_scid(conn, proc->reconfig.cids[i]);
-        if (status == 0) {
+        if (chan[i] && status == 0) {
             ble_l2cap_coc_set_new_mtu_mps(chan[i], proc->reconfig.new_mtu, proc->reconfig.new_mps);
         }
     }
@@ -878,7 +900,9 @@ ble_l2cap_sig_coc_reconfig_cb(struct ble_l2cap_sig_proc *proc, int status)
     ble_hs_unlock();
 
     for (i = 0; i < proc->reconfig.cid_cnt; i++) {
-        ble_l2cap_event_coc_reconfigured(proc->conn_handle, status, chan[i], false);
+        if (chan[i]) {
+            ble_l2cap_event_coc_reconfigured(proc->conn_handle, status, chan[i], false);
+        }
     }
 }
 
@@ -1271,6 +1295,7 @@ ble_l2cap_sig_coc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         conn = ble_hs_conn_find_assert(conn_handle);
         ble_hs_conn_delete_chan(conn, chan);
         ble_hs_unlock();
+        ble_l2cap_coc_notify_disconnected();
         return 0;
     }
 
@@ -1371,6 +1396,11 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
     proc = ble_l2cap_sig_proc_alloc();
     if (!proc) {
+        /* Failure is reported with return code, no disconnected event. SDU
+         * buffer is not consumed on failure.
+         */
+        chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         return BLE_HS_ENOMEM;
     }
@@ -1384,6 +1414,8 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
     req = ble_l2cap_sig_cmd_get(BLE_L2CAP_SIG_OP_LE_CREDIT_CONNECT_REQ, proc->id,
                                 sizeof(*req), &txom);
     if (!req) {
+        chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return BLE_HS_ENOMEM;
@@ -1397,6 +1429,8 @@ ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t mtu,
 
     rc = ble_l2cap_sig_tx_nolock(proc->conn_handle, txom);
     if (rc != 0) {
+        chan->cb = NULL;
+        chan->coc_rx.sdus[0] = NULL;
         ble_l2cap_chan_free(conn, chan);
         ble_l2cap_sig_proc_free(proc);
         return rc;
@@ -1477,10 +1511,15 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     return 0;
 
 failed:
-    /* clean up on failure, ble_l2cap_chan_free() handles NULL as well */
+    /* clean up on failure, channels may be allocated only partially. SDU
+     * buffers are not consumed on failure.
+     */
     for (i = 0; i < num; i++) {
-        proc->connect.chan[i]->cb = NULL;
-        ble_l2cap_chan_free(conn, proc->connect.chan[i]);
+        if (proc->connect.chan[i]) {
+            proc->connect.chan[i]->cb = NULL;
+            proc->connect.chan[i]->coc_rx.sdus[0] = NULL;
+            ble_l2cap_chan_free(conn, proc->connect.chan[i]);
+        }
     }
 
     ble_l2cap_sig_proc_free(proc);
@@ -1629,6 +1668,8 @@ ble_l2cap_sig_disc_req_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
     ble_hs_unlock();
 
     ble_l2cap_sig_tx(conn_handle, txom);
+
+    ble_l2cap_coc_notify_disconnected();
     return 0;
 }
 
@@ -1653,6 +1694,8 @@ ble_l2cap_sig_coc_disconnect_cb(struct ble_l2cap_sig_proc *proc, int status)
         ble_l2cap_chan_free(NULL, chan);
     }
     ble_hs_unlock();
+
+    ble_l2cap_coc_notify_disconnected();
 }
 
 static int
@@ -1683,8 +1726,12 @@ ble_l2cap_sig_disc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
 
     rsp = (struct ble_l2cap_sig_disc_rsp *)(*om)->om_data;
     if (chan->dcid != le16toh(rsp->dcid) || chan->scid != le16toh(rsp->scid)) {
-        /* This response is incorrect, lets wait for timeout */
-        ble_l2cap_sig_proc_start(proc);
+        /* This response is incorrect, lets wait for timeout. Keep original
+         * expiration time so peer cannot extend procedure indefinitely.
+         */
+        ble_hs_lock();
+        ble_l2cap_sig_proc_insert(proc);
+        ble_hs_unlock();
         return 0;
     }
 
@@ -1743,6 +1790,27 @@ ble_l2cap_sig_disconnect_nolock(struct ble_l2cap_chan *chan)
     ble_l2cap_sig_proc_start(proc);
 
     return 0;
+}
+
+/**
+ * Called when a connection oriented channel is being freed.  Drops references
+ * to the channel held by pending procedures, so they do not access it once
+ * freed (e.g. when peer disconnects channel while our disconnect request is
+ * pending).
+ */
+void
+ble_l2cap_sig_coc_chan_freed(struct ble_l2cap_chan *chan)
+{
+    struct ble_l2cap_sig_proc *proc;
+
+    BLE_HS_DBG_ASSERT(ble_hs_locked_by_cur_task());
+
+    STAILQ_FOREACH(proc, &ble_l2cap_sig_procs, next) {
+        if (proc->op == BLE_L2CAP_SIG_PROC_OP_DISCONNECT &&
+            proc->disconnect.chan == chan) {
+            proc->disconnect.chan = NULL;
+        }
+    }
 }
 
 static int
@@ -1954,32 +2022,31 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
 {
     struct ble_l2cap_sig_proc *proc;
 
-    /* If there were any pending procedure, indicate to the application that it
-     * did not complete.
+    /* If there were any pending procedures, indicate to the application that
+     * they did not complete.
      */
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_UPDATE)) != NULL) {
         ble_l2cap_sig_update_call_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
 #if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT)) != NULL) {
         ble_l2cap_sig_coc_connect_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
-    proc = ble_l2cap_sig_proc_extract(conn_handle,
-                                      BLE_L2CAP_SIG_PROC_OP_DISCONNECT, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_DISCONNECT)) != NULL) {
         ble_l2cap_sig_coc_disconnect_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
 
 #if MYNEWT_VAL(BLE_L2CAP_ENHANCED_COC)
-    proc = ble_l2cap_sig_proc_extract(conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG, 0);
-    if (proc != NULL) {
+    while ((proc = ble_l2cap_sig_proc_extract_any(
+                conn_handle, BLE_L2CAP_SIG_PROC_OP_RECONFIG)) != NULL) {
         ble_l2cap_sig_coc_reconfig_cb(proc, reason);
         ble_l2cap_sig_proc_free(proc);
     }
