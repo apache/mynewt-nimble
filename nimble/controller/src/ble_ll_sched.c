@@ -931,6 +931,7 @@ ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
 {
     struct ble_ll_sched_item *first;
     struct ble_ll_sched_item *entry;
+    struct ble_ll_sched_item *next;
     uint8_t first_removed;
     os_sr_t sr;
 
@@ -944,13 +945,13 @@ ble_ll_sched_rmv_elem_type(uint8_t type, sched_remove_cb_func remove_cb)
 
     first_removed = first->sched_type == type;
 
-    TAILQ_FOREACH(entry, &g_ble_ll_sched_q, link) {
+    TAILQ_FOREACH_SAFE(entry, &g_ble_ll_sched_q, link, next) {
         if (entry->sched_type != type) {
             continue;
         }
         TAILQ_REMOVE(&g_ble_ll_sched_q, entry, link);
-        remove_cb(entry);
         entry->enqueued = 0;
+        remove_cb(entry);
     }
 
     if (first_removed) {
