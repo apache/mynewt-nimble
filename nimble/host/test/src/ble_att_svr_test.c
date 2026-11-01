@@ -2279,6 +2279,41 @@ TEST_CASE_SELF(ble_att_svr_test_large_value)
     ble_att_svr_test_assert_mbufs_freed();
 }
 
+TEST_CASE_SELF(ble_att_svr_test_read_mult_var_oom)
+{
+    struct os_mbuf *oms;
+    uint16_t conn_handle;
+    int rc;
+
+    conn_handle = ble_att_svr_test_misc_init(0);
+
+    ble_att_svr_test_misc_register_uuid(
+        BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE), HA_FLAG_PERM_RW, 1,
+        ble_att_svr_test_misc_attr_fn_rw_1);
+    ble_att_svr_test_attr_w_1_len = 2;
+    ble_att_svr_test_attr_w_1[0] = 0x12;
+    ble_att_svr_test_attr_w_1[1] = 0x34;
+
+    /* Exhaust the msys pool.  Leave mbufs for the forthcoming request and
+     * response only.
+     */
+    oms = ble_hs_test_util_mbuf_alloc_all_but(2);
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(
+        conn_handle, BLE_L2CAP_CID_ATT,
+        ((uint8_t[]){ BLE_ATT_OP_READ_MULT_VAR_REQ, 0x01, 0x00 }), 3);
+    TEST_ASSERT_FATAL(rc == BLE_HS_ENOMEM);
+
+    /* Ensure we were able to send an error response. */
+    ble_hs_test_util_verify_tx_err_rsp(BLE_ATT_OP_READ_MULT_VAR_REQ, 0,
+                                       BLE_ATT_ERR_INSUFFICIENT_RES);
+
+    rc = os_mbuf_free_chain(oms);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    ble_att_svr_test_assert_mbufs_freed();
+}
+
 TEST_SUITE(ble_att_svr_suite)
 {
     ble_att_svr_test_mtu();
@@ -2295,6 +2330,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_notify();
     ble_att_svr_test_indicate();
     ble_att_svr_test_oom();
+    ble_att_svr_test_read_mult_var_oom();
     ble_att_svr_test_unsupported_req();
     ble_att_svr_test_large_value();
 }
