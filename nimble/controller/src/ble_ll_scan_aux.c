@@ -73,6 +73,7 @@ struct ble_ll_scan_aux_data {
     struct ble_ll_sched_item sch;
     struct ble_npl_event break_ev;
     struct ble_hci_ev *hci_ev;
+    TAILQ_ENTRY(ble_ll_scan_aux_data) link;
 
     uint16_t adi;
 
@@ -95,6 +96,8 @@ struct ble_ll_scan_aux_data {
 
 static os_membuf_t aux_data_mem[AUX_MEMPOOL_SIZE];
 static struct os_mempool aux_data_pool;
+
+static TAILQ_HEAD(, ble_ll_scan_aux_data) aux_data_list;
 
 static struct ble_ll_scan_aux_data *aux_data_current;
 
@@ -181,6 +184,7 @@ static struct ble_ll_scan_aux_data *
 ble_ll_scan_aux_alloc(void)
 {
     struct ble_ll_scan_aux_data *aux;
+    os_sr_t sr;
 
     aux = os_memblock_get(&aux_data_pool);
     if (!aux) {
@@ -188,6 +192,10 @@ ble_ll_scan_aux_alloc(void)
     }
 
     memset(aux, 0, sizeof(*aux));
+
+    OS_ENTER_CRITICAL(sr);
+    TAILQ_INSERT_TAIL(&aux_data_list, aux, link);
+    OS_EXIT_CRITICAL(sr);
 
     aux->sch.sched_cb = ble_ll_scan_aux_sched_cb;
     aux->sch.sched_type = BLE_LL_SCHED_TYPE_SCAN_AUX;
@@ -202,10 +210,16 @@ ble_ll_scan_aux_alloc(void)
 static void
 ble_ll_scan_aux_free(struct ble_ll_scan_aux_data *aux)
 {
+    os_sr_t sr;
+
     BLE_LL_ASSERT(!aux->sch.enqueued);
     BLE_LL_ASSERT(aux->hci_ev == NULL);
     BLE_LL_ASSERT((aux->hci_state & BLE_LL_SCAN_AUX_H_DONE) ||
                   !(aux->hci_state & BLE_LL_SCAN_AUX_H_SENT_ANY));
+
+    OS_ENTER_CRITICAL(sr);
+    TAILQ_REMOVE(&aux_data_list, aux, link);
+    OS_EXIT_CRITICAL(sr);
 
     os_memblock_put(&aux_data_pool, aux);
 }
@@ -1772,13 +1786,32 @@ ble_ll_scan_aux_sched_remove(struct ble_ll_sched_item *sch)
 void
 ble_ll_scan_aux_init(void)
 {
+    struct ble_ll_scan_aux_data *aux;
     os_error_t err;
+
+    TAILQ_FOREACH(aux, &aux_data_list, link) {
+        if (ble_npl_event_is_queued(&aux->break_ev)) {
+            ble_ll_event_remove(&aux->break_ev);
+        }
+
+        if (aux->sch.enqueued) {
+            ble_ll_sched_rmv_elem(&aux->sch);
+        }
+
+        if (aux->hci_ev) {
+            ble_transport_free(aux->hci_ev);
+        }
+    }
+
+    aux_data_current = NULL;
 
     err = os_mempool_init(&aux_data_pool,
                           MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_CNT),
                           sizeof(struct ble_ll_scan_aux_data),
                           aux_data_mem, "ble_ll_scan_aux_data_pool");
     BLE_LL_ASSERT(err == 0);
+
+    TAILQ_INIT(&aux_data_list);
 }
 
 #endif /* BLE_LL_CFG_FEAT_LL_EXT_ADV */
