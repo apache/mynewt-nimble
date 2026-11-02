@@ -22,11 +22,13 @@
 
 TEST_SUITE_DECL(ble_audio_base_parse_test_suite);
 TEST_CASE_DECL(ble_audio_listener_register_test);
+TEST_CASE_DECL(ble_audio_broadcast_sink_config_test_subgroups_bound);
 
 TEST_SUITE(ble_audio_test)
 {
     ble_audio_base_parse_test_suite();
     ble_audio_listener_register_test();
+    ble_audio_broadcast_sink_config_test_subgroups_bound();
 }
 
 int

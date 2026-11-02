@@ -1579,13 +1579,21 @@ ble_audio_broadcast_sink_config(uint8_t source_id, uint16_t conn_handle,
                                 const struct ble_audio_scan_delegator_sync_opt *sync_opt)
 {
     struct ble_audio_broadcast_sink *sink;
+    bool sync_requested;
     int rc;
 
     BLE_AUDIO_DBG_ASSERT(sync_opt != NULL);
 
+    sync_requested = sync_opt->pa_sync != BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_DO_NOT_SYNC;
+    if (sync_requested && sync_opt->num_subgroups >
+                              MYNEWT_VAL(BLE_AUDIO_SCAN_DELEGATOR_SUBGROUP_MAX)) {
+        BLE_HS_LOG_ERROR("num_subgroups above the limit\n");
+        return BLE_HS_EINVAL;
+    }
+
     sink = broadcast_sink_get(source_id);
     if (sink == NULL) {
-        if (sync_opt->pa_sync != BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_DO_NOT_SYNC) {
+        if (sync_requested) {
             sink = broadcast_sink_new(source_id);
             if (sink == NULL) {
                 return BLE_HS_ENOMEM;
@@ -1596,7 +1604,7 @@ ble_audio_broadcast_sink_config(uint8_t source_id, uint16_t conn_handle,
         }
     }
 
-    if (sync_opt->pa_sync != BLE_AUDIO_SCAN_DELEGATOR_PA_SYNC_DO_NOT_SYNC) {
+    if (sync_requested) {
         /* TODO: Skip if the BIS Sync is same */
         if (sink->num_subgroups != 0) {
             rc = big_sync_term(sink);
