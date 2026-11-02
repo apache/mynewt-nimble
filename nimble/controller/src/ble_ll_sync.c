@@ -390,7 +390,7 @@ ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
 }
 
 static void
-ble_ll_sync_est_event_failed(uint8_t status)
+ble_ll_sync_est_event_failed(struct ble_ll_sync_sm *sm, uint8_t status)
 {
     struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev;
     struct ble_hci_ev *hci_ev;
@@ -408,6 +408,14 @@ ble_ll_sync_est_event_failed(uint8_t status)
 
         ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
         ev->status = status;
+        if (sm) {
+            ev->sid = sm->adv_sid;
+            ev->peer_addr_type = sm->adv_addr_type;
+            if (sm->flags & BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED) {
+                ev->peer_addr_type += 2;
+            }
+            memcpy(ev->peer_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
+        }
 
         ble_ll_hci_event_send(hci_ev);
     } else {
@@ -1120,7 +1128,7 @@ ble_ll_sync_check_failed(struct ble_ll_sync_sm *sm)
     }
 #endif
 
-    ble_ll_sync_est_event_failed(BLE_ERR_CONN_ESTABLISHMENT);
+    ble_ll_sync_est_event_failed(sm, BLE_ERR_CONN_ESTABLISHMENT);
 }
 
 static bool
@@ -1763,7 +1771,7 @@ ble_ll_sync_create(const uint8_t *cmdbuf, uint8_t len)
 static void
 ble_ll_sync_cancel_complete_event(void *user_data)
 {
-    ble_ll_sync_est_event_failed(BLE_ERR_OPERATION_CANCELLED);
+    ble_ll_sync_est_event_failed(NULL, BLE_ERR_OPERATION_CANCELLED);
 }
 
 int
