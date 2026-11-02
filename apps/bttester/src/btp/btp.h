@@ -35,6 +35,7 @@
 #include "btp_mesh.h"
 #include "btp_pacs.h"
 #include "btp_bap.h"
+#include "btp_rap.h"
 
 #define BTP_MTU MYNEWT_VAL(BTTESTER_BTP_DATA_SIZE_MAX)
 #define BTP_DATA_MAX_SIZE (BTP_MTU - sizeof(struct btp_hdr))
@@ -50,8 +51,9 @@
 #define BTP_SERVICE_ID_GATTC    6
 #define BTP_SERVICE_ID_PACS     12
 #define BTP_SERVICE_ID_BAP     14
+#define BTP_SERVICE_ID_RAP     33
 
-#define BTP_SERVICE_ID_MAX    BTP_SERVICE_ID_BAP
+#define BTP_SERVICE_ID_MAX    BTP_SERVICE_ID_RAP
 
 #define BTP_STATUS_SUCCESS    0x00
 #define BTP_STATUS_FAILED    0x01
