@@ -481,11 +481,13 @@ ble_ll_iso_big_event_done(struct ble_ll_iso_big *big)
              * SDUs queued at next event. Feedback value is the difference between
              * expected and actual SDUs count.
              */
-            exp = bis->mux.sdu_per_event - bis->mux.sdu_per_interval;
+            exp = bis->conn.mux.sdu_per_event - bis->conn.mux.sdu_per_interval;
             idx = fb_hci_subev->count++;
             fb_hci_subev->feedback[idx].handle = htole16(bis->conn.handle);
-            fb_hci_subev->feedback[idx].sdu_per_interval = bis->mux.sdu_per_interval;
-            fb_hci_subev->feedback[idx].diff = (int8_t)(bis->mux.sdu_q_len - exp);
+            fb_hci_subev->feedback[idx].sdu_per_interval =
+                bis->conn.mux.sdu_per_interval;
+            fb_hci_subev->feedback[idx].diff =
+                (int8_t)(bis->conn.mux.sdu_q_len - exp);
         }
 #endif
     }
