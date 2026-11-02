@@ -80,6 +80,8 @@ jobs:
         with:
           author: Mynewt Bot <dev@mynewt.apache.org>
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Workspace also contains newt binaries, commit only syscfg files
+          add-paths: porting/**/syscfg/syscfg.h
           commit-message: |
             porting: Update ports syscfg
 
