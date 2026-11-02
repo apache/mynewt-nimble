@@ -314,6 +314,12 @@ struct btp_gatt_change_database_cmd {
     uint8_t visibility;
 } __packed;
 
+#define BTP_GATT_EATT_CONNECT 0x1f
+struct btp_gatt_eatt_connect_cmd {
+    ble_addr_t address;
+    uint8_t num_channels;
+} __packed;
+
 #define BTP_GATT_NOTIFY_MULTIPLE        0x21
 struct btp_gatt_notify_mult_val_cmd {
     ble_addr_t addr;
