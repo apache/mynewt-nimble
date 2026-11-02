@@ -76,6 +76,7 @@ main(int argc, char **argv)
     ble_sm_sc_test_suite();
     ble_store_suite();
     ble_uuid_test_suite();
+    ble_gatts_cl_sup_feat_suite();
 
     return tu_any_failed;
 }
