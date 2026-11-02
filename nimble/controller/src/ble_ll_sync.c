@@ -354,6 +354,18 @@ ble_ll_sync_transfer_received(struct ble_ll_sync_sm *sm, uint8_t status)
 #endif
 
 static void
+ble_ll_sync_est_event_adv_set(struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev,
+                              const struct ble_ll_sync_sm *sm)
+{
+    ev->sid = sm->adv_sid;
+    ev->peer_addr_type = sm->adv_addr_type;
+    if (sm->flags & BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED) {
+        ev->peer_addr_type += 2;
+    }
+    memcpy(ev->peer_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
+}
+
+static void
 ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
 {
     struct ble_hci_ev_le_subev_periodic_adv_sync_estab *ev;
@@ -371,12 +383,7 @@ ble_ll_sync_est_event_success(struct ble_ll_sync_sm *sm)
         ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
         ev->status = BLE_ERR_SUCCESS;
         ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
-        ev->sid = sm->adv_sid;
-        ev->peer_addr_type = sm->adv_addr_type;
-        if (sm->flags & BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED) {
-            ev->peer_addr_type += 2;
-        }
-        memcpy(ev->peer_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
+        ble_ll_sync_est_event_adv_set(ev, sm);
         ev->phy = ble_ll_sync_phy_mode_to_hci(sm->phy_mode);
         ev->interval = htole16(sm->itvl);
         ev->aca = sm->sca;
@@ -409,12 +416,7 @@ ble_ll_sync_est_event_failed(struct ble_ll_sync_sm *sm, uint8_t status)
         ev->subev_code = BLE_HCI_LE_SUBEV_PERIODIC_ADV_SYNC_ESTAB;
         ev->status = status;
         if (sm) {
-            ev->sid = sm->adv_sid;
-            ev->peer_addr_type = sm->adv_addr_type;
-            if (sm->flags & BLE_LL_SYNC_SM_FLAG_ADDR_RESOLVED) {
-                ev->peer_addr_type += 2;
-            }
-            memcpy(ev->peer_addr, sm->adv_addr, BLE_DEV_ADDR_LEN);
+            ble_ll_sync_est_event_adv_set(ev, sm);
         }
 
         ble_ll_hci_event_send(hci_ev);
