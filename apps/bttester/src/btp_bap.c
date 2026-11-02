@@ -145,6 +145,17 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    struct btp_bap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_BAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static int
 base_create(const struct bap_broadcast_source_setup_cmd *cmd)
 {
@@ -403,6 +414,12 @@ static const struct btp_handler handlers[] = {
      .func = supported_commands,
      },
     {
+     .opcode = BTP_BAP_READ_SUPPORTED_EVENTS,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = supported_events,
+     },
+    {
      .opcode = BTP_BAP_BROADCAST_SOURCE_SETUP,
      .index = BTP_INDEX,
      .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
@@ -655,6 +672,7 @@ tester_init_bap(void)
 
     tester_register_command_handlers(BTP_SERVICE_ID_BAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_BAP, NULL, 0);
 
     return BTP_STATUS_SUCCESS;
 }
