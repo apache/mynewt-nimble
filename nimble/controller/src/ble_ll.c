@@ -1656,6 +1656,7 @@ ble_ll_reset(void)
 
     OS_ENTER_CRITICAL(sr);
     ble_phy_disable();
+    ble_ll_state_set(BLE_LL_STATE_STANDBY);
     ble_ll_sched_stop();
 #if MYNEWT_VAL(BLE_LL_ROLE_OBSERVER)
     ble_ll_scan_reset();
