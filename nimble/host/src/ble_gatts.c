@@ -1395,6 +1395,13 @@ done:
     }
 
     ble_hs_unlock();
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (rc == 0) {
+        ble_gatts_caching_start();
+    }
+#endif
+
     return rc;
 }
 
@@ -1422,6 +1429,10 @@ ble_gatts_conn_init(struct ble_gatts_conn *gatts_conn)
         gatts_conn->clt_cfgs = NULL;
         gatts_conn->num_clt_cfgs = 0;
     }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    gatts_conn->chg_aware_flags = 0;
+#endif
 
     return 0;
 }
@@ -1599,6 +1610,10 @@ ble_gatts_rx_indicate_ack(uint16_t conn_handle, uint16_t chr_val_handle)
             /* XXX: How should this error get reported? */
         }
     }
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_caching_indicate_ack(conn_handle, chr_val_handle);
+#endif
 
     return 0;
 }
@@ -1782,6 +1797,13 @@ ble_gatts_peer_cl_sup_feat_update(uint16_t conn_handle, struct os_mbuf *om)
 
 done:
     ble_hs_unlock();
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    if (rc == 0) {
+        ble_gatts_caching_cl_sup_feat_updated(conn_handle);
+    }
+#endif
+
     return rc;
 }
 
@@ -1910,6 +1932,10 @@ ble_gatts_bonding_established(uint16_t conn_handle)
     }
 
     ble_hs_unlock();
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_caching_bonding_established(conn_handle);
+#endif
 }
 
 /**
@@ -1929,6 +1955,10 @@ ble_gatts_bonding_restored(uint16_t conn_handle)
     struct ble_hs_conn *conn;
     uint8_t att_op;
     int rc;
+
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    ble_gatts_caching_bonding_restored(conn_handle);
+#endif
 
     ble_hs_lock();
 
@@ -2199,6 +2229,9 @@ ble_gatts_svc_set_visibility(uint16_t handle, int visible)
             } else {
                 ble_att_svr_hide_range(entry->handle, entry->end_group_handle);
             }
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+            ble_gatts_caching_db_changed();
+#endif
             return 0;
         }
     }
