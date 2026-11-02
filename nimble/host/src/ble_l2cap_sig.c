@@ -1092,10 +1092,14 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_credit_base_connect_rsp *rsp;
     struct ble_l2cap_chan *chan;
+    struct ble_l2cap_chan *orig_chan;
     struct ble_hs_conn *conn;
     int rc;
     int i;
-    uint16_t duplicated_cids[5] = {};
+    int j;
+    uint16_t dcid;
+    uint16_t dcid_j;
+    uint16_t duplicated_cids[5] = {0};
     unsigned int num_of_dcids;
 
 #if !BLE_MONITOR
@@ -1114,8 +1118,9 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
         goto done;
     }
 
-    /* spec doesn't say what to do in that case so just fail */
+    /* Spec doesn't define behavior for mismatched counts; fail gracefully */
     if (proc->connect.chan_cnt != num_of_dcids) {
+        rc = BLE_HS_EBADDATA;
         goto done;
     }
 
@@ -1123,9 +1128,8 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
 
     if (rsp->result) {
         rc = BLE_HS_L2C_ERR(le16toh(rsp->result));
-        /* Below results means that some of the channels has not been created
-         * and we have to look closer into the response.
-         * Any other results means that all the connections has been refused.
+        /* The results below indicate partial channel creation failure requiring
+         * per-channel inspection. Any other error indicates complete refusal.
          */
         if ((rsp->result != BLE_L2CAP_COC_ERR_NO_RESOURCES) &&
             (rsp->result != BLE_L2CAP_COC_ERR_INVALID_SOURCE_CID) &&
@@ -1134,37 +1138,63 @@ ble_l2cap_sig_credit_base_con_rsp_rx(uint16_t conn_handle,
         }
     }
 
+    /* Pass 1: Detect duplicate DCIDs within the incoming response itself */
+    for (i = 0; i < proc->connect.chan_cnt; i++) {
+        dcid = le16toh(rsp->dcids[i]);
+        if (dcid == 0) {
+            continue;
+        }
+
+        for (j = i + 1; j < proc->connect.chan_cnt; j++) {
+            dcid_j = le16toh(rsp->dcids[j]);
+            if (dcid == dcid_j) {
+                duplicated_cids[i] = dcid;
+                duplicated_cids[j] = dcid;
+            }
+        }
+    }
+
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     assert(conn != NULL);
 
+    /* Pass 2: Validate against existing channels on the link and insert valid ones */
     for (i = 0; i < proc->connect.chan_cnt; i++) {
         chan = proc->connect.chan[i];
-        if (rsp->dcids[i] == 0) {
-            /* Channel rejected, dont put it on the list.
-             * User will get notified later in that function
-             */
+        dcid = le16toh(rsp->dcids[i]);
+
+        if (dcid == 0 || duplicated_cids[i] != 0) {
+            /* Channel was either rejected by peer or duplicated within PDU */
             chan->dcid = 0;
             continue;
         }
-        if (ble_hs_conn_chan_find_by_dcid(conn, rsp->dcids[i])) {
-            duplicated_cids[i] = rsp->dcids[i];
+
+        /* Check if DCID duplicates an existing channel already on this link */
+        if (ble_hs_conn_chan_find_by_dcid(conn, dcid) != NULL) {
+            duplicated_cids[i] = dcid;
             chan->dcid = 0;
             continue;
         }
 
         chan->peer_coc_mps = le16toh(rsp->mps);
-        chan->dcid = le16toh(rsp->dcids[i]);
+        chan->dcid = dcid;
         chan->coc_tx.mtu = le16toh(rsp->mtu);
         chan->coc_tx.credits = le16toh(rsp->credits);
 
         ble_hs_conn_chan_insert(conn, chan);
     }
 
+    /* Pass 3: Destroy original channels that conflict with duplicated DCIDs.
+     * Per Vol 3, Part A, Section 4.23, neither original nor new channel may continue
+     * to be used. Deleting locally emits BLE_L2CAP_EVENT_COC_DISCONNECTED immediately
+     * without relying on an unresponsive peer.
+     */
     for (i = 0; i < ARRAY_SIZE(duplicated_cids); i++) {
         if (duplicated_cids[i] != 0) {
-            chan = ble_hs_conn_chan_find_by_dcid(conn, duplicated_cids[i]);
-            rc |= ble_l2cap_sig_disconnect_nolock(chan);
+            orig_chan = ble_hs_conn_chan_find_by_dcid(conn, duplicated_cids[i]);
+            if (orig_chan != NULL) {
+                ble_hs_conn_delete_chan(conn, orig_chan);
+            }
         }
     }
 
@@ -1174,7 +1204,7 @@ done:
     ble_l2cap_sig_coc_connect_cb(proc, rc);
     ble_l2cap_sig_proc_free(proc);
 
-    /* Silently ignore errors as this is response signal */
+    /* Silently ignore errors as this is a response signal */
     return 0;
 }
 #endif
@@ -1286,12 +1316,14 @@ failed:
 
 static int
 ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
-                          struct os_mbuf **om)
+                         struct os_mbuf **om)
 {
     struct ble_l2cap_sig_proc *proc;
     struct ble_l2cap_sig_le_con_rsp *rsp;
     struct ble_l2cap_chan *chan;
+    struct ble_l2cap_chan *orig_chan;
     struct ble_hs_conn *conn;
+    uint16_t dcid;
     int rc;
 
 #if !BLE_MONITOR
@@ -1319,17 +1351,34 @@ ble_l2cap_sig_coc_rsp_rx(uint16_t conn_handle, struct ble_l2cap_sig_hdr *hdr,
         goto done;
     }
 
-    /* Fill up remote configuration
-     * Note MPS is the L2CAP MTU
-     */
-    chan->peer_coc_mps = le16toh(rsp->mps);
-    chan->dcid = le16toh(rsp->dcid);
-    chan->coc_tx.mtu = le16toh(rsp->mtu);
-    chan->coc_tx.credits = le16toh(rsp->credits);
+    dcid = le16toh(rsp->dcid);
 
     ble_hs_lock();
     conn = ble_hs_conn_find(conn_handle);
     assert(conn != NULL);
+
+    /* Per Bluetooth Core Spec Vol 3, Part A, Section 4.22:
+     * If the Destination CID in the response is equal to an already allocated
+     * Destination CID on this physical link, the receiving device shall not
+     * continue to use either the original channel or the new channel.
+     */
+    orig_chan = ble_hs_conn_chan_find_by_dcid(conn, dcid);
+    if (orig_chan != NULL) {
+        /* Locally terminate original channel immediately */
+        ble_hs_conn_delete_chan(conn, orig_chan);
+        ble_hs_unlock();
+
+        chan->dcid = 0;
+        rc = BLE_HS_EBADDATA;
+        goto done;
+    }
+
+    /* Fill up remote configuration */
+    chan->peer_coc_mps = le16toh(rsp->mps);
+    chan->dcid = dcid;
+    chan->coc_tx.mtu = le16toh(rsp->mtu);
+    chan->coc_tx.credits = le16toh(rsp->credits);
+
     ble_hs_conn_chan_insert(conn, chan);
     ble_hs_unlock();
 
@@ -1339,7 +1388,7 @@ done:
     ble_l2cap_sig_coc_connect_cb(proc, rc);
     ble_l2cap_sig_proc_free(proc);
 
-    /* Silently ignore errors as this is response signal */
+    /* Silently ignore errors as this is a response signal */
     return 0;
 }
 
