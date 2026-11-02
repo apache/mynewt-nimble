@@ -1,0 +1,5 @@
+timestamp_us,event,conn_handle,event_counter,scheduled_us
+1010.0,ll_conn_ev_start,1,,1005.0
+1090.0,ll_conn_ev_end,1,42,
+2000.0,ll_conn_ev_start,2,,
+2075.0,ll_conn_ev_end,2,7,
