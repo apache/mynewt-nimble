@@ -58,5 +58,6 @@ TEST_SUITE_DECL(ble_sm_lgcy_test_suite);
 TEST_SUITE_DECL(ble_sm_sc_test_suite);
 TEST_SUITE_DECL(ble_store_suite);
 TEST_SUITE_DECL(ble_uuid_test_suite);
+TEST_SUITE_DECL(ble_gatts_cl_sup_feat_suite);
 
 #endif
