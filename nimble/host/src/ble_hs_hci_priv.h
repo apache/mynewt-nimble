@@ -94,6 +94,10 @@ void ble_hs_hci_init(void);
 void ble_hs_hci_set_le_supported_feat(uint32_t feat);
 uint32_t ble_hs_hci_get_le_supported_feat(void);
 void ble_hs_hci_set_hci_version(uint8_t hci_version);
+#if MYNEWT_VAL(BLE_HS_LOCAL_INFO)
+void ble_hs_hci_set_local_ver(const struct ble_hci_ip_rd_local_ver_rp *ver);
+void ble_hs_hci_set_local_supported_feat(uint64_t feat);
+#endif
 uint8_t ble_hs_hci_get_hci_version(void);
 void ble_hs_hci_set_hci_supported_cmd(struct ble_hs_hci_sup_cmd sup_cmd);
 struct ble_hs_hci_sup_cmd ble_hs_hci_get_hci_supported_cmd(void);
