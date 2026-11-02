@@ -2023,6 +2023,34 @@ ble_gatts_find_svc_entry(const ble_uuid_t *uuid)
     return NULL;
 }
 
+int
+ble_gatts_find_svc_range_by_handle(uint16_t handle, uint16_t *out_start,
+                                   uint16_t *out_end)
+{
+    if (handle == 0) {
+        return BLE_HS_ENOENT;
+    }
+
+    for (int i = 0; i < ble_gatts_num_svc_entries; i++) {
+        struct ble_gatts_svc_entry *entry = &ble_gatts_svc_entries[i];
+
+        if (entry->handle != 0 && handle >= entry->handle &&
+            handle <= entry->end_group_handle) {
+
+            if (out_start != NULL) {
+                *out_start = entry->handle;
+            }
+            if (out_end != NULL) {
+                *out_end = entry->end_group_handle;
+            }
+
+            return 0;
+        }
+    }
+
+    return BLE_HS_ENOENT;
+}
+
 static int
 ble_gatts_find_svc_chr_attr(const ble_uuid_t *svc_uuid,
                             const ble_uuid_t *chr_uuid,
