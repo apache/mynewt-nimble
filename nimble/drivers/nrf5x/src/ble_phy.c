@@ -208,6 +208,11 @@ static const uint8_t g_ble_phy_t_txdelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 1,
     [BLE_PHY_MODE_2M] = 1,
 };
+/* delay between EVENTS_ADDRESS and txd access address  */
+static const uint8_t g_ble_phy_t_txaddrdelay[BLE_PHY_NUM_MODE] = {
+    [BLE_PHY_MODE_1M] = 1,
+    [BLE_PHY_MODE_2M] = 1,
+};
 /* delay between EVENTS_END and end of txd packet */
 static const uint8_t g_ble_phy_t_txenddelay[BLE_PHY_NUM_MODE] = {
     [BLE_PHY_MODE_1M] = 1,
