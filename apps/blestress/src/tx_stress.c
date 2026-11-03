@@ -1163,6 +1163,9 @@ tx_stress_10_gap_event(struct ble_gap_event *event, void *arg)
     }
 }
 
+/* Status of the last connection attempt(0 if it succeeded). Used for test case 11 */
+static int tx_stress_11_last_conn_status;
+
 static int
 tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
 {
@@ -1193,6 +1196,7 @@ tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         } else {
             MODLOG_DFLT(ERROR, "Error: connection attempt failed; "
                                "status=%d\n", event->connect.status);
+            tx_stress_11_last_conn_status = event->connect.status;
             break;
         }
         return 0;
@@ -1205,7 +1209,38 @@ tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
             tx_stress_on_test_finish(11);
             return 0;
         }
+        tx_stress_11_last_conn_status = 0;
         break;
+
+    case BLE_GAP_EVENT_DISC_COMPLETE:
+        /* Scan duration expired without finding the next test 11 advert.
+         * Nothing else will restart the scan, so end the test with an error
+         * instead of stalling. Skip it if the advert was found and a
+         * connection attempt is already in progress (conn_handle != 0xffff),
+         * because the scan timeout can be reported just after that. */
+        if (event->disc_complete.reason == 0 &&
+            !tx_stress_ctx->completed[11] &&
+            tx_stress_ctx->conn_handle == 0xffff) {
+            if (tx_stress_11_last_conn_status != 0) {
+                MODLOG_DFLT(ERROR, "Stress test 11 failed: rescan timed out "
+                                   "without finding RX advert after "
+                                   "connection attempt failed (status=%d); "
+                                   "successful connections %d/%d\n",
+                            tx_stress_11_last_conn_status,
+                            tx_stress_ctx->con_stat[11].num,
+                            MYNEWT_VAL(BLE_STRESS_REPEAT));
+            } else {
+                MODLOG_DFLT(ERROR, "Stress test 11 failed: rescan timed out "
+                                   "without finding RX advert after "
+                                   "disconnect; successful connections "
+                                   "%d/%d\n",
+                            tx_stress_ctx->con_stat[11].num,
+                            MYNEWT_VAL(BLE_STRESS_REPEAT));
+            }
+            tx_stress_ctx->completed[11] = true;
+            os_sem_release(&tx_stress_main_sem);
+        }
+        return 0;
 
     default:
         MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
