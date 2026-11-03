@@ -236,6 +236,44 @@ TEST_CASE_SELF(ble_sm_test_case_csis_enc_dec_sirk)
     TEST_ASSERT(memcmp(dec_sirk, plaintext_sirk, 16) == 0);
 }
 
+TEST_CASE_SELF(ble_sm_test_case_csis_generate_rsi)
+{
+    const uint16_t rand_op = BLE_HCI_OP(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_RAND);
+    uint8_t sirk[16] = { 0xcd, 0xcc, 0x72, 0xdd, 0x86, 0x8c, 0xcd, 0xce,
+                         0x22, 0xfd, 0xa1, 0x21, 0x09, 0x7d, 0x7d, 0x45 };
+    uint8_t other_sirk[16] = { 0 };
+    /* With the two MSBs of prand fixed these leave a random part of all 1s
+     * and all 0s, so both have to be discarded.
+     */
+    uint8_t rand_ones[8] = { 0xff, 0xff, 0xff };
+    uint8_t rand_zeros[8] = { 0x00, 0x00, 0x00 };
+    uint8_t rand_valid[8] = { 0x63, 0xf5, 0xe9 };
+    const uint8_t rsi_expected[6] = { 0xda, 0x48, 0x19, 0x63, 0xf5, 0x69 };
+    uint8_t rsi[6];
+    int err;
+
+    ble_hs_test_util_init();
+
+    ble_hs_test_util_hci_ack_set_params(rand_op, 0, rand_ones, sizeof(rand_ones));
+    ble_hs_test_util_hci_ack_append_params(rand_op, 0, rand_zeros, sizeof(rand_zeros));
+    ble_hs_test_util_hci_ack_append_params(rand_op, 0, rand_valid, sizeof(rand_valid));
+
+    err = ble_sm_csis_generate_rsi(sirk, rsi);
+    TEST_ASSERT_FATAL(err == 0);
+    TEST_ASSERT(memcmp(rsi, rsi_expected, sizeof(rsi)) == 0);
+
+    err = ble_sm_csis_resolve_rsi(rsi, sirk, NULL);
+    TEST_ASSERT(err == 0);
+    err = ble_sm_csis_resolve_rsi(rsi, other_sirk, NULL);
+    TEST_ASSERT(err == BLE_HS_EAUTHEN);
+
+    /* Controller failure is reported instead of being retried. */
+    err = ble_sm_csis_generate_rsi(sirk, rsi);
+    TEST_ASSERT(err == BLE_HS_ETIMEOUT_HCI);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_sm_test_case_conn_broken)
 {
     struct ble_hci_ev_disconn_cmp disconn_evt;
@@ -537,6 +575,7 @@ TEST_SUITE(ble_sm_gen_test_suite)
     ble_sm_test_case_csis_s1_sirkenc();
     ble_sm_test_case_csis_k1_csis();
     ble_sm_test_case_csis_enc_dec_sirk();
+    ble_sm_test_case_csis_generate_rsi();
 
     ble_sm_test_case_peer_fail_inval();
     ble_sm_test_case_peer_lgcy_fail_confirm();
