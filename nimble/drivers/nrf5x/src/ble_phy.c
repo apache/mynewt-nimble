@@ -171,18 +171,25 @@ struct ble_phy_obj
     uint16_t wfr_usecs;
     uint16_t tifs_usecs;
     uint8_t tifs_anchor;
+    uint8_t rx_buf_idx;
 };
 static struct ble_phy_obj g_ble_phy_data;
 
 /* XXX: if 27 byte packets desired we can make this smaller */
 /* Global transmit/receive buffer */
 static uint32_t g_ble_phy_tx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
-static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
+static uint32_t g_ble_phy_rx_buf[2][(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 /* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
+
+static inline uint8_t *
+ble_phy_rx_buf_get(void)
+{
+    return (uint8_t *)&g_ble_phy_rx_buf[g_ble_phy_data.rx_buf_idx][0];
+}
 
 static void
 ble_phy_transition_reset(void)
@@ -954,7 +961,7 @@ ble_phy_rx_xcvr_setup(void)
 {
     uint8_t *dptr;
 
-    dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
+    dptr = ble_phy_rx_buf_get();
     dptr += 3;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
@@ -1141,6 +1148,10 @@ ble_transition_to_rx(uint8_t tifs_anchor, uint16_t tifs_usecs,
     ble_phy_mode_apply(g_ble_phy_data.phy_rx_phy_mode);
 #endif
 
+    if (phy_state == BLE_PHY_STATE_RX) {
+        g_ble_phy_data.rx_buf_idx ^= 1;
+    }
+
     /* Packet pointer needs to be reset. */
     ble_phy_rx_xcvr_setup();
 
@@ -1322,7 +1333,7 @@ ble_phy_rx_end_isr(void)
     assert(NRF_RADIO->EVENTS_RSSIEND != 0);
     ble_hdr->rxinfo.rssi = (-1 * NRF_RADIO->RSSISAMPLE);
 
-    dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
+    dptr = ble_phy_rx_buf_get();
     dptr += 3;
 
     /* Count PHY crc errors and valid packets */
@@ -1410,7 +1421,7 @@ ble_phy_rx_start_isr(void)
     int adva_offset;
 #endif
 
-    dptr = (uint8_t *)&g_ble_phy_rx_buf[0];
+    dptr = ble_phy_rx_buf_get();
 
     /* Clear events and clear interrupt */
     NRF_RADIO->EVENTS_ADDRESS = 0;
