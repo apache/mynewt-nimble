@@ -5511,6 +5511,148 @@ TEST_CASE_SELF(ble_sm_sc_us_pk_iio2_rio0_b1_iat2_rat2_ik7_rk3)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+/**
+ * Parameters for OOB pairing tests, these use key pair and random values from
+ * ble_sm_sc_us_jw_iio3_rio4_b1_iat0_rat0_ik7_rk5. Pairing does not get far
+ * enough to use any other pairing data.
+ */
+static void
+ble_sm_sc_oob_params(struct ble_sm_test_params *params, uint8_t our_oob_flag,
+                     uint8_t peer_oob_flag)
+{
+    *params = (struct ble_sm_test_params) {
+        .init_id_addr = {
+            0x01, 0x01, 0x01, 0x07, 0x08, 0x01,
+        },
+        .resp_id_addr = {
+            0xca, 0x61, 0xa0, 0x67, 0x94, 0xe0,
+        },
+        .pair_req = {
+            .io_cap = 0x03,
+            .oob_data_flag = our_oob_flag,
+            .authreq = 0x09,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x07,
+        },
+        .pair_rsp = {
+            .io_cap = 0x04,
+            .oob_data_flag = peer_oob_flag,
+            .authreq = 0x09,
+            .max_enc_key_size = 0x10,
+            .init_key_dist = 0x07,
+            .resp_key_dist = 0x05,
+        },
+        .our_priv_key = {
+            0xaf, 0xce, 0x12, 0x45, 0xa8, 0xe0, 0xa9, 0x45,
+            0x8a, 0x56, 0xc5, 0xbf, 0x3b, 0xf9, 0x04, 0x69,
+            0xf2, 0xf9, 0xe4, 0xd4, 0x7e, 0xb7, 0xc9, 0x65,
+            0xb1, 0x68, 0x3e, 0xab, 0xcd, 0x8e, 0x6f, 0x1f,
+        },
+        .public_key_req = {
+            .x = {
+                0x45, 0xca, 0xda, 0xe3, 0x65, 0x7c, 0xf5, 0x37,
+                0x36, 0x66, 0x8b, 0x3b, 0x54, 0xb9, 0x2b, 0xb2,
+                0x09, 0xd5, 0x6e, 0xe0, 0x04, 0x1d, 0xd6, 0x49,
+                0xff, 0x55, 0x41, 0x35, 0xa0, 0x2f, 0x12, 0xee,
+            },
+            .y = {
+                0x65, 0x41, 0xd3, 0x7b, 0x59, 0xf2, 0xaf, 0x94,
+                0x78, 0xd8, 0x63, 0xc4, 0x9b, 0x9a, 0x9a, 0x92,
+                0x33, 0x0f, 0x14, 0x67, 0x98, 0x51, 0x9d, 0xff,
+                0xef, 0x59, 0xb7, 0x17, 0xc2, 0x16, 0x72, 0x18,
+            },
+        },
+        .public_key_rsp = {
+            .x = {
+                0x9e, 0x44, 0x09, 0x57, 0xb7, 0x01, 0x78, 0x5b,
+                0x4e, 0x50, 0x0d, 0x99, 0x0d, 0x52, 0x88, 0x24,
+                0x19, 0xf5, 0x40, 0x53, 0x06, 0x1e, 0x68, 0xd0,
+                0xfd, 0xd2, 0x84, 0x8b, 0xae, 0x9d, 0xf7, 0xd9,
+            },
+            .y = {
+                0xc2, 0xe7, 0xe0, 0x01, 0xb3, 0x2a, 0x1b, 0x01,
+                0x19, 0xd1, 0x14, 0xb5, 0xc8, 0x98, 0x02, 0x2a,
+                0xbe, 0x6b, 0x33, 0x1a, 0x99, 0x18, 0x77, 0x23,
+                0xd4, 0x8b, 0x8c, 0x09, 0xf5, 0x77, 0x20, 0xa0,
+            },
+        },
+        .random_req[0] = {
+            .value = {
+                0xb5, 0x59, 0x7c, 0x8e, 0x7b, 0x01, 0xac, 0x09,
+                0x8f, 0xe8, 0x97, 0x98, 0x8d, 0x3f, 0xb7, 0x63,
+            },
+        },
+        .random_rsp[0] = {
+            .value = {
+                0x86, 0x1f, 0x76, 0x11, 0x2e, 0x83, 0xed, 0x99,
+                0x9b, 0xc0, 0x9a, 0xab, 0x7f, 0x94, 0x20, 0xcb,
+            },
+        },
+        .dhkey_check_rsp = {
+            .value = {
+                0x26, 0xc2, 0xf1, 0xb9, 0xf1, 0xc2, 0xbd, 0xcb,
+                0xdb, 0x94, 0x96, 0x8e, 0x08, 0xcc, 0x53, 0xd4,
+            },
+        },
+        .pair_alg = BLE_SM_PAIR_ALG_OOB,
+        .authenticated = 1,
+        .passkey_info = {
+            .passkey = {
+                .action = BLE_SM_IOACT_OOB_SC,
+            },
+        },
+    };
+}
+
+/**
+ * Secure connections pairing
+ * Master: us
+ * Pair algorithm: OOB, selected by peer's OOB data flag only
+ * Peer sends its random before application provided OOB data.
+ */
+TEST_CASE_SELF(ble_sm_sc_us_ob_random_early)
+{
+    struct ble_sm_test_params params;
+
+    ble_sm_sc_oob_params(&params, BLE_SM_PAIR_OOB_NO, BLE_SM_PAIR_OOB_YES);
+    ble_sm_test_util_us_sc_oob_random_early(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+/**
+ * Secure connections pairing
+ * Master: us
+ * Pair algorithm: OOB, selected by peer's OOB data flag only
+ * Application provides no local OOB data, which peer claims to have.
+ */
+TEST_CASE_SELF(ble_sm_sc_us_ob_no_local)
+{
+    struct ble_sm_test_params params;
+
+    ble_sm_sc_oob_params(&params, BLE_SM_PAIR_OOB_NO, BLE_SM_PAIR_OOB_YES);
+    ble_sm_test_util_us_sc_oob_no_local(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
+/**
+ * Secure connections pairing
+ * Master: us
+ * Pair algorithm: OOB, selected by our OOB data flag only
+ * Peer's OOB data flag has reserved value, no local OOB data provided.
+ */
+TEST_CASE_SELF(ble_sm_sc_us_ob_rsvd_flag)
+{
+    struct ble_sm_test_params params;
+
+    ble_sm_sc_oob_params(&params, BLE_SM_PAIR_OOB_YES, BLE_SM_PAIR_OOB_RESERVED);
+    ble_sm_test_util_us_sc_oob_rsvd_flag(&params);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_sm_sc_test_suite)
 {
     /*** No privacy. */
@@ -5527,6 +5669,9 @@ TEST_SUITE(ble_sm_sc_test_suite)
     ble_sm_sc_us_pk_iio2_rio4_b1_iat0_rat0_ik7_rk5_peer_same_pk_x();
     ble_sm_sc_us_pk_iio0_rio4_b1_iat0_rat0_ik7_rk5();
     ble_sm_sc_us_nc_iio1_rio4_b1_iat0_rat0_ik7_rk5();
+    ble_sm_sc_us_ob_random_early();
+    ble_sm_sc_us_ob_no_local();
+    ble_sm_sc_us_ob_rsvd_flag();
 
     /*** Privacy (id = public). */
     // FIXME: needs to be fixed due to fix for address type used

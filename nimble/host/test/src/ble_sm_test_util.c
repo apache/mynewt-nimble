@@ -2730,6 +2730,132 @@ ble_sm_test_util_us_sc_bad(struct ble_sm_test_params *params)
     ble_sm_test_util_us_sc_bad_once(params);
 }
 
+/* Starts SC pairing as initiator and completes public key exchange. Pair
+ * response is expected to select OOB, so procedure waits for application.
+ */
+static void
+ble_sm_test_util_us_sc_oob_start(struct ble_sm_test_params *params,
+                                 struct ble_hs_conn **out_conn,
+                                 struct ble_sm_test_util_entity *our_entity,
+                                 struct ble_sm_test_util_entity *peer_entity)
+{
+    int rc;
+
+    params->sec_req.authreq = 0;
+    ble_sm_test_util_init_good(params, 1, out_conn, our_entity, peer_entity);
+
+    rc = ble_gap_security_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_sm_test_util_verify_tx_pair_req(our_entity->pair_cmd);
+
+    ble_sm_test_util_rx_pair_rsp(2, peer_entity->pair_cmd, 0);
+    ble_sm_test_util_verify_tx_public_key(our_entity->public_key);
+
+    ble_sm_test_util_rx_public_key(2, peer_entity->public_key);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+    TEST_ASSERT(ble_sm_test_ioact.action == BLE_SM_IOACT_OOB_SC);
+}
+
+/* Verifies procedure was aborted with Pairing Failed sent to peer. */
+static void
+ble_sm_test_util_us_sc_oob_verify_fail(struct ble_hs_conn *conn, uint8_t reason)
+{
+    struct ble_sm_pair_fail fail = {
+        .reason = reason,
+    };
+
+    ble_sm_test_util_verify_tx_pair_fail(&fail);
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+    TEST_ASSERT(!conn->bhc_sec_state.encrypted);
+    TEST_ASSERT(!conn->bhc_sec_state.authenticated);
+
+    ble_hs_test_util_conn_disconnect(2);
+}
+
+/* Peer (responder) sends its random and DHKey Check before we (initiator)
+ * got OOB data from application and sent our random.
+ */
+void
+ble_sm_test_util_us_sc_oob_random_early(struct ble_sm_test_params *params)
+{
+    struct ble_sm_test_util_entity peer_entity;
+    struct ble_sm_test_util_entity our_entity;
+    struct ble_hs_conn *conn;
+
+    ble_sm_test_util_us_sc_oob_start(params, &conn, &our_entity, &peer_entity);
+
+    ble_sm_test_util_rx_random(2, peer_entity.randoms,
+                               BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+
+    /* Procedure is gone, there is nothing to verify this against. */
+    ble_sm_test_util_rx_dhkey_check(2, peer_entity.dhkey_check, BLE_HS_ENOENT);
+
+    /* Verify that security callback was executed with failure. */
+    TEST_ASSERT(ble_sm_test_gap_event_type == BLE_GAP_EVENT_ENC_CHANGE);
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED));
+
+    ble_sm_test_util_us_sc_oob_verify_fail(conn, BLE_SM_ERR_UNSPECIFIED);
+}
+
+/* Peer claims to have our OOB data, but application has none to provide. */
+void
+ble_sm_test_util_us_sc_oob_no_local(struct ble_sm_test_params *params)
+{
+    struct ble_sm_test_util_entity peer_entity;
+    struct ble_sm_test_util_entity our_entity;
+    struct ble_hs_conn *conn;
+    struct ble_sm_io io;
+    int rc;
+
+    ble_sm_test_util_us_sc_oob_start(params, &conn, &our_entity, &peer_entity);
+
+    memset(&io, 0, sizeof(io));
+    io.action = BLE_SM_IOACT_OOB_SC;
+    rc = ble_sm_inject_io(2, &io);
+    TEST_ASSERT(rc == BLE_HS_SM_US_ERR(BLE_SM_ERR_OOB));
+
+    ble_sm_test_util_us_sc_oob_verify_fail(conn, BLE_SM_ERR_OOB);
+}
+
+/* Peer sets reserved OOB data flag value, which does not require our data.
+ * Pairing has to proceed up to DHKey Check verification.
+ */
+void
+ble_sm_test_util_us_sc_oob_rsvd_flag(struct ble_sm_test_params *params)
+{
+    struct ble_sm_test_util_entity peer_entity;
+    struct ble_sm_test_util_entity our_entity;
+    struct ble_sm_sc_oob_data remote;
+    struct ble_hs_conn *conn;
+    struct ble_sm_io io;
+    int rc;
+
+    ble_sm_test_util_us_sc_oob_start(params, &conn, &our_entity, &peer_entity);
+
+    memset(&remote, 0x5a, sizeof(remote));
+    rc = ble_sm_alg_f4(peer_entity.public_key->x, peer_entity.public_key->x,
+                       remote.r, 0, remote.c);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    memset(&io, 0, sizeof(io));
+    io.action = BLE_SM_IOACT_OOB_SC;
+    io.oob_sc_data.remote = &remote;
+    rc = ble_sm_inject_io(2, &io);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_sm_test_util_verify_tx_pair_random(our_entity.randoms);
+
+    ble_sm_test_util_rx_random(2, peer_entity.randoms, 0);
+
+    /* Skip our DHKey Check. */
+    TEST_ASSERT_FATAL(ble_hs_test_util_prev_tx_dequeue() != NULL);
+
+    ble_sm_test_util_rx_dhkey_check(2, peer_entity.dhkey_check,
+                                    BLE_HS_SM_US_ERR(BLE_SM_ERR_DHKEY));
+
+    ble_sm_test_util_us_sc_oob_verify_fail(conn, BLE_SM_ERR_DHKEY);
+}
+
 static void
 ble_sm_test_util_peer_sc_good_once_no_init(struct ble_sm_test_params *params,
                                            struct ble_hs_conn *conn,
