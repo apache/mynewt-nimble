@@ -118,6 +118,9 @@ void ble_sm_test_util_peer_sc_good(struct ble_sm_test_params *params);
 void ble_sm_test_util_us_sc_good(struct ble_sm_test_params *params);
 void ble_sm_test_util_us_sc_bad(struct ble_sm_test_params *params);
 void ble_sm_test_util_us_fail_inval(struct ble_sm_test_params *params);
+void ble_sm_test_util_us_sc_oob_random_early(struct ble_sm_test_params *params);
+void ble_sm_test_util_us_sc_oob_no_local(struct ble_sm_test_params *params);
+void ble_sm_test_util_us_sc_oob_rsvd_flag(struct ble_sm_test_params *params);
 
 #ifdef __cplusplus
 }
