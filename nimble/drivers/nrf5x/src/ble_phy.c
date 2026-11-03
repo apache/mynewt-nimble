@@ -2348,6 +2348,16 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
     NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[rf_channel];
     nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
 
+    /* Need to trigger PA manually here since we don't start any timer for TX */
+#if PHY_USE_FEM_PA
+    phy_fem_enable_pa();
+#if PHY_USE_FEM_SINGLE_GPIO
+    NRF_GPIOTE->TASKS_SET[PHY_GPIOTE_FEM] = 1;
+#else
+    NRF_GPIOTE->TASKS_SET[PHY_GPIOTE_FEM_PA] = 1;
+#endif
+#endif
+
     return 0;
 }
 #endif
