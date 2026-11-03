@@ -136,6 +136,7 @@ extern uint32_t g_nrf_irk_list[];
 #define PHY_TRANS_NONE         (0)
 #define PHY_TRANS_TO_TX        (1)
 #define PHY_TRANS_TO_RX        (2)
+#define PHY_TRANS_DEFAULT      (3)
 
 #define PHY_TRANS_ANCHOR_START (0)
 #define PHY_TRANS_ANCHOR_END   (1)
@@ -182,6 +183,15 @@ static uint32_t g_ble_phy_rx_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 /* Make sure word-aligned for faster copies */
 static uint32_t g_ble_phy_enc_buf[(BLE_PHY_MAX_PDU_LEN + 3) / 4];
 #endif
+
+static void
+ble_phy_transition_reset(void)
+{
+    g_ble_phy_data.phy_transition = PHY_TRANS_DEFAULT;
+    g_ble_phy_data.tifs_anchor = PHY_TRANS_ANCHOR_END;
+    g_ble_phy_data.tifs_usecs = BLE_LL_IFS;
+    g_ble_phy_data.wfr_usecs = 0;
+}
 
 /* RF center frequency for each channel index (offset from 2400 MHz) */
 static const uint8_t g_ble_phy_chan_freq[BLE_PHY_NUM_CHANS] = {
@@ -1287,7 +1297,7 @@ ble_phy_tx_end_isr(void)
     tifs_usecs = g_ble_phy_data.tifs_usecs;
     tifs_anchor = g_ble_phy_data.tifs_anchor;
 
-    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    ble_phy_transition_reset();
 
     if (g_ble_phy_data.txend_cb) {
         g_ble_phy_data.txend_cb(g_ble_phy_data.txend_arg);
@@ -1300,6 +1310,7 @@ static void
 ble_phy_rx_end_isr(void)
 {
     int rc;
+    uint8_t transition;
     uint8_t *dptr;
     uint8_t crcok;
     struct ble_mbuf_hdr *ble_hdr;
@@ -1370,16 +1381,15 @@ ble_phy_rx_end_isr(void)
      * enough.
      */
 
-    if (g_ble_phy_data.phy_transition == PHY_TRANS_NONE) {
-        /* XXX: Should be removed after finding all missing uses of ble_phy_transition_set */
-        g_ble_phy_data.phy_transition = PHY_TRANS_TO_TX;
+    transition = g_ble_phy_data.phy_transition;
+    if (transition == PHY_TRANS_DEFAULT) {
+        transition = PHY_TRANS_TO_TX;
     }
 
-    ble_phy_transition(g_ble_phy_data.phy_transition,
-                       g_ble_phy_data.tifs_anchor, g_ble_phy_data.tifs_usecs,
+    ble_phy_transition(transition, g_ble_phy_data.tifs_anchor, g_ble_phy_data.tifs_usecs,
                        g_ble_phy_data.wfr_usecs, BLE_PHY_STATE_RX);
 
-    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    ble_phy_transition_reset();
 
     rc = ble_ll_rx_end(dptr + 1, ble_hdr);
     if (rc < 0) {
@@ -1631,7 +1641,7 @@ ble_phy_init(void)
     /* Set phy channel to an invalid channel so first set channel works */
     g_ble_phy_data.phy_chan = BLE_PHY_NUM_CHANS;
 
-    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    ble_phy_transition_reset();
 
     /* Toggle peripheral power to reset (just in case) */
     nrf_radio_power_set(NRF_RADIO, false);
@@ -2277,7 +2287,7 @@ ble_phy_disable(void)
     ble_phy_disable_irq_and_ppi();
 
     g_ble_phy_data.phy_transition_late = 0;
-    ble_phy_transition_set(BLE_PHY_TRANSITION_NONE, 0);
+    ble_phy_transition_reset();
     ble_phy_rx_maxlen_set(NRF_MAXLEN);
 
 #if PHY_USE_FEM
