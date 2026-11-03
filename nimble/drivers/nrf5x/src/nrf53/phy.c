@@ -165,6 +165,13 @@ phy_fem_disable(void)
     NRF_GPIOTE->TASKS_CLR[PHY_GPIOTE_FEM_LNA] = 1;
 #endif
 #endif
+
+#if PHY_USE_FEM_PA
+    ble_fem_pa_disable();
+#endif
+#if PHY_USE_FEM_LNA
+    ble_fem_lna_disable();
+#endif
 }
 #endif /* PHY_USE_FEM */
 
