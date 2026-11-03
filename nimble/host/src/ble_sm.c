@@ -3024,8 +3024,8 @@ ble_sm_csis_encrypt_sirk(const uint8_t *ltk, const uint8_t *plaintext_sirk, uint
 int
 ble_sm_csis_generate_rsi(const uint8_t *sirk, uint8_t *out)
 {
-    const uint8_t prand_check_all_set[3] = {0xff, 0xff, 0xef};
-    const uint8_t prand_check_all_reset[3] = {0x0, 0x0, 0x40};
+    const uint8_t prand_check_all_set[3] = { 0xff, 0xff, 0x7f };
+    const uint8_t prand_check_all_reset[3] = { 0x0, 0x0, 0x40 };
     uint8_t prand[3] = {0};
     uint8_t hash[3] = {0};
     int rc;
@@ -3040,8 +3040,8 @@ ble_sm_csis_generate_rsi(const uint8_t *sirk, uint8_t *out)
         prand[2] |= 0x40;
 
         /* prand's random part shall not be all 0s nor all 1s */
-    } while (memcmp(prand, prand_check_all_set, 3) ||
-             memcmp(prand, prand_check_all_reset, 3));
+    } while (memcmp(prand, prand_check_all_set, 3) == 0 ||
+             memcmp(prand, prand_check_all_reset, 3) == 0);
 
     rc = ble_sm_alg_csis_sih(sirk, prand, hash);
     if (rc != 0) {
