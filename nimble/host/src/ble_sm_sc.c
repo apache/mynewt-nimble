@@ -448,6 +448,18 @@ ble_sm_sc_random_rx(struct ble_sm_proc *proc, struct ble_sm_result *res)
     uint8_t rat;
     int rc;
 
+    /* Responder sends its random only after receiving ours. If our random
+     * was not sent yet (waiting for OOB data from the application) this is
+     * an unexpected PDU.
+     */
+    if (proc->flags & BLE_SM_PROC_F_INITIATOR && proc->pair_alg == BLE_SM_PAIR_ALG_OOB &&
+        !(proc->flags & BLE_SM_PROC_F_IO_INJECTED)) {
+        res->app_status = BLE_HS_SM_US_ERR(BLE_SM_ERR_UNSPECIFIED);
+        res->sm_err = BLE_SM_ERR_UNSPECIFIED;
+        res->enc_cb = 1;
+        return;
+    }
+
     if (proc->pair_alg != BLE_SM_PAIR_ALG_OOB && (
         proc->flags & BLE_SM_PROC_F_INITIATOR ||
         ble_sm_sc_responder_verifies_random(proc))) {
@@ -766,7 +778,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         iocap = &pair_rsp->io_cap;
 
         if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
-            if (pair_rsp->oob_data_flag) {
+            if (pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
                 memcpy(proc->tk, proc->oob_data_local->r, 16);
             } else {
                 memset(proc->tk, 0, 16);
@@ -779,7 +791,7 @@ ble_sm_dhkey_check_process(struct ble_sm_proc *proc,
         iocap = &pair_req->io_cap;
 
         if (proc->pair_alg == BLE_SM_PAIR_ALG_OOB) {
-            if (pair_req->oob_data_flag) {
+            if (pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES) {
                 memcpy(proc->tk, proc->oob_data_local->r, 16);
             } else {
                 memset(proc->tk, 0, 16);
@@ -873,10 +885,15 @@ ble_sm_sc_oob_data_check(struct ble_sm_proc *proc,
     req_oob_present = pair_req->oob_data_flag == BLE_SM_PAIR_OOB_YES;
     rsp_oob_present = pair_rsp->oob_data_flag == BLE_SM_PAIR_OOB_YES;
 
+    /* Our flag tells if we have peer's OOB data. Peer's flag tells if it has
+     * our OOB data, so we need to have local data for it to verify.
+     */
     if (proc->flags & BLE_SM_PROC_F_INITIATOR) {
-        return req_oob_present == oob_data_remote_present;
+        return req_oob_present == oob_data_remote_present &&
+               (!rsp_oob_present || oob_data_local_present);
     } else {
-        return rsp_oob_present == oob_data_remote_present;
+        return rsp_oob_present == oob_data_remote_present &&
+               (!req_oob_present || oob_data_local_present);
     }
 }
 
