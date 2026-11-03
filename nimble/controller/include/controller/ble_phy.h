@@ -93,6 +93,8 @@ uint8_t ble_phy_chan_get(void);
  * Set the transition after the next TX or RX. The usecs are counted from the
  * end of the PDU, 150 us if 0. With *_ISO_SUBEVENT, they are counted from the
  * start of the PDU, and an RX waits for the PDU within the clock jitter.
+ * It applies to the next transition only: by default, TX follows RX and
+ * nothing follows TX, and BLE_PHY_TRANSITION_NONE disables the transition.
  */
 void ble_phy_transition_set(uint8_t trans, uint16_t usecs);
 
