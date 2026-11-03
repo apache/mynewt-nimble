@@ -2341,7 +2341,9 @@ ble_phy_dtm_carrier(uint8_t rf_channel)
     /* based on Nordic DTM sample */
     ble_phy_disable();
     ble_phy_enable_dtm();
+#if MYNEWT_VAL(BLE_LL_PHY)
     ble_phy_mode_apply(BLE_PHY_MODE_1M);
+#endif
     nrf_radio_shorts_enable(NRF_RADIO, NRF_RADIO_SHORT_READY_START_MASK);
     NRF_RADIO->FREQUENCY = g_ble_phy_chan_freq[rf_channel];
     nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
