@@ -507,8 +507,7 @@ ble_ll_isoal_mux_framed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
         if (hdr_len > 2) {
             blehdr = BLE_MBUF_HDR_PTR(om);
 
-            time_offset = mux->event_tx_timestamp -
-                          blehdr->txiso.cpu_timestamp;
+            time_offset = mux->event_tx_timestamp - blehdr->txiso.sdu_timestamp;
             put_le24(dptr + pdu_offset, time_offset);
             pdu_offset += 3;
         }

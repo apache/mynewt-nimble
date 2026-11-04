@@ -290,7 +290,7 @@ ble_ll_iso_data_in(struct os_mbuf *om)
 
         blehdr = BLE_MBUF_HDR_PTR(om);
         blehdr->txiso.packet_seq_num = ++conn->mux.sdu_counter;
-        blehdr->txiso.cpu_timestamp = ble_ll_tmr_get();
+        blehdr->txiso.sdu_timestamp = ble_ll_tmr_get();
 
         if (ts_flag) {
             timestamp = get_le32(om->om_data + sizeof(*hci_iso));
