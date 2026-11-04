@@ -131,6 +131,11 @@ struct ble_ll_sync_sm {
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_ADI_SUPPORT)
     uint16_t prev_adi;
 #endif
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    ble_ll_sync_biginfo_cb_t biginfo_cb;
+    void *biginfo_cb_arg;
+#endif
 };
 
 static struct ble_ll_sync_sm g_ble_ll_sync_sm[BLE_LL_SYNC_CNT];
@@ -781,14 +786,11 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
 }
 
 static void
-ble_ll_sync_send_biginfo_adv_rpt(struct ble_ll_sync_sm *sm, const uint8_t *biginfo, uint8_t biginfo_len)
+ble_ll_sync_send_biginfo_adv_rpt(struct ble_ll_sync_sm *sm,
+                                 const struct ble_hci_ev_le_subev_biginfo_adv_report *biginfo)
 {
     struct ble_hci_ev_le_subev_biginfo_adv_report *ev;
     struct ble_hci_ev *hci_ev;
-
-    if (!ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT)) {
-        return;
-    }
 
     hci_ev = ble_transport_alloc_evt(1);
     if (!hci_ev) {
@@ -799,11 +801,7 @@ ble_ll_sync_send_biginfo_adv_rpt(struct ble_ll_sync_sm *sm, const uint8_t *bigin
     hci_ev->length = sizeof(*ev);
     ev = (void *) hci_ev->data;
 
-    if (!ble_ll_sync_parse_biginfo_to_ev(ev, biginfo, biginfo_len)) {
-        ble_transport_free(hci_ev);
-        return;
-    }
-
+    memcpy(ev, biginfo, sizeof(*ev));
     ev->subev_code = BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT;
     ev->sync_handle = htole16(ble_ll_sync_get_handle(sm));
 
@@ -1210,6 +1208,42 @@ ble_ll_sync_check_acad(struct ble_ll_sync_sm *sm,
     return true;
 }
 
+#if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+void
+ble_ll_sync_biginfo_cb_set(struct ble_ll_sync_sm *syncsm,
+                           ble_ll_sync_biginfo_cb_t cb, void *cb_arg)
+{
+    syncsm->biginfo_cb = cb;
+    syncsm->biginfo_cb_arg = cb_arg;
+}
+#endif
+
+static void
+ble_ll_sync_biginfo_handle(struct ble_ll_sync_sm *sm, struct ble_mbuf_hdr *hdr,
+                           const uint8_t *biginfo, uint8_t biginfo_len,
+                           bool is_duplicate)
+{
+    struct ble_hci_ev_le_subev_biginfo_adv_report ev;
+
+    if (!ble_ll_sync_parse_biginfo_to_ev(&ev, biginfo, biginfo_len)) {
+        return;
+    }
+
+    if (!is_duplicate && !(sm->flags & BLE_LL_SYNC_SM_FLAG_DISABLED) &&
+        ble_ll_hci_is_le_event_enabled(BLE_HCI_LE_SUBEV_BIGINFO_ADV_REPORT)) {
+        ble_ll_sync_send_biginfo_adv_rpt(sm, &ev);
+    }
+
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    if (sm->biginfo_cb) {
+        sm->biginfo_cb(sm, sm->sca, hdr->beg_cputime, hdr->rem_usecs, biginfo,
+                       biginfo_len, sm->biginfo_cb_arg);
+    }
+#endif
+}
+#endif
+
 void
 ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
 {
@@ -1314,13 +1348,13 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         /* send reports from this PDU */
         ble_ll_sync_send_per_adv_rpt(sm, rxpdu, hdr->rxinfo.rssi, tx_power,
                                      datalen, aux, aux_scheduled);
+    }
 
 #if MYNEWT_VAL(BLE_LL_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
-        if (biginfo) {
-            ble_ll_sync_send_biginfo_adv_rpt(sm, biginfo, biginfo_len);
-        }
-#endif
+    if (biginfo) {
+        ble_ll_sync_biginfo_handle(sm, hdr, biginfo, biginfo_len, is_duplicate);
     }
+#endif
 
     /* if chain was scheduled we don't end event yet */
     /* TODO should we check resume only if offset is high? */
