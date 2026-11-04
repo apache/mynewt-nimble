@@ -75,8 +75,8 @@ struct ble_encryption_block
 struct ble_mbuf_hdr_rxinfo
 {
     uint16_t flags;
+    uint16_t handle;
     uint8_t channel;
-    uint8_t handle;
     int8_t  rssi;
     /* XXX: we could just use single phy_mode field */
     int8_t  phy;
