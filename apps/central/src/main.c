@@ -101,7 +101,7 @@ scan_event(struct ble_gap_event *event, void *arg)
         MODLOG_DFLT(INFO, "Advertising report received! Checking UUID...\n");
         ble_hs_adv_parse_fields(&parsed_fields, event->disc.data,
                                 event->disc.length_data);
-        /* Predefined UUID is compared to recieved one;
+        /* Predefined UUID is compared to received one;
            if doesn't fit - end procedure and go back to scanning,
            else - connect. */
         uuid_cmp_result = ble_uuid_cmp(&predef_uuid.u, &parsed_fields.uuids128->u);
