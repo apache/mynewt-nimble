@@ -29,9 +29,11 @@
 #include "nimble/transport.h"
 #include "nimble/transport/hci_h4.h"
 
-#define TX_Q_SIZE   (MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_LL_COUNT) + \
-                     MYNEWT_VAL(BLE_TRANSPORT_EVT_COUNT) + \
-                     MYNEWT_VAL(BLE_TRANSPORT_EVT_DISCARDABLE_COUNT))
+#define TX_Q_SIZE                                                             \
+    (MYNEWT_VAL(BLE_TRANSPORT_ACL_FROM_LL_COUNT) +                            \
+     MYNEWT_VAL(BLE_TRANSPORT_ISO_FROM_LL_COUNT) +                            \
+     MYNEWT_VAL(BLE_TRANSPORT_EVT_COUNT) +                                    \
+     MYNEWT_VAL(BLE_TRANSPORT_EVT_DISCARDABLE_COUNT))
 
 struct hci_uart_tx {
     uint8_t type;
@@ -111,6 +113,7 @@ hci_uart_tx_char(void *arg)
         }
         break;
     case HCI_H4_ACL:
+    case HCI_H4_ISO:
         os_mbuf_copydata(tx->om, 0, 1, &ch);
         os_mbuf_adj(tx->om, 1);
         tx->len--;
@@ -237,7 +240,8 @@ ble_transport_to_hs_iso_impl(struct os_mbuf *om)
 
     txe = os_memblock_get(&pool_tx_q);
     if (!txe) {
-        assert(0);
+        /* ISO data to the host has no flow control, drop it */
+        os_mbuf_free_chain(om);
         return -ENOMEM;
     }
 

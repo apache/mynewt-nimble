@@ -194,6 +194,14 @@ ble_transport_to_hs_acl_impl(struct os_mbuf *om)
 }
 
 int
+ble_transport_to_hs_iso_impl(struct os_mbuf *om)
+{
+    os_mbuf_free_chain(om);
+
+    return 0;
+}
+
+int
 ble_transport_to_hs_evt_impl(void *buf)
 {
     uint8_t pkt_type = HCI_H4_EVT;
