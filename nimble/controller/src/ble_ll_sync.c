@@ -2503,6 +2503,24 @@ ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
     ble_ll_event_add(&sm->sync_ev_end);
 }
 
+struct ble_ll_sync_sm *
+ble_ll_sync_get(uint8_t handle)
+{
+    struct ble_ll_sync_sm *syncsm;
+
+    if (handle >= BLE_LL_SYNC_CNT) {
+        return NULL;
+    }
+
+    syncsm = &g_ble_ll_sync_sm[handle];
+
+    if (!syncsm->flags) {
+        return NULL;
+    }
+
+    return syncsm;
+}
+
 bool
 ble_ll_sync_enabled(void)
 {
