@@ -56,6 +56,9 @@ struct ble_ll_isoal_mux {
     uint16_t dropped_pkt;
 #endif
 
+    uint32_t iso_interval_us;
+    uint32_t sdu_interval_us;
+
     uint32_t event_tx_timestamp;
     uint32_t last_tx_timestamp;
     uint16_t last_tx_packet_seq_num;
@@ -92,6 +95,9 @@ int ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
 
 void ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux,
                                   struct os_mbuf *om);
+
+uint32_t ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
+                                        uint32_t rx_time, uint32_t time_stamp);
 
 void ble_ll_isoal_init(void);
 void ble_ll_isoal_reset(void);

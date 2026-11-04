@@ -259,6 +259,7 @@ ble_ll_iso_data_in(struct os_mbuf *om)
     uint16_t pb_flag;
     uint16_t ts_flag;
     uint32_t timestamp = 0;
+    uint32_t rx_time;
 
     if (om->om_len < sizeof(*hci_iso)) {
         os_mbuf_free_chain(om);
@@ -290,13 +291,16 @@ ble_ll_iso_data_in(struct os_mbuf *om)
 
         blehdr = BLE_MBUF_HDR_PTR(om);
         blehdr->txiso.packet_seq_num = ++conn->mux.sdu_counter;
-        blehdr->txiso.sdu_timestamp = ble_ll_tmr_t2u(ble_ll_tmr_get());
 
+        rx_time = ble_ll_tmr_t2u(ble_ll_tmr_get());
         if (ts_flag) {
             timestamp = get_le32(om->om_data + sizeof(*hci_iso));
             data_hdr_len += sizeof(uint32_t);
+            blehdr->txiso.sdu_timestamp =
+                ble_ll_isoal_mux_sdu_timestamp(&conn->mux, rx_time, timestamp);
+        } else {
+            blehdr->txiso.sdu_timestamp = rx_time;
         }
-        blehdr->txiso.hci_timestamp = timestamp;
 
         hci_iso_data = (void *)(om->om_data + sizeof(*hci_iso) + data_hdr_len);
         data_hdr_len += sizeof(*hci_iso_data);

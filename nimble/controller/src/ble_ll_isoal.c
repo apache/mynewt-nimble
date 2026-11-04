@@ -54,6 +54,8 @@ ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
 
     mux->framed = framed;
     mux->framing_mode = framing_mode;
+    mux->iso_interval_us = iso_interval_us;
+    mux->sdu_interval_us = sdu_interval_us;
 }
 
 void
@@ -95,6 +97,25 @@ ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux, struct os_mbuf *om)
     OS_EXIT_CRITICAL(sr);
 }
 
+uint32_t
+ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
+                               uint32_t rx_time, uint32_t time_stamp)
+{
+    int32_t range_us;
+    int32_t diff;
+
+    /* Time_Stamp far from the time of reception is not based on the
+     * Controller clock (Vol 6, Part G, 3.3), so it is ignored.
+     */
+    range_us = mux->iso_interval_us + mux->sdu_interval_us;
+    diff = time_stamp - rx_time;
+    if ((diff < -range_us) || (diff > range_us)) {
+        return rx_time;
+    }
+
+    return time_stamp;
+}
+
 #if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
 static void
 ble_ll_isoal_mux_drop_late(struct ble_ll_isoal_mux *mux)
@@ -126,6 +147,24 @@ ble_ll_isoal_mux_drop_late(struct ble_ll_isoal_mux *mux)
 }
 #endif
 
+static uint8_t
+ble_ll_isoal_mux_framed_num_sdu_ready(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
+{
+    struct os_mbuf_pkthdr *pkthdr;
+    struct ble_mbuf_hdr *blehdr;
+    uint8_t num_sdu = 0;
+
+    STAILQ_FOREACH(pkthdr, &mux->sdu_q, omp_next) {
+        blehdr = BLE_MBUF_HDR_PTR(OS_MBUF_PKTHDR_TO_MBUF(pkthdr));
+        if ((int32_t)(timestamp - blehdr->txiso.sdu_timestamp) <= 0) {
+            break;
+        }
+        num_sdu++;
+    }
+
+    return num_sdu;
+}
+
 int
 ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
 {
@@ -141,7 +180,7 @@ ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
         mux->active = 0;
     }
     if (mux->active && mux->framed) {
-        mux->sdu_in_event = mux->sdu_q_len;
+        mux->sdu_in_event = ble_ll_isoal_mux_framed_num_sdu_ready(mux, timestamp);
     } else if (mux->active) {
         mux->sdu_in_event = mux->sdu_per_event;
     } else {
@@ -149,7 +188,7 @@ ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
     }
 #else
     if (mux->framed) {
-        mux->sdu_in_event = mux->sdu_q_len;
+        mux->sdu_in_event = ble_ll_isoal_mux_framed_num_sdu_ready(mux, timestamp);
     } else {
         mux->sdu_in_event = min(mux->sdu_q_len, mux->sdu_per_event);
     }
