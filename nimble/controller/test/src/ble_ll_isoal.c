@@ -442,6 +442,141 @@ test_ial_broadcast_single_sdu_bis(const struct test_ial_broadcast_single_sdu_bis
     test_ll_isoal_teardown(&fixture);
 }
 
+TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_not_sent_early)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_mux *mux;
+    const uint32_t iso_interval_us = 10000;
+    const uint32_t sdu_interval_us = 10000;
+    const uint32_t sdu_ts = 10000;
+    const uint32_t event_ts = sdu_ts - 1000;
+    const uint8_t max_pdu = 40;
+    const uint8_t sdu_len = 20;
+    uint8_t pdu[40];
+    int num_completed_pkt;
+    uint32_t time_offset;
+    uint16_t seg_hdr;
+    int num_pkt;
+    int pdu_len;
+    uint8_t llid = 0xff;
+
+    test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
+                        sdu_interval_us, 1, true, false);
+
+    mux = &fixture.mux;
+
+    num_pkt = test_sdu_enqueue(mux, sdu_len, 0, sdu_ts);
+
+    ble_ll_isoal_mux_event_start(mux, event_ts);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(mux, 0, &llid, pdu);
+    TEST_ASSERT(pdu_len == 0, "PDU length is incorrect %d", pdu_len);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(mux);
+    TEST_ASSERT(num_completed_pkt == 0, "num_completed_pkt is incorrect %d",
+                num_completed_pkt);
+
+    ble_ll_isoal_mux_event_start(mux, event_ts + iso_interval_us);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(mux, 0, &llid, pdu);
+    TEST_ASSERT(pdu_len == 2 + 3 + sdu_len, "PDU length is incorrect %d", pdu_len);
+    TEST_ASSERT(llid == 0b10, "LLID is incorrect %d", llid);
+
+    seg_hdr = get_le16(pdu);
+    TEST_ASSERT(BLE_LL_ISOAL_SEGHDR_SC(seg_hdr) == 0, "SC is incorrect %d",
+                BLE_LL_ISOAL_SEGHDR_SC(seg_hdr));
+
+    time_offset = get_le24(&pdu[2]);
+    TEST_ASSERT(time_offset == event_ts + iso_interval_us - sdu_ts,
+                "Time offset is incorrect %d", time_offset);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(mux);
+    TEST_ASSERT(num_completed_pkt == num_pkt,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_mux *mux;
+    const uint32_t iso_interval_us = 10000;
+    const uint32_t sdu_interval_us = 10000;
+    const uint32_t rx_time = 100000;
+    const uint32_t time_stamp = 105000;
+    const uint32_t event_ts = 107500;
+    const uint8_t max_pdu = 40;
+    const uint8_t sdu_len = 20;
+    uint8_t pdu[40];
+    int num_completed_pkt;
+    uint32_t time_offset;
+    uint32_t sdu_ts;
+    int num_pkt;
+    int pdu_len;
+    uint8_t llid = 0xff;
+
+    test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
+                        sdu_interval_us, 1, true, false);
+
+    mux = &fixture.mux;
+
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
+
+    num_pkt = test_sdu_enqueue(mux, sdu_len, 0, sdu_ts);
+
+    ble_ll_isoal_mux_event_start(mux, event_ts);
+
+    pdu_len = ble_ll_isoal_mux_pdu_get(mux, 0, &llid, pdu);
+    TEST_ASSERT(pdu_len == 2 + 3 + sdu_len, "PDU length is incorrect %d", pdu_len);
+
+    time_offset = get_le24(&pdu[2]);
+    TEST_ASSERT(time_offset == event_ts - time_stamp,
+                "Time offset is incorrect %d", time_offset);
+
+    num_completed_pkt = ble_ll_isoal_mux_event_done(mux);
+    TEST_ASSERT(num_completed_pkt == num_pkt,
+                "num_completed_pkt is incorrect %d", num_completed_pkt);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp_range)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_mux *mux;
+    const uint32_t iso_interval_us = 10000;
+    const uint32_t sdu_interval_us = 10000;
+    const uint32_t range_us = iso_interval_us + sdu_interval_us;
+    const uint32_t rx_time = 100000;
+    uint32_t time_stamp;
+    uint32_t sdu_ts;
+
+    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 1,
+                        true, false);
+
+    mux = &fixture.mux;
+
+    time_stamp = rx_time + range_us;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
+
+    time_stamp = rx_time - range_us;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
+
+    time_stamp = rx_time + range_us + 1;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    TEST_ASSERT(sdu_ts == rx_time, "SDU timestamp is incorrect %d", sdu_ts);
+
+    time_stamp = rx_time - range_us - 1;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    TEST_ASSERT(sdu_ts == rx_time, "SDU timestamp is incorrect %d", sdu_ts);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
 TEST_CASE_SELF(test_ial_bis_unf_brd_bv_01_c)
 {
     const struct test_ial_broadcast_single_sdu_bis_cfg cfg = {
@@ -1361,6 +1496,9 @@ TEST_SUITE(ble_ll_isoal_test_suite)
     test_ble_ll_isoal_mux_init();
     test_ble_ll_isoal_mux_get_unframed_pdu();
     test_ble_ll_isoal_mux_sdu_not_in_event();
+    test_ble_ll_isoal_mux_framed_sdu_not_sent_early();
+    test_ble_ll_isoal_mux_framed_sdu_time_stamp();
+    test_ble_ll_isoal_mux_framed_sdu_time_stamp_range();
 
     /* Broadcast Single SDU, BIS */
     test_ial_bis_unf_brd_bv_01_c();
