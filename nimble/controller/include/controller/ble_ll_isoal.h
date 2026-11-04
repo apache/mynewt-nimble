@@ -27,6 +27,8 @@
 extern "C" {
 #endif
 
+#define BLE_LL_ISOAL_TIME_OFFSET_LEN 3
+
 struct ble_ll_isoal_config {
     /* ISO Interval */
     uint32_t iso_interval_us;
@@ -113,6 +115,8 @@ struct ble_ll_isoal_demux_cb {
 struct ble_ll_isoal_demux {
     struct ble_ll_isoal_config config;
 
+    uint8_t active;
+
     /* Number of expected SDUs per ISO interval */
     uint8_t sdu_per_interval;
     /* Number of expected PDUs per SDU */
@@ -125,6 +129,9 @@ struct ble_ll_isoal_demux {
     uint32_t sdu_counter;
 
     uint32_t ref_time;
+    uint32_t last_rx_timestamp;
+
+    struct os_mbuf *frag;
 
     const struct ble_ll_isoal_demux_cb *cb;
 };
