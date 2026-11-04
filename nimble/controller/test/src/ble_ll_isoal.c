@@ -17,6 +17,7 @@
  * under the License.
  */
 
+#include "../../src/ble_ll_iso_priv.h"
 #include <controller/ble_ll_isoal.h>
 #include <controller/ble_ll_tmr.h>
 #include <nimble/ble.h>
