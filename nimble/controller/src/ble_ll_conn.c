@@ -639,6 +639,27 @@ ble_ll_conn_is_empty_pdu(uint8_t *rxbuf)
 }
 #endif
 
+static uint32_t
+ble_ll_conn_spvn_tmo_ticks(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t tmo;
+
+    if (connsm->conn_state == BLE_LL_CONN_STATE_CREATED) {
+        tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6UL;
+    } else {
+        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000UL;
+    }
+
+    return ble_ll_tmr_u2t(tmo);
+}
+
+int
+ble_ll_conn_is_starving(struct ble_ll_conn_sm *connsm)
+{
+    return (int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >=
+           (int32_t)(ble_ll_conn_spvn_tmo_ticks(connsm) / 2);
+}
+
 /**
  * Called to return the currently running connection state machine end time.
  * Always called when interrupts are disabled.
@@ -3156,14 +3177,11 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
      * a big deal but it could cause a slightly longer supervision timeout.
      */
     if (connsm->conn_state == BLE_LL_CONN_STATE_CREATED) {
-        tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6UL;
         ble_err = BLE_ERR_CONN_ESTABLISHMENT;
     } else {
-        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000UL;
         ble_err = BLE_ERR_CONN_SPVN_TMO;
     }
-    /* XXX: Convert to ticks to usecs calculation instead??? */
-    tmo = ble_ll_tmr_u2t(tmo);
+    tmo = ble_ll_conn_spvn_tmo_ticks(connsm);
     if ((int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >= tmo) {
         ble_ll_conn_end(connsm, ble_err);
         return;
