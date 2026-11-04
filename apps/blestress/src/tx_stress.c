@@ -44,6 +44,12 @@ static os_stack_t tx_stress_main_task_stack[TX_STRESS_MAIN_TASK_STACK_SIZE];
 static struct os_sem tx_stress_main_sem;
 /* Test use case and address of test advertiser. */
 static int tx_stress_use_case;
+/* Last test use case performed. RX runs tests once each in ascending order,
+ * so only adverts of a higher test ID are accepted. This ignores the advert
+ * of the just finished test, which RX keeps sending until it handles its own
+ * end of the test, and prevents re-running any earlier test with stale
+ * statistics. */
+static int tx_stress_last_use_case = -1;
 static int completed_tests = 0;
 
 static void
@@ -1530,7 +1536,7 @@ scan_for_test_gap_event(struct ble_gap_event *event, void *arg)
         /* Check if caught advert contains known UUID128. The UUID128
          * contains the ID of test use case to be executed. */
         use_case = tx_stress_find_test(&event->ext_disc);
-        if (use_case > 0) {
+        if (use_case > 0 && use_case > tx_stress_last_use_case) {
             rc = ble_gap_disc_cancel();
             tx_stress_ctx->dev_addr = event->ext_disc.addr;
 
@@ -1689,6 +1695,7 @@ tx_stress_main_task_fn(void *arg)
 
         /* Start test. */
         tx_stress_test_perform(tx_stress_use_case);
+        tx_stress_last_use_case = tx_stress_use_case;
         tx_stress_use_case = -1;
     }
 
