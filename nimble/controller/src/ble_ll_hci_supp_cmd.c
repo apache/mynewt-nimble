@@ -281,6 +281,10 @@ static const uint8_t octet_42 = OCTET(
 );
 
 static const uint8_t octet_43 = OCTET(
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    CMD_BIT(0) /* LE BIG Create Sync */
+    CMD_BIT(1) /* LE BIG Terminate Sync */
+#endif
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_SCA_UPDATE)
     CMD_BIT(2) /* HCI LE Request Peer SCA */
 #endif
@@ -290,6 +294,10 @@ static const uint8_t octet_43 = OCTET(
 #endif
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
     CMD_BIT(5) /* HCI LE ISO Transmit Test */
+#endif
+#if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
+    CMD_BIT(6) /* HCI LE ISO Receive Test */
+    CMD_BIT(7) /* HCI LE ISO Read Test Counters */
 #endif
 );
 
