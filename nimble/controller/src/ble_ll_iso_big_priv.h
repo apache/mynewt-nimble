@@ -110,8 +110,12 @@ struct ble_ll_iso_big {
     uint32_t transport_latency_us;
     uint32_t event_start;
     uint8_t event_start_us;
+    /* The current BIG event is at anchor_base + anchor_base_offset_us +
+     * anchor_offset ISO intervals
+     */
     uint32_t anchor_base_ticks;
     uint8_t anchor_base_rem_us;
+    uint32_t anchor_base_offset_us;
     uint16_t anchor_offset;
     struct ble_ll_sched_item sch;
     struct ble_npl_event event_done;
@@ -148,7 +152,7 @@ struct ble_ll_iso_big {
     uint8_t mse;
 
     uint8_t sca;
-    uint16_t wfr_us;
+    uint32_t wfr_us;
 
     uint16_t tx_win_us;
 

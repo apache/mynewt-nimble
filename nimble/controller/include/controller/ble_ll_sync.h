@@ -68,6 +68,7 @@ typedef void (*ble_ll_sync_biginfo_cb_t)(struct ble_ll_sync_sm *syncsm,
                                          uint8_t sync_rem_us, const uint8_t *data,
                                          uint8_t len, void *arg);
 
+struct ble_ll_sync_sm *ble_ll_sync_get(uint16_t handle);
 void ble_ll_sync_biginfo_cb_set(struct ble_ll_sync_sm *syncsm,
                                 ble_ll_sync_biginfo_cb_t cb, void *cb_arg);
 
