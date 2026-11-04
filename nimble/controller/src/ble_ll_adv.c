@@ -5011,12 +5011,23 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     ble_ll_adv_update_adv_scan_rsp_data(advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        /* stop advertising this was due to transmitting connection response */
-        if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+    /*
+     * Stop advertising if this was due to transmitting connection response.
+     * For extended advertising this is normally handled when secondary
+     * channel event is done, but that event is dropped (and its done event
+     * removed) if the advertising event was preempted, e.g. by the first
+     * connection event of the connection just created, so handle it here
+     * as well. Otherwise advertising would continue with no event buffer for
+     * the next connection complete event.
+     */
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+        if (!(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR)) {
             ble_ll_adv_sm_stop(advsm);
             return;
         }
+
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD |
+                                          BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR);
     }
 #endif
 
