@@ -337,7 +337,7 @@ test_sdu_enqueue(struct ble_ll_isoal_mux *mux, uint16_t sdu_len,
     TEST_ASSERT_FATAL(sdu != NULL);
     blehdr = BLE_MBUF_HDR_PTR(sdu);
     blehdr->txiso.packet_seq_num = packet_seq_num;
-    blehdr->txiso.cpu_timestamp = timestamp;
+    blehdr->txiso.sdu_timestamp = timestamp;
 
     /* First SDU Fragment */
     sdu_frag_len = min(sdu_len, HCI_iso_sdu_max);
