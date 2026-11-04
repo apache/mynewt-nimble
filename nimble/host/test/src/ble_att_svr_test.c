@@ -1392,6 +1392,106 @@ TEST_CASE_SELF(ble_att_svr_test_find_type_value)
     ble_att_svr_test_assert_mbufs_freed();
 }
 
+TEST_CASE_SELF(ble_att_svr_test_find_type_value_last_attr)
+{
+    uint16_t conn_handle;
+    uint16_t handle_svc1;
+    uint16_t handle_svc2;
+    uint16_t handle_chr;
+    uint16_t handle_dsc;
+    int rc;
+
+    conn_handle = ble_att_svr_test_misc_init(128);
+
+    ble_att_svr_test_attr_r_1 = (uint8_t[]){ 0x99, 0x99 };
+    ble_att_svr_test_attr_r_1_len = 2;
+
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(BLE_ATT_UUID_PRIMARY_SERVICE),
+                              HA_FLAG_PERM_RW, 0, &handle_svc1,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(BLE_ATT_UUID_SECONDARY_SERVICE),
+                              HA_FLAG_PERM_RW, 0, &handle_svc2,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(BLE_ATT_UUID_CHARACTERISTIC),
+                              HA_FLAG_PERM_RW, 0, &handle_chr,
+                              ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    rc = ble_att_svr_register(BLE_UUID16_DECLARE(0x2902), HA_FLAG_PERM_RW, 0,
+                              &handle_dsc, ble_att_svr_test_misc_attr_fn_r_1, NULL);
+    TEST_ASSERT(rc == 0);
+
+    /*** Primary service followed by another service: real end handle. */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, BLE_ATT_UUID_PRIMARY_SERVICE,
+        ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]){
+            {
+             .first = handle_svc1,
+             .last = handle_svc1,
+             },
+            {
+             .first = 0,
+             }
+    }));
+
+    /*** Last service in the table: end handle is 0xffff. */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, BLE_ATT_UUID_SECONDARY_SERVICE,
+        ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]){
+            {
+             .first = handle_svc2,
+             .last = 0xffff,
+             },
+            {
+             .first = 0,
+             }
+    }));
+
+    /*** Last characteristic: ends at its last attribute, not at 0xffff. */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, BLE_ATT_UUID_CHARACTERISTIC,
+        ble_att_svr_test_attr_r_1, ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]){
+            {
+             .first = handle_chr,
+             .last = handle_dsc,
+             },
+            {
+             .first = 0,
+             }
+    }));
+
+    /*** Non-grouping type: end handle equals the found handle. */
+    rc = ble_hs_test_util_rx_att_find_type_value_req(
+        conn_handle, 1, 0xffff, 0x2902, ble_att_svr_test_attr_r_1,
+        ble_att_svr_test_attr_r_1_len);
+    TEST_ASSERT(rc == 0);
+    ble_att_svr_test_misc_verify_tx_find_type_value_rsp(
+        ((struct ble_att_svr_test_type_value_entry[]){
+            {
+             .first = handle_dsc,
+             .last = handle_dsc,
+             },
+            {
+             .first = 0,
+             }
+    }));
+
+    ble_att_svr_test_assert_mbufs_freed();
+}
+
 static void
 ble_att_svr_test_misc_read_type(uint16_t mtu)
 {
@@ -2308,6 +2408,7 @@ TEST_SUITE(ble_att_svr_suite)
     ble_att_svr_test_write();
     ble_att_svr_test_find_info();
     ble_att_svr_test_find_type_value();
+    ble_att_svr_test_find_type_value_last_attr();
     ble_att_svr_test_read_type();
     ble_att_svr_test_read_group_type();
     ble_att_svr_test_prep_write();
