@@ -1290,7 +1290,7 @@ TEST_CASE_SELF(ble_att_svr_test_find_type_value)
         ((struct ble_att_svr_test_type_value_entry[]){
             {
              .first = handle1,
-             .last = handle1,
+             .last = 0xffff,
              },
             {
              .first = 0,
@@ -1310,7 +1310,7 @@ TEST_CASE_SELF(ble_att_svr_test_find_type_value)
         ((struct ble_att_svr_test_type_value_entry[]){
             {
              .first = handle1,
-             .last = handle2,
+             .last = 0xffff,
              },
             {
              .first = 0,
@@ -1350,7 +1350,7 @@ TEST_CASE_SELF(ble_att_svr_test_find_type_value)
              },
             {
              .first = handle5,
-             .last = handle5,
+             .last = 0xffff,
              },
             {
              .first = 0,
@@ -2244,7 +2244,7 @@ TEST_CASE_SELF(ble_att_svr_test_large_value)
         ((struct ble_att_svr_test_type_value_entry[]){
             {
              .first = 1,
-             .last = 1,
+             .last = 0xffff,
              },
             {
              .first = 0,
