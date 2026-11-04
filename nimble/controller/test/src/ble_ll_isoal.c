@@ -69,10 +69,18 @@ ble_ll_isoal_test_suite_init(void)
 static void
 test_ll_isoal_setup(struct test_ll_isoal_fixture *fixture, uint16_t max_sdu,
                     uint8_t max_pdu, uint32_t iso_interval_us,
-                    uint32_t sdu_interval_us, uint8_t bn, bool framed, bool unsegmented)
+                    uint32_t sdu_interval_us, uint8_t bn, bool framed)
 {
-    ble_ll_isoal_mux_init(&fixture->mux, max_pdu, iso_interval_us,
-                          sdu_interval_us, bn, 0, framed, unsegmented);
+    struct ble_ll_isoal_config config = {
+        .iso_interval_us = iso_interval_us,
+        .sdu_interval_us = sdu_interval_us,
+        .max_pdu = max_pdu,
+        .bn = bn,
+        .pte = 0,
+        .framed = framed,
+    };
+
+    ble_ll_isoal_mux_init(&fixture->mux, &config);
 }
 
 static void
@@ -94,8 +102,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_init)
     const uint32_t iso_interval_us = 10000;
     const uint32_t sdu_interval_us = 10000;
 
-    test_ll_isoal_setup(&fixture, 250, 250, iso_interval_us, sdu_interval_us,
-                        1, false, false);
+    test_ll_isoal_setup(&fixture, 250, 250, iso_interval_us, sdu_interval_us, 1, false);
 
     mux = &fixture.mux;
 
@@ -112,7 +119,6 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     const uint32_t iso_interval_us = 20000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 0;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 6;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 3 * max_pdu;
@@ -123,7 +129,7 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -132,14 +138,14 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     /* SDU #2 */
     sdu_2 = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
     TEST_ASSERT_FATAL(sdu_2 != NULL);
     rc = os_mbuf_append(sdu_2, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_2);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_2);
 
     ble_ll_isoal_mux_event_start(mux, 90990);
 
@@ -194,7 +200,6 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     const uint32_t iso_interval_us = 20000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 0;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 6;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 3 * max_pdu;
@@ -205,7 +210,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -214,14 +219,14 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     /* SDU #2 */
     sdu_2 = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
     TEST_ASSERT_FATAL(sdu_2 != NULL);
     rc = os_mbuf_append(sdu_2, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_2);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_2);
 
     ble_ll_isoal_mux_event_start(mux, 90990);
 
@@ -276,7 +281,6 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     const uint32_t iso_interval_us = 10000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 1;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 2;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 40;
@@ -287,7 +291,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -299,7 +303,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     TEST_ASSERT_FATAL(mux->sdu_in_event == 0, "sdu_in_event %d != 0", mux->sdu_in_event);
 
@@ -362,7 +366,7 @@ test_sdu_enqueue(struct ble_ll_isoal_mux *mux, uint16_t sdu_len,
         os_mbuf_concat(sdu, frag);
     }
 
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu);
+    ble_ll_isoal_mux_sdu_put(mux, sdu);
 
     return num_pkt;
 }
@@ -402,7 +406,7 @@ test_ial_broadcast_single_sdu_bis(const struct test_ial_broadcast_single_sdu_bis
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, Max_SDU, cfg->Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -461,7 +465,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_not_sent_early)
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, 1, true, false);
+                        sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -517,7 +521,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp)
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, 1, true, false);
+                        sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -553,8 +557,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp_range)
     uint32_t time_stamp;
     uint32_t sdu_ts;
 
-    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 1,
-                        true, false);
+    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -694,7 +697,7 @@ test_ial_broadcast_large_sdu_bis(const struct test_ial_broadcast_large_sdu_bis_c
     uint8_t idx;
 
     test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -892,7 +895,6 @@ test_ial_broadcast_multiple_small_sdus_bis(
     const uint16_t Max_SDU = 25;
     const uint8_t LLID = 0b10;
     const uint8_t Framed = 0x01;
-    const uint8_t Framing_Mode = 0;
     int pdu_len;
     uint8_t pdu[cfg->Max_PDU];
     uint32_t sdu_1_ts, sdu_2_ts, event_ts;
@@ -903,7 +905,7 @@ test_ial_broadcast_multiple_small_sdus_bis(
     uint8_t *seg;
 
     test_ll_isoal_setup(&fixture, Max_SDU, cfg->Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, Framed, Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, Framed);
 
     mux = &fixture.mux;
 
@@ -1027,7 +1029,7 @@ test_ial_broadcast_zero_length_sdu_bis(const struct test_ial_broadcast_zero_leng
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval,
-                        cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -1236,7 +1238,7 @@ test_ial_unframed_empty_pdus_with_llid_0b01(
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, cfg->mx_sdu, cfg->mx_pdu, cfg->iso_int,
-                        cfg->sdu_int, cfg->bn, false, 0);
+                        cfg->sdu_int, cfg->bn, false);
 
     mux = &fixture.mux;
 
@@ -1301,7 +1303,7 @@ TEST_CASE_SELF(test_ial_bis_unf_early_sdus)
     uint32_t timestamp = 0;
     uint8_t llid = 0xff;
 
-    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, false, 0);
+    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, false);
 
     mux = &fixture.mux;
 
@@ -1396,7 +1398,7 @@ TEST_CASE_SELF(test_ial_bis_fra_early_sdus)
     uint32_t timestamp = 0;
     uint8_t llid = 0xff;
 
-    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, true, 0);
+    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, true);
 
     mux = &fixture.mux;
 
@@ -1491,8 +1493,6 @@ TEST_SUITE(ble_ll_isoal_test_suite)
 {
     ble_ll_isoal_test_suite_init();
 
-    ble_ll_isoal_init();
-
     test_ble_ll_isoal_mux_init();
     test_ble_ll_isoal_mux_get_unframed_pdu();
     test_ble_ll_isoal_mux_sdu_not_in_event();
@@ -1538,6 +1538,4 @@ TEST_SUITE(ble_ll_isoal_test_suite)
 
     test_ial_bis_unf_early_sdus();
     test_ial_bis_fra_early_sdus();
-
-    ble_ll_isoal_reset();
 }
