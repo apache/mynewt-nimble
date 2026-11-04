@@ -32,6 +32,8 @@ struct ble_ll_isoal_config {
     uint32_t iso_interval_us;
     /* SDU Interval */
     uint32_t sdu_interval_us;
+    /* Maximum SDU size */
+    uint16_t max_sdu;
     /* Max PDU length */
     uint8_t max_pdu;
     /* Burst Number */
@@ -98,6 +100,49 @@ void ble_ll_isoal_mux_sdu_put(struct ble_ll_isoal_mux *mux, struct os_mbuf *om);
 
 uint32_t ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
                                         uint32_t rx_time, uint32_t time_stamp);
+
+/* Forward declaration */
+struct ble_ll_isoal_demux;
+
+/* ISOAL Demultiplexer callback structure */
+struct ble_ll_isoal_demux_cb {
+    void (*sdu_cb)(struct ble_ll_isoal_demux *demux, const struct os_mbuf *om,
+                   uint32_t timestamp, uint16_t seq_num, bool valid);
+};
+
+struct ble_ll_isoal_demux {
+    struct ble_ll_isoal_config config;
+
+    /* Number of expected SDUs per ISO interval */
+    uint8_t sdu_per_interval;
+    /* Number of expected PDUs per SDU */
+    uint8_t pdu_per_sdu;
+    /* Number of SDUs expected for the current event */
+    uint8_t sdu_in_event;
+
+    STAILQ_HEAD(, os_mbuf_pkthdr) pdu_q;
+
+    uint32_t sdu_counter;
+
+    uint32_t ref_time;
+
+    const struct ble_ll_isoal_demux_cb *cb;
+};
+
+void ble_ll_isoal_demux_init(struct ble_ll_isoal_demux *demux,
+                             const struct ble_ll_isoal_config *config);
+void ble_ll_isoal_demux_reset(struct ble_ll_isoal_demux *demux);
+int ble_ll_isoal_demux_event_start(struct ble_ll_isoal_demux *demux, uint32_t timestamp);
+int ble_ll_isoal_demux_event_done(struct ble_ll_isoal_demux *demux);
+void ble_ll_isoal_demux_pdu_put(struct ble_ll_isoal_demux *demux, uint8_t idx,
+                                struct os_mbuf *om);
+
+static inline void
+ble_ll_isoal_demux_cb_set(struct ble_ll_isoal_demux *demux,
+                          const struct ble_ll_isoal_demux_cb *cb)
+{
+    demux->cb = cb;
+}
 
 #ifdef __cplusplus
 }
