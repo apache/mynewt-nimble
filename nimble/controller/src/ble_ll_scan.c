@@ -1178,7 +1178,7 @@ ble_ll_scan_event_proc(struct ble_npl_event *ev)
  *  1: we may send a response to this frame.
  */
 int
-ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags)
+ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint32_t *rxflags)
 {
     int rc;
     struct ble_ll_scan_sm *scansm;

@@ -197,7 +197,7 @@ void ble_ll_scan_init(void);
 void ble_ll_scan_reset(void);
 
 /* Called when Link Layer starts to receive a PDU and is in scanning state */
-int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint16_t *rxflags);
+int ble_ll_scan_rx_isr_start(uint8_t pdu_type, uint32_t *rxflags);
 
 /* Called when Link Layer has finished receiving a PDU while scanning */
 int ble_ll_scan_rx_isr_end(struct os_mbuf *rxpdu, uint8_t crcok);
