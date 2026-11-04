@@ -1439,6 +1439,11 @@ uint32_t ble_phy_access_addr_get(void)
     return g_ble_phy_data.phy_access_address;
 }
 
+void
+ble_phy_rx_maxlen_set(uint8_t maxlen)
+{
+}
+
 /**
  * Return the phy state
  *

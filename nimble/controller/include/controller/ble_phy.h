@@ -165,6 +165,9 @@ uint8_t ble_phy_max_data_pdu_pyld(void);
 /* Gets the current access address */
 uint32_t ble_phy_access_addr_get(void);
 
+/* Limits the received PDU payload length (with MIC), until ble_phy_disable() */
+void ble_phy_rx_maxlen_set(uint8_t maxlen);
+
 /* Enable encryption */
 void ble_phy_encrypt_enable(const uint8_t *key);
 /* Set mask for PDU header (see Core 5.3, Vol 6, Part E, 2.2) */

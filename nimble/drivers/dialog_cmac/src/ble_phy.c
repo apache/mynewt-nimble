@@ -1754,6 +1754,11 @@ ble_phy_access_addr_get(void)
     return g_ble_phy_data.access_addr;
 }
 
+void
+ble_phy_rx_maxlen_set(uint8_t maxlen)
+{
+}
+
 int
 ble_phy_state_get(void)
 {
