@@ -29,33 +29,25 @@
 #if MYNEWT_VAL(BLE_LL_ISO)
 
 void
-ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux, uint8_t max_pdu,
-                      uint32_t iso_interval_us, uint32_t sdu_interval_us,
-                      uint8_t bn, uint8_t pte, bool framed, uint8_t framing_mode)
+ble_ll_isoal_mux_init(struct ble_ll_isoal_mux *mux,
+                      const struct ble_ll_isoal_config *config)
 {
     memset(mux, 0, sizeof(*mux));
+    mux->config = *config;
 
-    mux->max_pdu = max_pdu;
     /* Core 5.3, Vol 6, Part G, 2.1 */
-    mux->sdu_per_interval = iso_interval_us / sdu_interval_us;
+    mux->sdu_per_interval = config->iso_interval_us / config->sdu_interval_us;
 
-    if (framed) {
+    if (config->framed) {
         /* TODO */
     } else {
-        mux->pdu_per_sdu = bn / mux->sdu_per_interval;
+        mux->pdu_per_sdu = config->bn / mux->sdu_per_interval;
     }
 
-    mux->sdu_per_event = (1 + pte) * mux->sdu_per_interval;
-
-    mux->bn = bn;
+    mux->sdu_per_event = (1 + config->pte) * mux->sdu_per_interval;
 
     STAILQ_INIT(&mux->sdu_q);
     mux->sdu_q_len = 0;
-
-    mux->framed = framed;
-    mux->framing_mode = framing_mode;
-    mux->iso_interval_us = iso_interval_us;
-    mux->sdu_interval_us = sdu_interval_us;
 }
 
 void
@@ -78,7 +70,7 @@ ble_ll_isoal_mux_free(struct ble_ll_isoal_mux *mux)
 }
 
 void
-ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux, struct os_mbuf *om)
+ble_ll_isoal_mux_sdu_put(struct ble_ll_isoal_mux *mux, struct os_mbuf *om)
 {
     struct os_mbuf_pkthdr *pkthdr;
     os_sr_t sr;
@@ -107,7 +99,7 @@ ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
     /* Time_Stamp far from the time of reception is not based on the
      * Controller clock (Vol 6, Part G, 3.3), so it is ignored.
      */
-    range_us = mux->iso_interval_us + mux->sdu_interval_us;
+    range_us = mux->config.iso_interval_us + mux->config.sdu_interval_us;
     diff = time_stamp - rx_time;
     if ((diff < -range_us) || (diff > range_us)) {
         return rx_time;
@@ -125,7 +117,7 @@ ble_ll_isoal_mux_drop_late(struct ble_ll_isoal_mux *mux)
     struct os_mbuf *om_next;
     os_sr_t sr;
 
-    if (mux->framed) {
+    if (mux->config.framed) {
         return;
     }
 
@@ -179,7 +171,7 @@ ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
     if (mux->sdu_per_event > mux->sdu_q_len) {
         mux->active = 0;
     }
-    if (mux->active && mux->framed) {
+    if (mux->active && mux->config.framed) {
         mux->sdu_in_event = ble_ll_isoal_mux_framed_num_sdu_ready(mux, timestamp);
     } else if (mux->active) {
         mux->sdu_in_event = mux->sdu_per_event;
@@ -187,7 +179,7 @@ ble_ll_isoal_mux_event_start(struct ble_ll_isoal_mux *mux, uint32_t timestamp)
         mux->sdu_in_event = 0;
     }
 #else
-    if (mux->framed) {
+    if (mux->config.framed) {
         mux->sdu_in_event = ble_ll_isoal_mux_framed_num_sdu_ready(mux, timestamp);
     } else {
         mux->sdu_in_event = min(mux->sdu_q_len, mux->sdu_per_event);
@@ -280,7 +272,7 @@ ble_ll_isoal_mux_framed_event_done(struct ble_ll_isoal_mux *mux)
         return 0;
     }
 
-    num_pdu = mux->bn;
+    num_pdu = mux->config.bn;
 
 #if MYNEWT_VAL(BLE_LL_ISO_HCI_DISCARD_THRESHOLD)
     /* Drop queued SDUs if number of queued SDUs exceeds defined threshold.
@@ -320,7 +312,7 @@ ble_ll_isoal_mux_framed_event_done(struct ble_ll_isoal_mux *mux)
                               : 5 /* Segmentation Header + TimeOffset */;
 
             /* If the next SDU fragment header size exceeds remaining space in the PDU, advance to next PDU. */
-            if (mux->max_pdu <= hdr_len + pdu_len) {
+            if (mux->config.max_pdu <= hdr_len + pdu_len) {
                 pdu_len = 0;
                 num_pdu--;
                 continue;
@@ -330,7 +322,7 @@ ble_ll_isoal_mux_framed_event_done(struct ble_ll_isoal_mux *mux)
             pdu_len += hdr_len;
 
             /* SDU fragment length that can be fit in the PDU. */
-            frag_len = min(OS_MBUF_PKTLEN(om), mux->max_pdu - pdu_len);
+            frag_len = min(OS_MBUF_PKTLEN(om), mux->config.max_pdu - pdu_len);
 
             /* Increase PDU length by the length of the SDU fragment. */
             pdu_len += frag_len;
@@ -386,7 +378,7 @@ ble_ll_isoal_mux_event_done(struct ble_ll_isoal_mux *mux)
         mux->last_tx_packet_seq_num = blehdr->txiso.packet_seq_num;
     }
 
-    if (mux->framed) {
+    if (mux->config.framed) {
         return ble_ll_isoal_mux_framed_event_done(mux);
     }
 
@@ -431,7 +423,7 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
     }
 
     om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
-    sdu_offset = pdu_idx * mux->max_pdu;
+    sdu_offset = pdu_idx * mux->config.max_pdu;
     rem_len = OS_MBUF_PKTLEN(om) - sdu_offset;
 
     if (OS_MBUF_PKTLEN(om) == 0) {
@@ -448,8 +440,8 @@ ble_ll_isoal_mux_unframed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
          * LLID = 0b01: Data remaining exceeds the ISO Data PDU size,
          *              it's start or continuation fragment of an SDU.
          */
-        *llid = rem_len > mux->max_pdu;
-        pdu_len = min(mux->max_pdu, rem_len);
+        *llid = rem_len > mux->config.max_pdu;
+        pdu_len = min(mux->config.max_pdu, rem_len);
     }
 
     os_mbuf_copydata(om, sdu_offset, pdu_len, dptr);
@@ -493,14 +485,14 @@ ble_ll_isoal_mux_framed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
         hdr_len = sc ? 2 /* Segmentation Header */
                      : 5 /* Segmentation Header + TimeOffset */;
 
-        if (mux->max_pdu <= hdr_len + pdu_offset) {
+        if (mux->config.max_pdu <= hdr_len + pdu_offset) {
             /* Advance to next PDU */
             pdu_offset = 0;
             num_pdu--;
             continue;
         }
 
-        frag_len = min(rem_len, mux->max_pdu - hdr_len - pdu_offset);
+        frag_len = min(rem_len, mux->config.max_pdu - hdr_len - pdu_offset);
 
         pdu_offset += hdr_len + frag_len;
 
@@ -531,11 +523,11 @@ ble_ll_isoal_mux_framed_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
         hdr_len = sc ? 2 /* Segmentation Header */
                      : 5 /* Segmentation Header + TimeOffset */;
 
-        if (mux->max_pdu <= hdr_len + pdu_offset) {
+        if (mux->config.max_pdu <= hdr_len + pdu_offset) {
             break;
         }
 
-        frag_len = min(rem_len, mux->max_pdu - hdr_len - pdu_offset);
+        frag_len = min(rem_len, mux->config.max_pdu - hdr_len - pdu_offset);
 
         /* Segmentation Header */
         seghdr = BLE_LL_ISOAL_SEGHDR(sc, frag_len == rem_len, frag_len + hdr_len - 2);
@@ -576,21 +568,11 @@ int
 ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
                          uint8_t *llid, void *dptr)
 {
-    if (mux->framed) {
+    if (mux->config.framed) {
         return ble_ll_isoal_mux_framed_get(mux, idx, llid, dptr);
     }
 
     return ble_ll_isoal_mux_unframed_get(mux, idx, llid, dptr);
-}
-
-void
-ble_ll_isoal_init(void)
-{
-}
-
-void
-ble_ll_isoal_reset(void)
-{
 }
 
 #endif /* BLE_LL_ISO */

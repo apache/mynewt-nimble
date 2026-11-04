@@ -50,7 +50,7 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    if (conn->mux.bn == 0) {
+    if (conn->mux.config.bn == 0) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -158,7 +158,7 @@ ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    if (conn->mux.bn == 0) {
+    if (conn->mux.config.bn == 0) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -235,14 +235,12 @@ void
 ble_ll_iso_init(void)
 {
     STAILQ_INIT(&ll_iso_conn_q);
-    ble_ll_isoal_init();
 }
 
 void
 ble_ll_iso_reset(void)
 {
     STAILQ_INIT(&ll_iso_conn_q);
-    ble_ll_isoal_reset();
 }
 
 int
@@ -351,7 +349,7 @@ ble_ll_iso_data_in(struct os_mbuf *om)
     }
 
     if (om) {
-        ble_ll_isoal_mux_sdu_enqueue(&conn->mux, om);
+        ble_ll_isoal_mux_sdu_put(&conn->mux, om);
     }
 
     return 0;
@@ -366,7 +364,7 @@ ble_ll_iso_test_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_
     uint8_t pdu_idx;
     int pdu_len;
 
-    BLE_LL_ASSERT(!conn->mux.framed);
+    BLE_LL_ASSERT(!conn->mux.config.framed);
 
     sdu_idx = idx / conn->mux.pdu_per_sdu;
     pdu_idx = idx - sdu_idx * conn->mux.pdu_per_sdu;
@@ -379,13 +377,13 @@ ble_ll_iso_test_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_
     case BLE_HCI_PAYLOAD_TYPE_VARIABLE_LENGTH:
         payload_len = max(conn->test_mode.transmit.rand + (sdu_idx * pdu_idx), 4);
 
-        rem_len = payload_len - pdu_idx * conn->mux.max_pdu;
+        rem_len = payload_len - pdu_idx * conn->mux.config.max_pdu;
         if (rem_len == 0) {
             *llid = 0b01;
             pdu_len = 0;
         } else {
-            *llid = rem_len > conn->mux.max_pdu;
-            pdu_len = min(conn->mux.max_pdu, rem_len);
+            *llid = rem_len > conn->mux.config.max_pdu;
+            pdu_len = min(conn->mux.config.max_pdu, rem_len);
         }
 
         memset(dptr, 0, pdu_len);
@@ -398,13 +396,13 @@ ble_ll_iso_test_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_
     case BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH:
         payload_len = conn->max_sdu;
 
-        rem_len = payload_len - pdu_idx * conn->mux.max_pdu;
+        rem_len = payload_len - pdu_idx * conn->mux.config.max_pdu;
         if (rem_len == 0) {
             *llid = 0b01;
             pdu_len = 0;
         } else {
-            *llid = rem_len > conn->mux.max_pdu;
-            pdu_len = min(conn->mux.max_pdu, rem_len);
+            *llid = rem_len > conn->mux.config.max_pdu;
+            pdu_len = min(conn->mux.config.max_pdu, rem_len);
         }
 
         memset(dptr, 0, pdu_len);
@@ -434,6 +432,14 @@ ble_ll_iso_pdu_get(struct ble_ll_iso_conn *conn, uint8_t idx, uint32_t pkt_count
 void
 ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, struct ble_ll_iso_conn_init_param *param)
 {
+    struct ble_ll_isoal_config config = {
+        .iso_interval_us = param->iso_interval_us,
+        .sdu_interval_us = param->sdu_interval_us,
+        .max_pdu = param->max_pdu,
+        .bn = param->bn,
+        .pte = param->pte,
+        .framed = param->framing != BLE_HCI_ISO_FRAMING_UNFRAMED,
+    };
     os_sr_t sr;
 
     memset(conn, 0, sizeof(*conn));
@@ -441,9 +447,7 @@ ble_ll_iso_conn_init(struct ble_ll_iso_conn *conn, struct ble_ll_iso_conn_init_p
     conn->handle = param->conn_handle;
     conn->max_sdu = param->max_sdu;
 
-    ble_ll_isoal_mux_init(&conn->mux, param->max_pdu, param->iso_interval_us, param->sdu_interval_us,
-                          param->bn, param->pte, BLE_LL_ISOAL_MUX_IS_FRAMED(param->framing),
-                          param->framing == BLE_HCI_ISO_FRAMING_FRAMED_UNSEGMENTED);
+    ble_ll_isoal_mux_init(&conn->mux, &config);
 
     OS_ENTER_CRITICAL(sr);
     STAILQ_INSERT_TAIL(&ll_iso_conn_q, conn, iso_conn_q_next);
