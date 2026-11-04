@@ -21,6 +21,7 @@
 #include <syscfg/syscfg.h>
 #include <controller/ble_ll.h>
 #include <controller/ble_ll_isoal.h>
+#include "ble_ll_iso_priv.h"
 
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
