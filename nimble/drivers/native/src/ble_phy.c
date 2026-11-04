@@ -345,6 +345,11 @@ ble_phy_restart_rx(void)
 {
 }
 
+void
+ble_phy_rx_maxlen_set(uint8_t maxlen)
+{
+}
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 void
 ble_phy_encrypt_enable(const uint8_t *key)

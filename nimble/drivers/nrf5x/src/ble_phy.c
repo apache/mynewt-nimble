@@ -1760,6 +1760,13 @@ ble_phy_rx(void)
     return 0;
 }
 
+void
+ble_phy_rx_maxlen_set(uint8_t maxlen)
+{
+    NRF_RADIO->PCNF1 = (NRF_RADIO->PCNF1 & ~RADIO_PCNF1_MAXLEN_Msk) |
+                       (maxlen << RADIO_PCNF1_MAXLEN_Pos);
+}
+
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_ENCRYPTION)
 void
 ble_phy_encrypt_enable(const uint8_t *key)
@@ -2231,6 +2238,7 @@ ble_phy_disable(void)
     ble_phy_disable_irq_and_ppi();
 
     g_ble_phy_data.phy_transition_late = 0;
+    ble_phy_rx_maxlen_set(NRF_MAXLEN);
 
 #if PHY_USE_FEM
     phy_fem_disable();
