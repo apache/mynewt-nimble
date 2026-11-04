@@ -828,9 +828,8 @@ ble_ll_iso_big_event_sched_cb(struct ble_ll_sched_item *sch)
     /* XXX calculate this in advance at the end of previous event? */
     big->tx.subevents_rem = big->num_bis * big->nse;
     STAILQ_FOREACH(bis, &big->bis_q, bis_q_next) {
-        ble_ll_iso_conn_event_start(&bis->conn, (uint64_t)big->event_start *
-                                                1000000 / 32768 +
-                                                big->event_start_us);
+        ble_ll_iso_conn_event_start(
+            &bis->conn, ble_ll_tmr_t2u(big->event_start) + big->event_start_us);
 
         bis->tx.subevent_num = 0;
         bis->tx.n = 0;
