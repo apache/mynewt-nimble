@@ -613,6 +613,11 @@ ble_ll_isoal_demux_reset(struct ble_ll_isoal_demux *demux)
     }
 
     STAILQ_INIT(&demux->pdu_q);
+
+    if (demux->frag) {
+        os_mbuf_free_chain(demux->frag);
+        demux->frag = NULL;
+    }
 }
 
 int
@@ -666,6 +671,15 @@ ble_ll_isoal_demux_sdu_emit(struct ble_ll_isoal_demux *demux,
         os_mbuf_free_chain(om);
     }
 
+    if (!demux->active) {
+        demux->last_rx_timestamp = timestamp;
+        demux->active = 1;
+    } else if ((int32_t)(timestamp - demux->last_rx_timestamp) <
+               (int32_t)config->sdu_interval_us) {
+        demux->last_rx_timestamp += config->sdu_interval_us;
+    } else {
+        demux->last_rx_timestamp = timestamp;
+    }
     demux->sdu_in_event--;
 }
 
@@ -687,6 +701,220 @@ pdu_idx_set(struct os_mbuf *om, uint8_t pdu_idx)
     hdr = BLE_MBUF_HDR_PTR(om);
 
     hdr->rxinfo.user_data = UINT_TO_POINTER(pdu_idx);
+}
+
+static void
+sdu_ts_set(struct os_mbuf *om, uint32_t timestamp)
+{
+    struct ble_mbuf_hdr *hdr;
+
+    hdr = BLE_MBUF_HDR_PTR(om);
+
+    hdr->beg_cputime = timestamp;
+}
+
+static uint32_t
+sdu_ts_get(struct os_mbuf *om)
+{
+    struct ble_mbuf_hdr *hdr;
+
+    hdr = BLE_MBUF_HDR_PTR(om);
+
+    return hdr->beg_cputime;
+}
+
+static uint8_t
+ble_ll_isoal_demux_get_num_lost_sdu(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    const struct ble_ll_isoal_config *config = &demux->config;
+    int32_t time_diff;
+
+    time_diff = timestamp - demux->last_rx_timestamp - config->sdu_interval_us / 2;
+    if (time_diff < 0) {
+        return 0;
+    }
+
+    return time_diff / config->sdu_interval_us;
+}
+
+static void
+ble_ll_isoal_demux_frag_flush(struct ble_ll_isoal_demux *demux)
+{
+    if (demux->frag != NULL) {
+        ble_ll_isoal_demux_sdu_emit(demux, demux->frag, sdu_ts_get(demux->frag), false);
+        demux->frag = NULL;
+    }
+}
+
+static void
+ble_ll_isoal_demux_reassemble(struct ble_ll_isoal_demux *demux)
+{
+    const struct ble_ll_isoal_config *config = &demux->config;
+    struct os_mbuf_pkthdr *pdu_pkthdr;
+    struct os_mbuf *pdu;
+    struct os_mbuf *seg;
+    uint32_t time_offset;
+    uint32_t timestamp;
+    uint16_t seghdr;
+    uint8_t buf[BLE_LL_ISOAL_TIME_OFFSET_LEN];
+    uint8_t hdr_byte;
+    uint8_t llid;
+    uint8_t len;
+    uint8_t num_lost;
+    bool sdu_continuation;
+    bool pdu_missing;
+    bool sdu_started;
+    bool cmplt;
+    bool valid;
+
+    pdu_missing = false;
+    sdu_started = false;
+    pdu = NULL;
+    for (uint8_t pdu_idx = 0; pdu_idx < config->bn;) {
+        valid = true;
+
+        if (pdu == NULL) {
+            pdu_pkthdr = STAILQ_FIRST(&demux->pdu_q);
+            if (pdu_pkthdr == NULL) {
+                pdu_missing = true;
+                ble_ll_isoal_demux_frag_flush(demux);
+                break;
+            }
+
+            pdu = OS_MBUF_PKTHDR_TO_MBUF(pdu_pkthdr);
+
+            if (pdu_idx_get(pdu) != pdu_idx) {
+                pdu_missing = true;
+                ble_ll_isoal_demux_frag_flush(demux);
+
+                /* Clear 'pdu' to pull it again in the next iteration */
+                pdu_idx += pdu_idx_get(pdu) - pdu_idx;
+                pdu = NULL;
+                continue;
+            }
+
+            hdr_byte = pdu->om_data[0];
+            BLE_LL_ASSERT(BLE_LL_BIS_LLID_IS_DATA(hdr_byte));
+
+            llid = hdr_byte & BLE_LL_BIS_PDU_HDR_LLID_MASK;
+            if (llid != BLE_LL_BIS_LLID_DATA_PDU_FRAMED) {
+                ble_ll_isoal_demux_frag_flush(demux);
+                goto pdu_done;
+            }
+
+            /* Strip the header from the buffer to process only the payload data */
+            os_mbuf_adj(pdu, BLE_LL_PDU_HDR_LEN);
+
+            if (os_mbuf_len(pdu) == 0) {
+                /* Padding */
+                goto pdu_done;
+            }
+        }
+
+        if (os_mbuf_copydata(pdu, 0, sizeof(seghdr), buf) != 0) {
+            ble_ll_isoal_demux_frag_flush(demux);
+            goto pdu_done;
+        }
+
+        seghdr = get_le16(buf);
+        os_mbuf_adj(pdu, sizeof(seghdr));
+
+        len = BLE_LL_ISOAL_SEGHDR_LEN(seghdr);
+        if (os_mbuf_len(pdu) < len) {
+            /* Valid if the segment length does not exceed the length of the buffer */
+            len = os_mbuf_len(pdu);
+            valid = false;
+        }
+
+        /* Duplicate and adjust buffer */
+        seg = os_mbuf_dup(pdu);
+        if (seg == NULL) {
+            ble_ll_isoal_demux_frag_flush(demux);
+            goto pdu_done;
+        }
+
+        sdu_continuation = BLE_LL_ISOAL_SEGHDR_SC(seghdr);
+        if (!sdu_continuation) {
+            /* SDU Start */
+            if (os_mbuf_copydata(seg, 0, BLE_LL_ISOAL_TIME_OFFSET_LEN, buf) != 0) {
+                os_mbuf_free_chain(seg);
+                ble_ll_isoal_demux_frag_flush(demux);
+                goto pdu_done;
+            }
+
+            time_offset = get_le24(buf);
+            os_mbuf_adj(seg, BLE_LL_ISOAL_TIME_OFFSET_LEN);
+
+            timestamp = sdu_ts_get(seg) - time_offset;
+
+            sdu_ts_set(seg, timestamp);
+        }
+
+        /* Trim the 'pdu' head so that 'pdu->om_data' will point to the data behind SDU Segment */
+        os_mbuf_adj(pdu, len);
+        len = os_mbuf_len(pdu);
+
+        /* Trim the 'seg' tail so that the 'seg' will contain SDU Segment only */
+        os_mbuf_adj(seg, -len);
+
+        if (sdu_continuation) {
+            if (demux->frag == NULL) {
+                /* Drop the segment if we do not have a start segment */
+                os_mbuf_free_chain(seg);
+            } else {
+                demux->frag = os_mbuf_pack_chains(demux->frag, seg);
+            }
+        } else {
+            ble_ll_isoal_demux_frag_flush(demux);
+
+            /* Emit lost SDUs */
+            num_lost =
+                demux->active
+                    ? ble_ll_isoal_demux_get_num_lost_sdu(demux, sdu_ts_get(seg))
+                    : 0;
+            for (uint8_t i = 0; i < num_lost; i++) {
+                timestamp = demux->last_rx_timestamp + config->sdu_interval_us;
+                ble_ll_isoal_demux_sdu_emit(demux, NULL, timestamp, false);
+            }
+
+            demux->frag = seg;
+            sdu_started = true;
+        }
+
+        cmplt = BLE_LL_ISOAL_SEGHDR_CMPLT(seghdr);
+
+        if (demux->frag != NULL && (cmplt || !valid)) {
+            ble_ll_isoal_demux_sdu_emit(demux, demux->frag,
+                                        sdu_ts_get(demux->frag), valid);
+            demux->frag = NULL;
+        }
+
+        if (os_mbuf_len(pdu) > 0) {
+            continue;
+        }
+    pdu_done:
+        /* Free */
+        STAILQ_REMOVE_HEAD(&demux->pdu_q, omp_next);
+        os_mbuf_free_chain(pdu);
+        pdu = NULL;
+
+        pdu_idx++;
+    }
+
+    if (sdu_started && !pdu_missing) {
+        timestamp = demux->ref_time - config->sdu_interval_us / 2;
+    } else {
+        timestamp = demux->ref_time + config->sdu_interval_us / 2;
+    }
+    num_lost =
+        demux->active ? ble_ll_isoal_demux_get_num_lost_sdu(demux, timestamp) : 0;
+
+    /* Emit lost SDUs */
+    for (uint8_t i = 0; i < num_lost; i++) {
+        timestamp = demux->last_rx_timestamp + config->sdu_interval_us;
+        ble_ll_isoal_demux_sdu_emit(demux, demux->frag, timestamp, false);
+        demux->frag = NULL;
+    }
 }
 
 static void
@@ -801,7 +1029,9 @@ ble_ll_isoal_demux_event_done(struct ble_ll_isoal_demux *demux)
     struct os_mbuf *om;
     uint8_t idx;
 
-    if (!config->framed) {
+    if (config->framed) {
+        ble_ll_isoal_demux_reassemble(demux);
+    } else {
         ble_ll_isoal_demux_recombine(demux);
     }
 
@@ -846,6 +1076,8 @@ ble_ll_isoal_demux_pdu_put(struct ble_ll_isoal_demux *demux, uint8_t idx,
     struct os_mbuf_pkthdr *entry, *prev;
     struct os_mbuf *om;
 
+    sdu_ts_set(pdu, demux->ref_time + (idx / demux->config.bn) *
+                                          demux->config.iso_interval_us);
     pdu_idx_set(pdu, idx);
 
     prev = NULL;
