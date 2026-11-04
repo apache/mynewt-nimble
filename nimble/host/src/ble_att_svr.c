@@ -1182,6 +1182,16 @@ ble_att_svr_fill_type_value(uint16_t conn_handle,
      * attribute list was reached.
      */
     if (first) {
+        /* Last service in the table: indicate an end handle of 0xffff, same as
+         * Read By Group Type does, so that the client gets the same range from
+         * both procedures and needs no follow-up request. This is allowed for
+         * services only, other types end at their last attribute.
+         */
+        if (ble_uuid_u16(&attr_type.u) == BLE_ATT_UUID_PRIMARY_SERVICE ||
+            ble_uuid_u16(&attr_type.u) == BLE_ATT_UUID_SECONDARY_SERVICE) {
+            prev = 0xffff;
+        }
+
         rc = ble_att_svr_fill_type_value_entry(txom, first, prev, mtu,
                                                out_att_err);
         if (rc == BLE_HS_EAGAIN) {
