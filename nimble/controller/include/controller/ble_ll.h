@@ -464,6 +464,30 @@ struct ble_dev_addr
      (((hdr) & BLE_LL_DATA_HDR_LLID_MASK) == BLE_LL_LLID_DATA_FRAG))
 
 /*
+ * Broadcast Isochronous Data Channel format
+ *
+ *  -> Header (2 bytes)
+ *      -> LSB contains llid, cssn and cstf
+ *      -> MSB contains length (8 bits)
+ *  -> Payload (0 to 251)
+ *  -> MIC (0 or 4 bytes)
+ */
+#define BLE_LL_BIS_PDU_HDR_LLID_MASK            (0x03)
+
+/* Broadcast Isochronous PDU header LLID definitions */
+#define BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_CMPLT (0b00)
+#define BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_SC    (0b01)
+#define BLE_LL_BIS_LLID_DATA_PDU_FRAMED         (0b10)
+
+#define BLE_LL_BIS_PDU_HDR_LLID(hdr)                                          \
+    (((hdr) & BLE_LL_BIS_PDU_HDR_LLID_MASK) >> 0)
+
+#define BLE_LL_BIS_LLID_IS_DATA(hdr)                                              \
+    ((BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_CMPLT) || \
+     (BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_SC) ||    \
+     (BLE_LL_BIS_PDU_HDR_LLID(hdr) == BLE_LL_BIS_LLID_DATA_PDU_FRAMED))
+
+/*
  * CONNECT_REQ
  *      -> InitA        (6 bytes)
  *      -> AdvA         (6 bytes)
