@@ -639,6 +639,27 @@ ble_ll_conn_is_empty_pdu(uint8_t *rxbuf)
 }
 #endif
 
+static uint32_t
+ble_ll_conn_spvn_tmo_ticks(struct ble_ll_conn_sm *connsm)
+{
+    uint32_t tmo;
+
+    if (connsm->conn_state == BLE_LL_CONN_STATE_CREATED) {
+        tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6UL;
+    } else {
+        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000UL;
+    }
+
+    return ble_ll_tmr_u2t(tmo);
+}
+
+int
+ble_ll_conn_is_starving(struct ble_ll_conn_sm *connsm)
+{
+    return (int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >=
+           (int32_t)(ble_ll_conn_spvn_tmo_ticks(connsm) / 2);
+}
+
 /**
  * Called to return the currently running connection state machine end time.
  * Always called when interrupts are disabled.
@@ -1356,7 +1377,7 @@ conn_tx_pdu:
         txend_func = ble_ll_conn_wait_txend;
     } else {
         /* Wait for a response here */
-        end_transition = BLE_PHY_TRANSITION_TX_RX;
+        end_transition = BLE_PHY_TRANSITION_TO_RX;
         txend_func = NULL;
     }
 
@@ -1444,9 +1465,11 @@ conn_tx_pdu:
     }
 #endif
 
+    ble_phy_transition_set(end_transition, BLE_LL_IFS);
+
     /* Set transmit end callback */
     ble_phy_set_txend_cb(txend_func, connsm);
-    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m, end_transition);
+    rc = ble_phy_tx(ble_ll_tx_mbuf_pducb, m);
     if (!rc) {
         /* Log transmit on connection state */
         cur_txlen = ble_hdr->txinfo.pyld_len;
@@ -3154,14 +3177,11 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
      * a big deal but it could cause a slightly longer supervision timeout.
      */
     if (connsm->conn_state == BLE_LL_CONN_STATE_CREATED) {
-        tmo = (uint32_t)connsm->conn_itvl * BLE_LL_CONN_ITVL_USECS * 6UL;
         ble_err = BLE_ERR_CONN_ESTABLISHMENT;
     } else {
-        tmo = connsm->supervision_tmo * BLE_HCI_CONN_SPVN_TMO_UNITS * 1000UL;
         ble_err = BLE_ERR_CONN_SPVN_TMO;
     }
-    /* XXX: Convert to ticks to usecs calculation instead??? */
-    tmo = ble_ll_tmr_u2t(tmo);
+    tmo = ble_ll_conn_spvn_tmo_ticks(connsm);
     if ((int32_t)(connsm->anchor_point - connsm->last_rxd_pdu_cputime) >= tmo) {
         ble_ll_conn_end(connsm, ble_err);
         return;
@@ -3402,9 +3422,10 @@ ble_ll_conn_send_connect_req(struct os_mbuf *rxpdu,
     ble_ll_conn_prepare_connect_ind(connsm, ble_ll_scan_get_pdu_data(), addrd,
                                     rxhdr->rxinfo.channel);
 
+    ble_phy_transition_set(ext ? BLE_PHY_TRANSITION_TO_RX : BLE_PHY_TRANSITION_NONE,
+                           BLE_LL_IFS);
     ble_phy_set_txend_cb(NULL, NULL);
-    rc = ble_phy_tx(ble_ll_conn_tx_connect_ind_pducb, connsm,
-                    ext ? BLE_PHY_TRANSITION_TX_RX : BLE_PHY_TRANSITION_NONE);
+    rc = ble_phy_tx(ble_ll_conn_tx_connect_ind_pducb, connsm);
     if (rc) {
         ble_ll_conn_send_connect_req_cancel();
         return -1;

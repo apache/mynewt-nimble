@@ -189,6 +189,7 @@ int ble_ll_conn_rx_isr_end(uint8_t *rxbuf, struct ble_mbuf_hdr *rxhdr);
 void ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr);
 void ble_ll_conn_wfr_timer_exp(void);
 int ble_ll_conn_is_lru(struct ble_ll_conn_sm *s1, struct ble_ll_conn_sm *s2);
+int ble_ll_conn_is_starving(struct ble_ll_conn_sm *connsm);
 uint32_t ble_ll_conn_get_ce_end_time(void);
 void ble_ll_conn_event_halt(void);
 /* HCI */

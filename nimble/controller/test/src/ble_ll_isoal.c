@@ -17,26 +17,36 @@
  * under the License.
  */
 
-#include <stdint.h>
+#include "../../src/ble_ll_iso_priv.h"
 #include <controller/ble_ll_isoal.h>
-#include <os/os_mbuf.h>
+#include <controller/ble_ll_tmr.h>
 #include <nimble/ble.h>
 #include <nimble/hci_common.h>
+#include <os/os_mbuf.h>
+#include <stdint.h>
+#include <sys/queue.h>
 #include <testutil/testutil.h>
 
-#define TSPX_max_sdu_length  (754)
-#define HCI_iso_sdu_max      (MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE) - 4)
+struct test_ial_userhdr {
+    uint32_t timestamp;
+    uint16_t seq_num;
+    uint8_t pkt_status;
+};
 
-#define TEST_PKTHDR_OVERHEAD (sizeof(struct os_mbuf_pkthdr))
-#define TEST_BUF_OVERHEAD    (sizeof(struct os_mbuf) + TEST_PKTHDR_OVERHEAD)
+#define TSPX_max_sdu_length (754)
+#define HCI_iso_sdu_max     (MYNEWT_VAL(BLE_TRANSPORT_ISO_SIZE) - 4)
+
+#define TEST_PKTHDR_OVERHEAD                                                  \
+    (sizeof(struct os_mbuf_pkthdr) + sizeof(struct test_ial_userhdr))
+#define TEST_BUF_OVERHEAD (sizeof(struct os_mbuf) + TEST_PKTHDR_OVERHEAD)
 
 #define TEST_DATA_PKT_LEN                                                     \
     (TSPX_max_sdu_length + sizeof(struct ble_hci_iso_data))
 #define TEST_DATA_BUF_SIZE                                                    \
     OS_ALIGN(TEST_DATA_PKT_LEN + sizeof(struct ble_hci_iso), 4)
 
+#define TEST_BUF_COUNT     (20)
 #define TEST_BUF_SIZE      (TEST_DATA_BUF_SIZE + TEST_BUF_OVERHEAD)
-#define TEST_BUF_COUNT     (10)
 #define TEST_BUF_POOL_SIZE OS_MEMPOOL_SIZE(TEST_BUF_COUNT, TEST_BUF_SIZE)
 
 static struct os_mbuf_pool g_mbuf_pool;
@@ -44,11 +54,9 @@ static struct os_mempool g_mbuf_mempool;
 static os_membuf_t g_mbuf_buffer[TEST_BUF_POOL_SIZE];
 static uint8_t g_test_sdu_data[TSPX_max_sdu_length];
 
-struct test_ll_isoal_fixture {
-    struct ble_ll_isoal_mux mux;
-};
+STAILQ_HEAD(, os_mbuf_pkthdr) sdu_q = STAILQ_HEAD_INITIALIZER(sdu_q);
 
-static void
+void
 ble_ll_isoal_test_suite_init(void)
 {
     int rc;
@@ -61,24 +69,101 @@ ble_ll_isoal_test_suite_init(void)
     rc = os_mbuf_pool_init(&g_mbuf_pool, &g_mbuf_mempool, TEST_BUF_SIZE, TEST_BUF_COUNT);
     TEST_ASSERT_FATAL(rc == 0, "Error creating mbuf pool %d", rc);
 
-    for (i = 0; i < sizeof(g_test_sdu_data); i++) {
+    for (i = 0; i < sizeof g_test_sdu_data; i++) {
         g_test_sdu_data[i] = i;
     }
 }
 
 static void
+isoal_demux_sdu_cb(struct ble_ll_isoal_demux *demux, const struct os_mbuf *sdu,
+                   uint32_t timestamp, uint16_t seq_num, bool valid)
+{
+    struct test_ial_userhdr *userhdr;
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+    uint16_t sdu_len;
+    void *data;
+
+    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(*userhdr));
+    TEST_ASSERT_FATAL(om != NULL);
+
+    userhdr = OS_MBUF_USRHDR(om);
+    if (sdu == NULL) {
+        userhdr->pkt_status = BLE_HCI_ISO_PKT_STATUS_LOST;
+    } else if (valid) {
+        userhdr->pkt_status = BLE_HCI_ISO_PKT_STATUS_VALID;
+    } else {
+        userhdr->pkt_status = BLE_HCI_ISO_PKT_STATUS_INVALID;
+    }
+    userhdr->timestamp = timestamp;
+    userhdr->seq_num = seq_num;
+
+    if (sdu != NULL) {
+        sdu_len = os_mbuf_len(sdu);
+
+        data = os_mbuf_extend(om, sdu_len);
+        TEST_ASSERT_FATAL(data != NULL);
+
+        os_mbuf_copydata(sdu, 0, sdu_len, data);
+    }
+
+    pkthdr = OS_MBUF_PKTHDR(om);
+    STAILQ_INSERT_TAIL(&sdu_q, pkthdr, omp_next);
+}
+
+static struct ble_ll_isoal_demux_cb isoal_demux_cb = {
+    .sdu_cb = isoal_demux_sdu_cb,
+};
+
+struct test_ll_isoal_fixture {
+    struct ble_ll_isoal_mux mux;
+    struct ble_ll_isoal_demux demux;
+};
+
+static void
 test_ll_isoal_setup(struct test_ll_isoal_fixture *fixture, uint16_t max_sdu,
                     uint8_t max_pdu, uint32_t iso_interval_us,
-                    uint32_t sdu_interval_us, uint8_t bn, bool framed, bool unsegmented)
+                    uint32_t sdu_interval_us, uint8_t bn, bool framed)
 {
-    ble_ll_isoal_mux_init(&fixture->mux, max_pdu, iso_interval_us,
-                          sdu_interval_us, bn, 0, framed, unsegmented);
+    struct ble_ll_isoal_config config = {
+        .iso_interval_us = iso_interval_us,
+        .sdu_interval_us = sdu_interval_us,
+        .max_sdu = max_sdu,
+        .max_pdu = max_pdu,
+        .bn = bn,
+        .pte = 0,
+        .framed = framed,
+    };
+
+    ble_ll_isoal_mux_init(&fixture->mux, &config);
+
+    ble_ll_isoal_demux_init(&fixture->demux, &config);
+    ble_ll_isoal_demux_cb_set(&fixture->demux, &isoal_demux_cb);
+
+    STAILQ_INIT(&sdu_q);
 }
 
 static void
 test_ll_isoal_teardown(struct test_ll_isoal_fixture *fixture)
 {
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+
     ble_ll_isoal_mux_free(&fixture->mux);
+    ble_ll_isoal_demux_reset(&fixture->demux);
+
+    pkthdr = STAILQ_FIRST(&sdu_q);
+    while (pkthdr) {
+        om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+
+        STAILQ_REMOVE_HEAD(&sdu_q, omp_next);
+
+        os_mbuf_free_chain(om);
+
+        pkthdr = STAILQ_FIRST(&sdu_q);
+    }
+
+    STAILQ_INIT(&sdu_q);
 
     /* Memory leak test */
     TEST_ASSERT_FATAL(g_mbuf_mempool.mp_block_size == TEST_BUF_SIZE,
@@ -94,8 +179,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_init)
     const uint32_t iso_interval_us = 10000;
     const uint32_t sdu_interval_us = 10000;
 
-    test_ll_isoal_setup(&fixture, 250, 250, iso_interval_us, sdu_interval_us,
-                        1, false, false);
+    test_ll_isoal_setup(&fixture, 250, 250, iso_interval_us, sdu_interval_us, 1, false);
 
     mux = &fixture.mux;
 
@@ -112,7 +196,6 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     const uint32_t iso_interval_us = 20000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 0;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 6;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 3 * max_pdu;
@@ -123,7 +206,7 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -132,14 +215,14 @@ TEST_CASE_SELF(ble_ll_isoal_mux_pdu_get_unframed_1_sdu_2_pdu)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     /* SDU #2 */
     sdu_2 = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
     TEST_ASSERT_FATAL(sdu_2 != NULL);
     rc = os_mbuf_append(sdu_2, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_2);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_2);
 
     ble_ll_isoal_mux_event_start(mux, 90990);
 
@@ -194,7 +277,6 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     const uint32_t iso_interval_us = 20000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 0;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 6;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 3 * max_pdu;
@@ -205,7 +287,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -214,14 +296,14 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_get_unframed_pdu)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     /* SDU #2 */
     sdu_2 = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
     TEST_ASSERT_FATAL(sdu_2 != NULL);
     rc = os_mbuf_append(sdu_2, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_2);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_2);
 
     ble_ll_isoal_mux_event_start(mux, 90990);
 
@@ -276,7 +358,6 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     const uint32_t iso_interval_us = 10000;
     const uint32_t sdu_interval_us = 10000;
     const bool Framed = 1;
-    const bool Framing_Mode = 0;
     const uint8_t bn = 2;
     const uint8_t max_pdu = 40;
     const uint8_t sdu_len = 40;
@@ -287,7 +368,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     int rc;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, bn, Framed, Framing_Mode);
+                        sdu_interval_us, bn, Framed);
 
     mux = &fixture.mux;
 
@@ -299,7 +380,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_not_in_event)
     TEST_ASSERT_FATAL(sdu_1 != NULL);
     rc = os_mbuf_append(sdu_1, g_test_sdu_data, sdu_len);
     TEST_ASSERT_FATAL(rc == 0);
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu_1);
+    ble_ll_isoal_mux_sdu_put(mux, sdu_1);
 
     TEST_ASSERT_FATAL(mux->sdu_in_event == 0, "sdu_in_event %d != 0", mux->sdu_in_event);
 
@@ -362,7 +443,7 @@ test_sdu_enqueue(struct ble_ll_isoal_mux *mux, uint16_t sdu_len,
         os_mbuf_concat(sdu, frag);
     }
 
-    ble_ll_isoal_mux_sdu_enqueue(mux, sdu);
+    ble_ll_isoal_mux_sdu_put(mux, sdu);
 
     return num_pkt;
 }
@@ -402,7 +483,7 @@ test_ial_broadcast_single_sdu_bis(const struct test_ial_broadcast_single_sdu_bis
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, Max_SDU, cfg->Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -461,7 +542,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_not_sent_early)
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, 1, true, false);
+                        sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -517,7 +598,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp)
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, sdu_len, max_pdu, iso_interval_us,
-                        sdu_interval_us, 1, true, false);
+                        sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -553,8 +634,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp_range)
     uint32_t time_stamp;
     uint32_t sdu_ts;
 
-    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 1,
-                        true, false);
+    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 1, true);
 
     mux = &fixture.mux;
 
@@ -694,7 +774,7 @@ test_ial_broadcast_large_sdu_bis(const struct test_ial_broadcast_large_sdu_bis_c
     uint8_t idx;
 
     test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -892,7 +972,6 @@ test_ial_broadcast_multiple_small_sdus_bis(
     const uint16_t Max_SDU = 25;
     const uint8_t LLID = 0b10;
     const uint8_t Framed = 0x01;
-    const uint8_t Framing_Mode = 0;
     int pdu_len;
     uint8_t pdu[cfg->Max_PDU];
     uint32_t sdu_1_ts, sdu_2_ts, event_ts;
@@ -903,7 +982,7 @@ test_ial_broadcast_multiple_small_sdus_bis(
     uint8_t *seg;
 
     test_ll_isoal_setup(&fixture, Max_SDU, cfg->Max_PDU, cfg->ISO_Interval,
-                        cfg->SDU_Interval, cfg->BN, Framed, Framing_Mode);
+                        cfg->SDU_Interval, cfg->BN, Framed);
 
     mux = &fixture.mux;
 
@@ -1027,7 +1106,7 @@ test_ial_broadcast_zero_length_sdu_bis(const struct test_ial_broadcast_zero_leng
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval,
-                        cfg->BN, cfg->Framed, cfg->Framing_Mode);
+                        cfg->BN, cfg->Framed);
 
     mux = &fixture.mux;
 
@@ -1236,7 +1315,7 @@ test_ial_unframed_empty_pdus_with_llid_0b01(
     uint8_t llid = 0xff;
 
     test_ll_isoal_setup(&fixture, cfg->mx_sdu, cfg->mx_pdu, cfg->iso_int,
-                        cfg->sdu_int, cfg->bn, false, 0);
+                        cfg->sdu_int, cfg->bn, false);
 
     mux = &fixture.mux;
 
@@ -1301,7 +1380,7 @@ TEST_CASE_SELF(test_ial_bis_unf_early_sdus)
     uint32_t timestamp = 0;
     uint8_t llid = 0xff;
 
-    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, false, 0);
+    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, false);
 
     mux = &fixture.mux;
 
@@ -1396,7 +1475,7 @@ TEST_CASE_SELF(test_ial_bis_fra_early_sdus)
     uint32_t timestamp = 0;
     uint8_t llid = 0xff;
 
-    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, true, 0);
+    test_ll_isoal_setup(&fixture, mx_sdu, mx_pdu, iso_int, sdu_int, bn, true);
 
     mux = &fixture.mux;
 
@@ -1487,11 +1566,1785 @@ TEST_CASE_SELF(test_ial_bis_fra_early_sdus)
     test_ll_isoal_teardown(&fixture);
 }
 
+static void
+test_data_verify_om(struct os_mbuf *om, uint16_t len)
+{
+    struct os_mbuf *om_next;
+    uint16_t offset;
+    uint16_t dlen;
+
+    offset = 0;
+
+    while (offset < len) {
+        dlen = min(len - offset, om->om_len);
+        test_data_verify(om->om_data, dlen, offset);
+        os_mbuf_adj(om, dlen);
+        offset += dlen;
+
+        if (om->om_len == 0) {
+            om_next = SLIST_NEXT(om, om_next);
+            om = om_next;
+        }
+    }
+}
+
+static struct os_mbuf *
+test_ial_lt_pdu_get(uint8_t llid, uint8_t **payload_len)
+{
+    struct ble_mbuf_hdr *blehdr;
+    struct os_mbuf *om;
+    uint32_t ticks = 0;
+    uint8_t rem_us = 0;
+    uint8_t *pdu_hdr;
+
+    om = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(struct ble_mbuf_hdr));
+    TEST_ASSERT_FATAL(om != NULL);
+
+    blehdr = BLE_MBUF_HDR_PTR(om);
+    blehdr->beg_cputime = ticks;
+    blehdr->rem_usecs = rem_us;
+
+    pdu_hdr = os_mbuf_extend(om, BLE_LL_PDU_HDR_LEN);
+    TEST_ASSERT_FATAL(pdu_hdr != NULL);
+
+    pdu_hdr[0] = llid;
+    pdu_hdr[1] = 0;
+
+    *payload_len = &pdu_hdr[1];
+
+    return om;
+}
+
+static void
+test_ial_lt_pdu_seghdr_put(struct os_mbuf *om, uint8_t *payload_len, bool start,
+                           bool cmplt, uint32_t time_offset, uint8_t **seg_len)
+{
+    uint32_t *timeoffset;
+    uint8_t *seg_hdr;
+
+    /* Segmentation Header */
+    *payload_len += 2;
+    seg_hdr = os_mbuf_extend(om, 2);
+    TEST_ASSERT_FATAL(seg_hdr != NULL);
+
+    if (start) {
+        /* TimeOffset */
+        *payload_len += 3;
+        timeoffset = os_mbuf_extend(om, 3);
+        TEST_ASSERT_FATAL(timeoffset != NULL);
+        put_le24(timeoffset, time_offset);
+    }
+
+    seg_hdr[0] = (start ? 0b00 : 0b01) | (cmplt ? 0b10 : 0b00);
+    /* Length, including TimeOffset if present */
+    seg_hdr[1] = start ? 3 : 0;
+
+    *seg_len = &seg_hdr[1];
+}
+
+static uint8_t
+test_ial_lt_pdu_data_put(struct os_mbuf *om, uint8_t *payload_len,
+                         const void *data, uint8_t dlen)
+{
+    int rc;
+
+    TEST_ASSERT_FATAL(dlen + *payload_len <= UINT8_MAX);
+
+    rc = os_mbuf_append(om, data, dlen);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    *payload_len += dlen;
+
+    return dlen;
+}
+
+static void
+test_ial_lt_pdu_send(struct os_mbuf *om, uint8_t idx, uint8_t *payload_len,
+                     struct ble_ll_isoal_demux *demux)
+{
+    ble_ll_isoal_demux_pdu_put(demux, idx, om);
+}
+
+static uint8_t
+test_ial_lt_unf_pdu_send(struct ble_ll_isoal_demux *demux, uint8_t idx,
+                         const void *data, uint16_t dlen, uint8_t llid)
+{
+    struct os_mbuf *om;
+    uint8_t *payload_len;
+
+    om = test_ial_lt_pdu_get(llid, &payload_len);
+
+    if (dlen > demux->config.max_pdu) {
+        dlen = demux->config.max_pdu;
+    }
+
+    test_ial_lt_pdu_data_put(om, payload_len, data, dlen);
+    test_ial_lt_pdu_send(om, idx, payload_len, demux);
+
+    return *payload_len;
+}
+
+static uint8_t
+test_ial_lt_fra_pdu_send(struct ble_ll_isoal_demux *demux, uint8_t idx,
+                         const void *data, uint16_t dlen, uint32_t time_offset,
+                         bool start, bool cmplt)
+{
+    struct os_mbuf *om;
+    uint8_t *payload_len;
+    uint8_t *seg_len;
+
+    om = test_ial_lt_pdu_get(0b10, &payload_len);
+    test_ial_lt_pdu_seghdr_put(om, payload_len, start, cmplt, time_offset, &seg_len);
+
+    if (dlen + *payload_len > demux->config.max_pdu) {
+        dlen = demux->config.max_pdu - *payload_len;
+    }
+
+    dlen = test_ial_lt_pdu_data_put(om, payload_len, data, dlen);
+    *seg_len += dlen;
+
+    test_ial_lt_pdu_send(om, idx, payload_len, demux);
+
+    return dlen;
+}
+
+static void
+test_ial_lt_send_padding(struct ble_ll_isoal_demux *demux, uint8_t idx, bool framed)
+{
+    struct os_mbuf *pdu;
+    uint8_t *payload_len;
+    uint8_t llid;
+
+    llid = framed ? BLE_LL_BIS_LLID_DATA_PDU_FRAMED
+                  : BLE_LL_BIS_LLID_DATA_PDU_UNFRAMED_SC;
+
+    pdu = test_ial_lt_pdu_get(llid, &payload_len);
+    *payload_len = 0;
+
+    test_ial_lt_pdu_send(pdu, idx, payload_len, demux);
+}
+
+static void
+test_ial_lt_fra_null_pdu_send(struct ble_ll_isoal_demux *demux, uint8_t idx)
+{
+    test_ial_lt_send_padding(demux, idx, true);
+}
+
+static void
+test_ial_sdu_verify(struct ble_ll_isoal_demux *demux, uint16_t sdu_len, uint8_t pkt_status)
+{
+    struct os_mbuf_pkthdr *pkthdr;
+    struct os_mbuf *om;
+    struct test_ial_userhdr *userhdr;
+
+    pkthdr = STAILQ_FIRST(&sdu_q);
+    TEST_ASSERT_FATAL(pkthdr != NULL);
+
+    om = OS_MBUF_PKTHDR_TO_MBUF(pkthdr);
+
+    userhdr = OS_MBUF_USRHDR(om);
+    TEST_ASSERT(userhdr->pkt_status == pkt_status);
+
+    if (pkt_status == 0b00) {
+        /* Verify the SDU Length */
+        TEST_ASSERT_FATAL(sdu_len == os_mbuf_len(om));
+
+        /* Verify the SDU contents */
+        test_data_verify_om(om, os_mbuf_len(om));
+    }
+
+    STAILQ_REMOVE_HEAD(&sdu_q, omp_next);
+
+    os_mbuf_free_chain(om);
+}
+
+struct test_ial_receive_a_single_sdu_bis_cfg {
+    uint8_t Max_PDU;
+    uint8_t Max_SDU;
+    uint8_t NSE;
+    uint8_t Framed;
+    uint8_t Framing_Mode;
+    uint8_t LLID;
+    uint8_t BN;
+    uint32_t SDU_Interval;
+    uint32_t ISO_Interval;
+};
+
+static void
+test_ial_receive_a_single_sdu_bis(struct test_ial_receive_a_single_sdu_bis_cfg *cfg)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    uint8_t sent;
+
+    test_ll_isoal_setup(&fixture, cfg->Max_SDU, cfg->Max_PDU, cfg->ISO_Interval,
+                        cfg->SDU_Interval, cfg->BN, cfg->Framed);
+
+    ble_ll_isoal_demux_event_start(demux, cfg->ISO_Interval);
+
+    if (cfg->Framed) {
+        sent = test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data[0],
+                                        cfg->Max_SDU, 4000u, true, true);
+    } else {
+        sent = test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[0],
+                                        cfg->Max_SDU, cfg->LLID);
+    }
+
+    TEST_ASSERT_FATAL(sent == cfg->Max_SDU);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    test_ial_sdu_verify(demux, cfg->Max_SDU, 0b00);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_01_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 40,
+        .Max_SDU = 32,
+        .NSE = 2,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 2,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_02_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 40,
+        .Max_SDU = 32,
+        .NSE = 1,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 1,
+        .SDU_Interval = 10000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_03_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 40,
+        .Max_SDU = 32,
+        .NSE = 2,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 2,
+        .SDU_Interval = 10000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_06_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 42,
+        .Max_SDU = 32,
+        .NSE = 4,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 2,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_08_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 45,
+        .Max_SDU = 32,
+        .NSE = 2,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 1,
+        .SDU_Interval = 10000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_29_c)
+{
+    struct test_ial_receive_a_single_sdu_bis_cfg cfg = {
+        .Max_PDU = 3 * (32 + 5),
+        .Max_SDU = 32,
+        .NSE = 4,
+        .Framed = 1,
+        .Framing_Mode = 1,
+        .LLID = 0b10,
+        .BN = 1,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_a_single_sdu_bis(&cfg);
+}
+
+struct test_ial_receive_large_sdu_bis_round {
+    uint16_t sdu_len;
+    uint8_t sc_packets_num;
+};
+struct test_ial_receive_large_sdu_bis_cfg {
+    uint8_t NSE;
+    uint8_t Framing;
+    uint8_t BN;
+    uint32_t SDU_Interval;
+    uint32_t ISO_Interval;
+    struct test_ial_receive_large_sdu_bis_round rounds[2];
+};
+
+static void
+test_ial_receive_large_sdu_bis(const struct test_ial_receive_large_sdu_bis_cfg *cfg)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint8_t Max_PDU = 251;
+    uint16_t sdu_offset;
+
+    test_ll_isoal_setup(&fixture, TSPX_max_sdu_length, Max_PDU, cfg->ISO_Interval,
+                        cfg->SDU_Interval, cfg->BN, cfg->Framing);
+
+    for (uint8_t round = 0; round < ARRAY_SIZE(cfg->rounds); round++) {
+        TEST_ASSERT_FATAL(cfg->rounds[round].sc_packets_num + 1 <= cfg->BN);
+
+        sdu_offset = 0;
+
+        ble_ll_isoal_demux_event_start(demux, (round + 1) * cfg->ISO_Interval);
+
+        for (uint8_t i = 0; i < cfg->BN; i++) {
+            if (i < cfg->rounds[round].sc_packets_num) {
+                /* 1. The Lower Tester sends the number of Start/Continuation packets */
+                if (cfg->Framing) {
+                    sdu_offset += test_ial_lt_fra_pdu_send(
+                        demux, i, &g_test_sdu_data[sdu_offset],
+                        cfg->rounds[round].sdu_len - sdu_offset, 100,
+                        sdu_offset == 0, false);
+                } else {
+                    sdu_offset += test_ial_lt_unf_pdu_send(
+                        demux, i, &g_test_sdu_data[sdu_offset],
+                        cfg->rounds[round].sdu_len - sdu_offset, 0b01);
+                }
+            } else if (i == cfg->rounds[round].sc_packets_num) {
+                /* 2. The Lower Tester sends the last ISO Data PDU, with the remaining Payload Data */
+                if (cfg->Framing) {
+                    sdu_offset += test_ial_lt_fra_pdu_send(
+                        demux, i, &g_test_sdu_data[sdu_offset],
+                        cfg->rounds[round].sdu_len - sdu_offset,
+                        0 /* ignored */, false, true);
+                } else {
+                    sdu_offset += test_ial_lt_unf_pdu_send(
+                        demux, i, &g_test_sdu_data[sdu_offset],
+                        cfg->rounds[round].sdu_len - sdu_offset, 0b00);
+                }
+            } else {
+                /* Padding */
+                test_ial_lt_send_padding(demux, i, cfg->Framing);
+            }
+        }
+
+        TEST_ASSERT_FATAL(sdu_offset == cfg->rounds[round].sdu_len);
+
+        ble_ll_isoal_demux_event_done(demux);
+
+        /* Pass verdict */
+        test_ial_sdu_verify(demux, cfg->rounds[round].sdu_len, 0b00);
+    }
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_09_c)
+{
+    struct test_ial_receive_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framing = 0,
+        .BN = 4,
+        .SDU_Interval = 25000,
+        .ISO_Interval = 25000,
+        .rounds = { { .sdu_len = 753, .sc_packets_num = 2 },
+                   { .sdu_len = 754, .sc_packets_num = 3 } }
+    };
+
+    test_ial_receive_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_10_c)
+{
+    struct test_ial_receive_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framing = 0,
+        .BN = 4,
+        .SDU_Interval = 50000,
+        .ISO_Interval = 50000,
+        .rounds = { { .sdu_len = 753, .sc_packets_num = 2 },
+                   { .sdu_len = 754, .sc_packets_num = 3 } }
+    };
+
+    test_ial_receive_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_11_c)
+{
+    struct test_ial_receive_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framing = 1,
+        .BN = 4,
+        .SDU_Interval = 40000,
+        .ISO_Interval = 50000,
+        .rounds = { { .sdu_len = 744, .sc_packets_num = 2 },
+                   { .sdu_len = 745, .sc_packets_num = 3 } }
+    };
+
+    test_ial_receive_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_13_c)
+{
+    struct test_ial_receive_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framing = 1,
+        .BN = 4,
+        .SDU_Interval = 25000,
+        .ISO_Interval = 25000,
+        .rounds = { { .sdu_len = 744, .sc_packets_num = 2 },
+                   { .sdu_len = 745, .sc_packets_num = 3 } }
+    };
+
+    test_ial_receive_large_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_15_c)
+{
+    struct test_ial_receive_large_sdu_bis_cfg cfg = {
+        .NSE = 8,
+        .Framing = 1,
+        .BN = 4,
+        .SDU_Interval = 30000,
+        .ISO_Interval = 35000,
+        .rounds = { { .sdu_len = 744, .sc_packets_num = 2 },
+                   { .sdu_len = 745, .sc_packets_num = 3 } }
+    };
+
+    test_ial_receive_large_sdu_bis(&cfg);
+}
+
+struct test_ial_receive_multiple_small_sdus_bis_cfg {
+    uint8_t NSE;
+    uint8_t BN;
+    uint32_t SDU_Interval;
+    uint32_t ISO_Interval;
+};
+
+static void
+test_ial_receive_multiple_small_sdus_bis(struct test_ial_receive_multiple_small_sdus_bis_cfg *cfg)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    struct ble_mbuf_hdr *blehdr;
+    struct os_mbuf *pdu;
+    const uint8_t Max_PDU = 68;
+    uint32_t ticks = 0;
+    uint8_t rem_us = 0;
+    uint32_t *timeoffset;
+    uint16_t *pdu_hdr;
+    uint16_t *seg_hdr;
+    int rc;
+
+    test_ll_isoal_setup(&fixture, TSPX_max_sdu_length, Max_PDU,
+                        cfg->ISO_Interval, cfg->SDU_Interval, cfg->BN, 1);
+
+    seg_hdr = NULL;
+    timeoffset = NULL;
+
+    ble_ll_isoal_demux_event_start(demux, cfg->ISO_Interval);
+
+    pdu = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(*blehdr));
+    TEST_ASSERT_FATAL(pdu != NULL);
+
+    blehdr = BLE_MBUF_HDR_PTR(pdu);
+    blehdr->beg_cputime = ticks;
+    blehdr->rem_usecs = rem_us;
+
+    pdu_hdr = os_mbuf_extend(pdu, sizeof(*pdu_hdr));
+    TEST_ASSERT_FATAL(pdu_hdr != NULL);
+
+    /**
+     * SDU1 with data length of 20 bytes
+     */
+
+    /* Segmentation Header */
+    seg_hdr = os_mbuf_extend(pdu, sizeof(*seg_hdr));
+    TEST_ASSERT_FATAL(seg_hdr != NULL);
+    put_le16(seg_hdr, BLE_LL_ISOAL_SEGHDR(false, true, 23));
+
+    /* TimeOffset */
+    timeoffset = os_mbuf_extend(pdu, 3);
+    TEST_ASSERT_FATAL(timeoffset != NULL);
+    put_le24(timeoffset, cfg->ISO_Interval);
+
+    rc = os_mbuf_append(pdu, g_test_sdu_data, 20);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    /**
+     * SDU2 with data length of 25 bytes
+     */
+
+    /* Segmentation Header */
+    seg_hdr = os_mbuf_extend(pdu, sizeof(*seg_hdr));
+    TEST_ASSERT_FATAL(seg_hdr != NULL);
+    put_le16(seg_hdr, BLE_LL_ISOAL_SEGHDR(false, true, 28));
+
+    /* TimeOffset */
+    timeoffset = os_mbuf_extend(pdu, 3);
+    TEST_ASSERT_FATAL(timeoffset != NULL);
+    put_le24(timeoffset, cfg->ISO_Interval - cfg->SDU_Interval);
+
+    rc = os_mbuf_append(pdu, g_test_sdu_data, 25);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    *pdu_hdr = 0b10 | ((os_mbuf_len(pdu) - sizeof(*pdu_hdr)) << 8);
+
+    ble_ll_isoal_demux_pdu_put(demux, 0, pdu);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /**
+     * Pass verdict
+     */
+
+    /* IUT sends an SDU to the Upper Tester with the data for SDU1 */
+    test_ial_sdu_verify(demux, 20, 0b00);
+
+    /* IUT sends an SDU to the Upper Tester with the data for SDU2 */
+    test_ial_sdu_verify(demux, 25, 0b00);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_17_c)
+{
+    struct test_ial_receive_multiple_small_sdus_bis_cfg cfg = {
+        .NSE = 2,
+        .BN = 1,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 10000,
+    };
+
+    test_ial_receive_multiple_small_sdus_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_18_c)
+{
+    struct test_ial_receive_multiple_small_sdus_bis_cfg cfg = {
+        .NSE = 2,
+        .BN = 2,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 20000,
+    };
+
+    test_ial_receive_multiple_small_sdus_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_20_c)
+{
+    struct test_ial_receive_multiple_small_sdus_bis_cfg cfg = {
+        .NSE = 4,
+        .BN = 2,
+        .SDU_Interval = 5000,
+        .ISO_Interval = 20000,
+    };
+
+    test_ial_receive_multiple_small_sdus_bis(&cfg);
+}
+
+struct test_ial_seg_hdr {
+    uint8_t SC;
+    uint8_t CMPLT;
+    uint8_t LENGTH;
+};
+struct test_ial_receive_a_zero_length_sdu_bis_cfg {
+    uint8_t NSE;
+    uint8_t Framed;
+    uint8_t Framing_Mode;
+    uint8_t LLID;
+    uint8_t BN;
+    struct test_ial_seg_hdr *seg_hdr;
+    bool time_offset;
+};
+
+static void
+test_ial_receive_a_zero_length_sdu_bis(struct test_ial_receive_a_zero_length_sdu_bis_cfg *cfg)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    struct ble_mbuf_hdr *blehdr;
+    struct os_mbuf *pdu;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_PDU = 32;
+    uint32_t ticks = 0;
+    uint8_t rem_us = 0;
+    uint32_t *timeoffset;
+    uint16_t *pdu_hdr;
+    uint16_t *seg_hdr;
+
+    test_ll_isoal_setup(&fixture, TSPX_max_sdu_length, Max_PDU, ISO_Interval,
+                        SDU_Interval, cfg->BN, cfg->Framed);
+
+    ble_ll_isoal_demux_event_start(demux, ISO_Interval);
+
+    seg_hdr = NULL;
+    timeoffset = NULL;
+
+    pdu = os_mbuf_get_pkthdr(&g_mbuf_pool, sizeof(*blehdr));
+    TEST_ASSERT_FATAL(pdu != NULL);
+
+    blehdr = BLE_MBUF_HDR_PTR(pdu);
+    blehdr->beg_cputime = ticks;
+    blehdr->rem_usecs = rem_us;
+
+    pdu_hdr = os_mbuf_extend(pdu, sizeof(*pdu_hdr));
+    TEST_ASSERT_FATAL(pdu_hdr != NULL);
+
+    if (cfg->seg_hdr) {
+        /* Segmentation Header */
+        seg_hdr = os_mbuf_extend(pdu, sizeof(*seg_hdr));
+        TEST_ASSERT_FATAL(seg_hdr != NULL);
+        put_le16(seg_hdr, BLE_LL_ISOAL_SEGHDR(cfg->seg_hdr->SC, cfg->seg_hdr->CMPLT,
+                                              cfg->seg_hdr->LENGTH));
+    }
+
+    if (cfg->time_offset) {
+        /* TimeOffset */
+        timeoffset = os_mbuf_extend(pdu, 3);
+        TEST_ASSERT_FATAL(timeoffset != NULL);
+        put_le24(timeoffset, 0);
+    }
+
+    *pdu_hdr = cfg->LLID | ((os_mbuf_len(pdu) - sizeof(*pdu_hdr)) << 8);
+
+    ble_ll_isoal_demux_pdu_put(demux, 0, pdu);
+
+    /* Padding if needed */
+    for (uint8_t i = 1; i < cfg->BN; i++) {
+        test_ial_lt_send_padding(demux, i, cfg->Framed);
+    }
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /**
+     * Pass verdict
+     */
+
+    /* IUT sends an empty SDU to the Upper Tester with the TimeOffset field */
+    test_ial_sdu_verify(demux, 0, 0b00);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_21_c)
+{
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 4,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 2,
+        .seg_hdr = NULL,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_22_c)
+{
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 3,
+        .seg_hdr = NULL,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_23_c)
+{
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 1,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 1,
+        .seg_hdr = NULL,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bv_24_c)
+{
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 2,
+        .Framed = 0,
+        .Framing_Mode = 0,
+        .LLID = 0b00,
+        .BN = 1,
+        .seg_hdr = NULL,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_25_c)
+{
+    struct test_ial_seg_hdr seg_hdr = {
+        .SC = 0,
+        .CMPLT = 1,
+        .LENGTH = 3,
+    };
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 2,
+        .seg_hdr = &seg_hdr,
+        .time_offset = true,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_26_c)
+{
+    struct test_ial_seg_hdr seg_hdr = {
+        .SC = 0,
+        .CMPLT = 1,
+        .LENGTH = 3,
+    };
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 2,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 1,
+        .seg_hdr = &seg_hdr,
+        .time_offset = true,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_27_c)
+{
+    struct test_ial_seg_hdr seg_hdr = {
+        .SC = 0,
+        .CMPLT = 1,
+        .LENGTH = 3,
+    };
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 4,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 1,
+        .seg_hdr = &seg_hdr,
+        .time_offset = true,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_28_c)
+{
+    struct test_ial_seg_hdr seg_hdr = {
+        .SC = 0,
+        .CMPLT = 1,
+        .LENGTH = 3,
+    };
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 1,
+        .Framing_Mode = 0,
+        .LLID = 0b10,
+        .BN = 3,
+        .seg_hdr = &seg_hdr,
+        .time_offset = true,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bv_30_c)
+{
+    struct test_ial_seg_hdr seg_hdr = {
+        .SC = 0,
+        .CMPLT = 1,
+        .LENGTH = 3,
+    };
+    struct test_ial_receive_a_zero_length_sdu_bis_cfg cfg = {
+        .NSE = 6,
+        .Framed = 1,
+        .Framing_Mode = 1,
+        .LLID = 0b10,
+        .BN = 2,
+        .seg_hdr = &seg_hdr,
+        .time_offset = true,
+    };
+
+    test_ial_receive_a_zero_length_sdu_bis(&cfg);
+}
+
+/**
+ * Send 4 PDUs with LLID=0b01 and no data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_1(struct ble_ll_isoal_demux *demux)
+{
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[0], 0, 0b01);
+    test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[0], 0, 0b01);
+    test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[0], 0, 0b01);
+    test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[0], 0, 0b01);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall be reported as lost data */
+    test_ial_sdu_verify(demux, 0, 0b10);
+}
+
+/**
+ * Send 4 PDUs with LLID=0b01 and data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_2(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, 0, 0b01);
+}
+
+/**
+ * Send 3 PDUs with LLID=0b01 and data, then 1 PDU with LLID=0b00 and data;
+ * one of the first three PDUs has a CRC error
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_3(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    /* Since PDUs with CRC error are discarded, assume the one below is lost. */
+    //  sdu_offset += test_ial_lt_send_sdu_frag(demux, 1, &g_test_sdu_data[sdu_offset],
+    //                                          sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, 0, 0b01);
+}
+
+/**
+ * Send 2 PDUs with LLID=0b01 and data, then 2 PDUs with LLID=0b00 and data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_4(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, sdu_offset, 0b01);
+}
+
+/**
+ * Send 2 PDUs with LLID=0b01 and no data, then 1 PDU with LLID=0b00 and data,
+ * then 1 PDU with LLID=0b01 and data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_5(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, sdu_offset, 0b01);
+}
+
+/**
+ * Send 2 PDUs with LLID=0b01 and no data, then 1 PDU with LLID=0b00 and data,
+ * then 1 PDU with LLID=0b10 and no data.
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_6(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset], 0, 0b10);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, 0, 0b01);
+}
+
+/**
+ * Send 2 PDUs with LLID=0b01 and no data, then 1 PDU with LLID=0b10 and data,
+ * then 1 PDU with LLID=0b00 and no data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_7(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b10);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset], 0, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall be reported as lost data */
+    test_ial_sdu_verify(demux, 0, 0b10);
+}
+
+static void
+test_ial_bis_unf_snc_bi_02_c_round_8a(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+    uint16_t incomplete_sdu_len;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    incomplete_sdu_len = sdu_offset;
+    // sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+    //                                   sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as lost data */
+    test_ial_sdu_verify(demux, incomplete_sdu_len, 0b10);
+}
+
+static void
+test_ial_bis_unf_snc_bi_02_c_round_8b(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+    uint16_t incomplete_sdu_len;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    incomplete_sdu_len = sdu_offset;
+    // sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+    //                                        sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, incomplete_sdu_len, 0b01);
+}
+
+static void
+test_ial_bis_unf_snc_bi_02_c_round_8c(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+    uint16_t incomplete_sdu_len;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    incomplete_sdu_len = sdu_offset;
+    // sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+    //                                        sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, incomplete_sdu_len, 0b01);
+}
+
+static void
+test_ial_bis_unf_snc_bi_02_c_round_8d(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+    uint16_t incomplete_sdu_len;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    // sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+    //                                        sdu_len - sdu_offset, 0b00);
+    incomplete_sdu_len = sdu_offset;
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, incomplete_sdu_len, 0b01);
+}
+
+/**
+ * Send 2 PDUs with LLID=0b01 and data, then 1 PDU with LLID=0b00 and data;
+ * one of the four PDUs is omitted to simulate losing one PDU
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_8(struct ble_ll_isoal_demux *demux)
+{
+    test_ial_bis_unf_snc_bi_02_c_round_8a(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_8b(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_8c(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_8d(demux);
+}
+
+/**
+ * 1 PDU with LLID=0b00 and data, then 3 PDUs with LLID=0b01, at least one of which has data
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_9(struct ble_ll_isoal_demux *demux)
+{
+    uint16_t sdu_len, sdu_offset;
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset], 0, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset +=
+        test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset], 0, 0b01);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Expected to be reported as data with possible errors */
+    test_ial_sdu_verify(demux, sdu_offset, 0b01);
+}
+/**
+ * No PDUs
+ */
+static void
+test_ial_bis_unf_snc_bi_02_c_round_10(struct ble_ll_isoal_demux *demux)
+{
+    ble_ll_isoal_demux_event_start(demux, 0);
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall be reported as lost data */
+    test_ial_sdu_verify(demux, 0, 0b10);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bi_02_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_PDU = 32;
+    const uint8_t NSE = 4;
+    const uint8_t BN = 4;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, TSPX_max_sdu_length, Max_PDU, ISO_Interval,
+                        SDU_Interval, BN, 0);
+
+    test_ial_bis_unf_snc_bi_02_c_round_1(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_2(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_3(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_4(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_5(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_6(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_7(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_8(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_9(demux);
+    test_ial_bis_unf_snc_bi_02_c_round_10(demux);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_unf_snc_bi_05_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_PDU = 32;
+    const uint8_t NSE = 4;
+    const uint8_t BN = 4;
+    uint16_t sdu_len, sdu_offset;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, TSPX_max_sdu_length, Max_PDU, ISO_Interval,
+                        SDU_Interval, BN, 0);
+
+    sdu_len = TSPX_max_sdu_length;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    /* 1. The Lower Tester sends 2 unframed Start/Continuation ISO Data PDUs to
+     * the IUT with the LLID=0b01
+     */
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+
+    /* 2. The Lower Tester sends the IUT 1 unframed Start/Continuation ISO Data
+     * PDU with an invalid CRC.
+     */
+    /* NOP */
+
+    /* 3. The Lower Tester sends the last unframed ISO Data PDU to the IUT with
+     * the LLID=0b00 and with the remaining Payload Data.
+     */
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b00);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Alternative 4A (The IUT reports the SDU as 0b01 “data with possible errors”) */
+    test_ial_sdu_verify(demux, 0, 0b01);
+
+    ble_ll_isoal_demux_event_start(demux, 0);
+
+    sdu_offset = 0;
+
+    /* 5. The Lower Tester sends unframed ISO Data PDUs to the IUT with all LLID = 0b01. */
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 2, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+    sdu_offset += test_ial_lt_unf_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0b01);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Alternative 6A (The IUT reports the SDU as 0b01 “data with possible errors”) */
+    test_ial_sdu_verify(demux, 0, 0b01);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bi_01_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_SDU = 108;
+    const uint8_t Max_PDU = 32;
+    const uint8_t NSE = 4;
+    const uint8_t BN = 4;
+    uint16_t sdu_len, sdu_offset;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval, BN, 1);
+
+    sdu_len = Max_SDU;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, ISO_Interval);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 100, true, false);
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset,
+                                           0 /* ignored */, false, false);
+
+    /* 2. The Lower Tester sends 1 framed Start/Continuation ISO Data PDU to the IUT with the Length field in the Segmentation Header set to 255. */
+    do {
+        const void *data = &g_test_sdu_data[sdu_offset];
+        struct os_mbuf *om;
+        uint8_t *payload_len;
+        uint8_t *seg_len;
+        uint16_t dlen;
+
+        dlen = sdu_len - sdu_offset;
+
+        om = test_ial_lt_pdu_get(0b10, &payload_len);
+        test_ial_lt_pdu_seghdr_put(om, payload_len, false, false, 0, &seg_len);
+
+        if (dlen + *payload_len > demux->config.max_pdu) {
+            dlen = demux->config.max_pdu - *payload_len;
+        }
+
+        dlen = test_ial_lt_pdu_data_put(om, payload_len, data, dlen);
+        *seg_len = 255;
+
+        test_ial_lt_pdu_send(om, 2, payload_len, demux);
+    } while (false);
+
+    /* 3. The Lower Tester sends the last framed ISO Data PDU to the IUT with the remaining Payload Data. */
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 3, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0, false, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Alternative 4A (The IUT reports the SDU as 0b01 “data with possible errors”) */
+    test_ial_sdu_verify(demux, 0, 0b01);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bi_02_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_SDU = 32;
+    const uint8_t Max_PDU = 45;
+    const uint8_t NSE = 1;
+    const uint8_t BN = 1;
+    uint16_t sdu_len, sdu_offset;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval, BN, 1);
+
+    sdu_len = Max_SDU;
+    sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, ISO_Interval);
+
+    /* 1. The Lower Tester sends 1 framed complete ISO Data PDU to the IUT with
+     * the Length field of the Segmentation Header set to 255. */
+    do {
+        const void *data = &g_test_sdu_data[sdu_offset];
+        struct os_mbuf *om;
+        uint8_t *payload_len;
+        uint8_t *seg_len;
+        uint16_t dlen;
+
+        dlen = sdu_len - sdu_offset;
+
+        om = test_ial_lt_pdu_get(0b10, &payload_len);
+        test_ial_lt_pdu_seghdr_put(om, payload_len, true, true, 100, &seg_len);
+
+        if (dlen + *payload_len > demux->config.max_pdu) {
+            dlen = demux->config.max_pdu - *payload_len;
+        }
+
+        dlen = test_ial_lt_pdu_data_put(om, payload_len, data, dlen);
+        *seg_len = 255;
+
+        test_ial_lt_pdu_send(om, 0, payload_len, demux);
+    } while (false);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* 2A.1 The IUT sends an HCI ISO Data packet with data to the Upper Tester
+     * with the Packet_Status_Flag set to 0b01 “data with possible errors”.
+     */
+    test_ial_sdu_verify(demux, 0, 0b01);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1A
+ *
+ * The Lower Tester sends two ISO Data PDUs to the IUT with the LLID = 0b10 in the same
+ * isochronous interval. The IUT sends the Upper Tester an ISO Data packet with
+ * Packet_Status_Flag = 0b00 and PB_Flag = 0b10 and containing all the data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1a(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+    uint16_t sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 100, true, false);
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 0, false, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b00 (data valid) */
+    test_ial_sdu_verify(demux, sdu_offset, 0b00);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1B
+ *
+ * The Lower Tester sends an ISO Data PDU with the LLID = 0b10 in the first sub-event of an
+ * ISO interval and nothing in the second sub-event. The IUT sends the Upper Tester an ISO
+ * Data packet either with Packet_Status_Flag = 0b01 and containing the data, or with
+ * Packet_Status_Flag = 0b10 and ISO_SDU_Length = 0 and with no data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1b(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+    uint16_t sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset, 100, true, false);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b01 (data invalid) */
+    test_ial_sdu_verify(demux, sdu_offset, 0b01);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1C
+ *
+ * The Lower Tester sends nothing in the first sub-event of an ISO interval and an ISO Data
+ * PDU with the LLID = 0b10 in the second sub-event. The IUT sends the Upper Tester an
+ * ISO Data packet either with Packet_Status_Flag = 0b01 and containing the data, or with
+ * Packet_Status_Flag = 0b10 and ISO_SDU_Length = 0 and with no data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1c(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+    uint16_t sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(demux, 1, &g_test_sdu_data[sdu_offset],
+                                           sdu_len - sdu_offset,
+                                           0 /* ignored */, false, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall be reported as lost data */
+    test_ial_sdu_verify(demux, sdu_offset, 0b10);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bi_03_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_SDU = 16;
+    const uint8_t Max_PDU = 16;
+    const uint8_t NSE = 2;
+    const uint8_t BN = 2;
+    uint32_t timestamp;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval, BN, 1);
+
+    timestamp = ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1c(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1c(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1c(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1c(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1A
+ *
+ * The Lower Tester sends two ISO Data PDUs to the IUT with the LLID = 0b10 in the same
+ * isochronous interval. The IUT sends the Upper Tester an ISO Data packet with
+ * Packet_Status_Flag = 0b00 and PB_Flag = 0b10 and containing all the data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1a_harmony(struct ble_ll_isoal_demux *demux,
+                                             uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    (void)test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data, sdu_len,
+                                   1.5 * demux->config.sdu_interval_us, true, true);
+    (void)test_ial_lt_fra_pdu_send(demux, 1, &g_test_sdu_data, sdu_len,
+                                   0.5 * demux->config.sdu_interval_us, true, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b00 (data valid) */
+    test_ial_sdu_verify(demux, sdu_len, 0b00);
+    test_ial_sdu_verify(demux, sdu_len, 0b00);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1B
+ *
+ * The Lower Tester sends an ISO Data PDU with the LLID = 0b10 in the first sub-event of an
+ * ISO interval and nothing in the second sub-event. The IUT sends the Upper Tester an ISO
+ * Data packet either with Packet_Status_Flag = 0b01 and containing the data, or with
+ * Packet_Status_Flag = 0b10 and ISO_SDU_Length = 0 and with no data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1b_harmony(struct ble_ll_isoal_demux *demux,
+                                             uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+    uint16_t sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(
+        demux, 0, &g_test_sdu_data[sdu_offset], sdu_len - sdu_offset,
+        1.5 * demux->config.sdu_interval_us, true, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b01 (data invalid) */
+    test_ial_sdu_verify(demux, sdu_offset, 0b00);
+    test_ial_sdu_verify(demux, sdu_offset, 0b10);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-03-C Step 1C
+ *
+ * The Lower Tester sends nothing in the first sub-event of an ISO interval and an ISO Data
+ * PDU with the LLID = 0b10 in the second sub-event. The IUT sends the Upper Tester an
+ * ISO Data packet either with Packet_Status_Flag = 0b01 and containing the data, or with
+ * Packet_Status_Flag = 0b10 and ISO_SDU_Length = 0 and with no data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_03_c_step_1c_harmony(struct ble_ll_isoal_demux *demux,
+                                             uint32_t timestamp)
+{
+    uint16_t sdu_len = demux->config.max_sdu;
+    uint16_t sdu_offset = 0;
+
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends 2 framed Start/Continuation ISO Data PDUs to the IUT */
+    sdu_offset += test_ial_lt_fra_pdu_send(
+        demux, 1, &g_test_sdu_data[sdu_offset], sdu_len - sdu_offset,
+        0.5 * demux->config.sdu_interval_us, true, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall be reported as lost data */
+    test_ial_sdu_verify(demux, sdu_offset, 0b10);
+    test_ial_sdu_verify(demux, sdu_offset, 0b00);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bi_03_c_harmony)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 40000;
+    const uint16_t SDU_Interval = 20000;
+    const uint8_t Max_SDU = 11;
+    const uint8_t Max_PDU = 16;
+    const uint8_t NSE = 2;
+    const uint8_t BN = 2;
+    uint32_t timestamp;
+
+    (void)NSE;
+
+    test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval, BN, 1);
+
+    timestamp = ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1a_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1c_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1b_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1c_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1c_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ial_bis_fra_snc_bi_03_c_step_1c_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1b_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_03_c_step_1a_harmony(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-04-C Step 1A
+ *
+ * The Lower Tester sends an ISO Data PDU to the IUT with the LLID = 0b10. The
+ * IUT sends the Upper Tester an ISO Data packet with Packet_Status_Flag = 0b00
+ * and PB_Flag = 0b10 and containing all the data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_04_c_step_1a(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* 1. The Lower Tester sends an ISO Data PDU to the IUT with the LLID = 0b10. */
+    test_ial_lt_fra_pdu_send(demux, 0, &g_test_sdu_data[0],
+                             demux->config.max_sdu, 500, true, true);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b00 (data valid) */
+    test_ial_sdu_verify(demux, demux->config.max_sdu, 0b00);
+}
+
+/** @brief IAL/BIS/FRA/SNC/BI-04-C Step 1B
+ *
+ * The Lower Tester sends an ISO Null PDU. The IUT sends the Upper Tester an ISO Data
+ * packet with Packet_Status_Flag = 0b10 and ISO_SDU_Length = 0 and with no data.
+ *
+ * @param mux ISOAL multiplexer
+ */
+static void
+test_ial_bis_fra_snc_bi_04_c_step_1b(struct ble_ll_isoal_demux *demux, uint32_t timestamp)
+{
+    ble_ll_isoal_demux_event_start(demux, timestamp);
+
+    /* The Lower Tester sends an ISO Null PDU */
+    test_ial_lt_fra_null_pdu_send(demux, 0);
+
+    ble_ll_isoal_demux_event_done(demux);
+
+    /* Shall report data with status set to 0b10 (data lost) */
+    test_ial_sdu_verify(demux, 0, 0b10);
+}
+
+TEST_CASE_SELF(test_ial_bis_fra_snc_bi_04_c)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_demux *demux = &fixture.demux;
+    const uint16_t ISO_Interval = 10000;
+    const uint16_t SDU_Interval = 10000;
+    const uint8_t Max_SDU = 16;
+    const uint8_t Max_PDU = Max_SDU + 13;
+    const uint8_t NSE = 1;
+    const uint8_t BN = 1;
+    uint32_t timestamp;
+
+    (void)NSE;
+
+    timestamp = 33333;
+
+    test_ll_isoal_setup(&fixture, Max_SDU, Max_PDU, ISO_Interval, SDU_Interval, BN, 1);
+
+    test_ial_bis_fra_snc_bi_04_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1a(demux, timestamp);
+    timestamp += ISO_Interval;
+    test_ial_bis_fra_snc_bi_04_c_step_1b(demux, timestamp);
+    timestamp += ISO_Interval;
+
+    test_ll_isoal_teardown(&fixture);
+}
+
 TEST_SUITE(ble_ll_isoal_test_suite)
 {
     ble_ll_isoal_test_suite_init();
-
-    ble_ll_isoal_init();
 
     test_ble_ll_isoal_mux_init();
     test_ble_ll_isoal_mux_get_unframed_pdu();
@@ -1532,12 +3385,57 @@ TEST_SUITE(ble_ll_isoal_test_suite)
 
     /* Broadcasting Unframed Empty PDUs with LLID=0b01, BIS */
     test_ial_bis_unf_brd_bv_29_c();
-    /* test_ial_bis_unf_brd_bv_30_c();
-     * Same as test_ial_bis_unf_brd_bv_29_c except encryption is required.
-     */
 
     test_ial_bis_unf_early_sdus();
     test_ial_bis_fra_early_sdus();
 
-    ble_ll_isoal_reset();
+    /* Receive a Single SDU, BIS */
+    test_ial_bis_unf_snc_bv_01_c();
+    test_ial_bis_unf_snc_bv_02_c();
+    test_ial_bis_unf_snc_bv_03_c();
+    test_ial_bis_fra_snc_bv_06_c();
+    test_ial_bis_fra_snc_bv_08_c();
+    test_ial_bis_fra_snc_bv_29_c();
+
+    /* Receive Large SDU, BIS */
+    test_ial_bis_unf_snc_bv_09_c();
+    test_ial_bis_unf_snc_bv_10_c();
+    test_ial_bis_fra_snc_bv_11_c();
+    test_ial_bis_fra_snc_bv_13_c();
+    test_ial_bis_fra_snc_bv_15_c();
+
+    /* Receive Multiple, Small SDUs, BIS */
+    test_ial_bis_fra_snc_bv_17_c();
+    test_ial_bis_fra_snc_bv_18_c();
+    test_ial_bis_fra_snc_bv_20_c();
+
+    /* Receive a Zero-Length SDU, BIS */
+    test_ial_bis_unf_snc_bv_21_c();
+    test_ial_bis_unf_snc_bv_22_c();
+    test_ial_bis_unf_snc_bv_23_c();
+    test_ial_bis_unf_snc_bv_24_c();
+    test_ial_bis_fra_snc_bv_25_c();
+    test_ial_bis_fra_snc_bv_26_c();
+    test_ial_bis_fra_snc_bv_27_c();
+    test_ial_bis_fra_snc_bv_28_c();
+    test_ial_bis_fra_snc_bv_30_c();
+
+    /* Receive an unsuccessful Large SDU, BIS */
+    test_ial_bis_unf_snc_bi_02_c();
+
+    /* SDU Reporting, BIS, Unframed PDU */
+    test_ial_bis_unf_snc_bi_05_c();
+
+    /* SDU Reporting, BIS, Framed PDU */
+    test_ial_bis_fra_snc_bi_01_c();
+
+    /* SDU Reporting, BIS, BN = 1, NSE = 1, Framed PDU */
+    test_ial_bis_fra_snc_bi_02_c();
+
+    /* Reporting an Unsuccessful Large SDU, Framed BIS */
+    test_ial_bis_fra_snc_bi_03_c();
+    test_ial_bis_fra_snc_bi_03_c_harmony();
+
+    /* Reporting a missing or damaged SDU, Framed BIS */
+    test_ial_bis_fra_snc_bi_04_c();
 }
