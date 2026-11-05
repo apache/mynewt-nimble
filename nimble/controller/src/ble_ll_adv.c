@@ -5011,12 +5011,22 @@ ble_ll_adv_done(struct ble_ll_adv_sm *advsm)
     ble_ll_adv_update_adv_scan_rsp_data(advsm);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-    if (advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) {
-        /* stop advertising this was due to transmitting connection response */
-        if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+    /* stop advertising this was due to transmitting connection response */
+    if (advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD) {
+        /*
+         * For extended advertising this is normally handled in
+         * ble_ll_adv_sec_done(), but if the event was dropped after
+         * AUX_CONNECT_RSP was sent (e.g. preempted by a connection event)
+         * we end up here instead and still need to stop advertising.
+         */
+        if ((advsm->props & BLE_HCI_LE_SET_EXT_ADV_PROP_LEGACY) ||
+            !(advsm->flags & BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR)) {
             ble_ll_adv_sm_stop(advsm);
             return;
         }
+
+        ble_ll_adv_flags_clear(advsm, BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD |
+                                          BLE_LL_ADV_SM_FLAG_CONN_RSP_TXD_ERR);
     }
 #endif
 
