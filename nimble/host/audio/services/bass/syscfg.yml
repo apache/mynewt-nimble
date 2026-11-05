@@ -26,8 +26,9 @@ syscfg.defs:
         value: 2
     BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ:
         description: >
-            Maximum size of metadata that can be saved for subgroup. If set to 0 metadata is
-            not being saved.
+            Maximum size of metadata that can be saved for subgroup. Operations with longer
+            metadata are rejected. If set to 0 metadata is not being saved and operations are
+            not rejected because of metadata length.
         value: 32
     BLE_SVC_AUDIO_BASS_SUB_NUM_MAX:
         description: >
