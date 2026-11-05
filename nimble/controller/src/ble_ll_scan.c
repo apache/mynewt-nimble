@@ -1569,7 +1569,8 @@ ble_ll_scan_send_scan_req(uint8_t pdu_type, uint8_t *rxbuf,
     ble_ll_scan_req_pdu_prepare(scansm, addrd->adva, addrd->adva_type,
                                 rpa_index);
 
-    rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm, BLE_PHY_TRANSITION_TX_RX);
+    ble_phy_transition_set(BLE_PHY_TRANSITION_TO_RX, BLE_LL_IFS);
+    rc = ble_phy_tx(ble_ll_scan_req_tx_pdu_cb, scansm);
     if (rc) {
         return false;
     }
