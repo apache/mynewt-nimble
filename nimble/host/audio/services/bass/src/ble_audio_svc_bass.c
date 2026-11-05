@@ -64,10 +64,12 @@ static struct ble_svc_audio_bass_rcv_state_entry
 };
 
 static struct os_mempool ble_audio_svc_bass_metadata_pool;
+#if MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) > 0
 static os_membuf_t ble_audio_svc_bass_metadata_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX) *
                     BLE_SVC_AUDIO_BASS_SUB_NUM_MAX,
                     MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ))];
+#endif
 
 static int
 ble_svc_audio_bass_remote_scan_stopped(uint8_t *data, uint16_t data_len, uint16_t conn_handle);
@@ -279,6 +281,12 @@ ble_svc_audio_bass_metadata_set(struct ble_svc_audio_bass_receiver_state *state,
 
     ble_svc_audio_bass_metadata_put(state, num_subgroups);
 
+    /* Metadata is not being saved, subgroups have no metadata buffers */
+    if (MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) == 0) {
+        state->num_subgroups = num_subgroups;
+        return 0;
+    }
+
     /* Metadata buffers already allocated for subgroups are reused */
     for (i = 0; i < num_subgroups; i++) {
         if (state->subgroups[i].metadata == NULL) {
@@ -374,6 +382,11 @@ check_metadata_len(uint16_t num_subgroups,
                    const struct ble_svc_audio_bass_subgroup *subgroups)
 {
     int i;
+
+    /* Metadata is not being saved so any length can be accepted */
+    if (MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) == 0) {
+        return 0;
+    }
 
     for (i = 0; i < num_subgroups; i++) {
         if (subgroups[i].metadata_length >
@@ -833,8 +846,10 @@ ble_svc_audio_bass_rcv_state_read_access(struct ble_gatt_access_ctxt *ctxt, void
 
         put_le32(buf, state->state.subgroups[i].bis_sync_state);
         os_mbuf_append(ctxt->om, &state->state.subgroups[i].metadata_length, 1);
-        os_mbuf_append(ctxt->om, state->state.subgroups[i].metadata,
-                       state->state.subgroups[i].metadata_length);
+        if (state->state.subgroups[i].metadata_length > 0) {
+            os_mbuf_append(ctxt->om, state->state.subgroups[i].metadata,
+                           state->state.subgroups[i].metadata_length);
+        }
     }
 
     return 0;
@@ -924,6 +939,11 @@ ble_svc_audio_bass_update_metadata(const struct ble_svc_audio_bass_metadata_para
 
     if (params->subgroup_idx >= rcv_state->state.num_subgroups) {
         return BLE_HS_EINVAL;
+    }
+
+    /* Metadata is not being saved */
+    if (MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) == 0) {
+        return 0;
     }
 
     subgroup = &rcv_state->state.subgroups[params->subgroup_idx];
@@ -1057,12 +1077,14 @@ ble_svc_audio_bass_init(void)
     rc = ble_gatts_add_svcs(ble_svc_audio_bass_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 
+#if MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ) > 0
     rc = os_mempool_init(&ble_audio_svc_bass_metadata_pool,
                          MYNEWT_VAL(BLE_SVC_AUDIO_BASS_RECEIVE_STATE_MAX) *
                          BLE_SVC_AUDIO_BASS_SUB_NUM_MAX,
                          MYNEWT_VAL(BLE_SVC_AUDIO_BASS_METADATA_MAX_SZ),
                          ble_audio_svc_bass_metadata_mem, "ble_audio_svc_bass_metadata_pool");
     SYSINIT_PANIC_ASSERT(rc == 0);
+#endif
 
     (void)rc;
 }
