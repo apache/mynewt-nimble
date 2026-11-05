@@ -1432,7 +1432,12 @@ ble_phy_rx_start_isr(void)
 
     /* Initialize the ble mbuf header */
     ble_hdr = &g_ble_phy_data.rxhdr;
-    ble_hdr->rxinfo.flags = ble_ll_state_get();
+    ble_hdr->rxinfo.flags = 0;
+    ble_hdr->rxinfo.rx_state = ble_ll_state_get();
+#if MYNEWT_VAL(BLE_LL_EXT)
+    /* This should be set to proper ext state by ext impl in start_isr */
+    ble_hdr->rxinfo.rx_state_ext = 0;
+#endif
     ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
     ble_hdr->rxinfo.handle = 0;
     ble_hdr->rxinfo.phy = ble_phy_get_cur_phy();

@@ -280,6 +280,11 @@ ble_phy_isr(void)
         /* Construct BLE header before handing up */
         ble_hdr = &g_ble_phy_data.rxhdr;
         ble_hdr->rxinfo.flags = 0;
+        ble_hdr->rxinfo.rx_state = ble_ll_state_get();
+#if MYNEWT_VAL(BLE_LL_EXT)
+        /* This should be set to proper ext state by ext impl in start_isr */
+        ble_hdr->rxinfo.rx_state_ext = 0;
+#endif
         /* XXX: dummy rssi */
         ble_hdr->rxinfo.rssi = -77 + g_ble_phy_data.rx_pwr_compensation;
         ble_hdr->rxinfo.channel = g_ble_phy_data.phy_chan;
