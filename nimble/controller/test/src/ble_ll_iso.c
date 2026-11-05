@@ -172,7 +172,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c)
             rc = ble_ll_iso_conn_event_start(conn, 30000);
             TEST_ASSERT(rc == 0);
 
-            for (uint8_t k = 0; k < conn->mux.bn; k++) {
+            for (uint8_t k = 0; k < conn->mux.config.bn; k++) {
                 llid = 0xFF;
                 rc = ble_ll_iso_pdu_get(conn, k, k, &llid, pdu);
                 if (payload_type == BLE_HCI_PAYLOAD_TYPE_ZERO_LENGTH) {
@@ -182,7 +182,7 @@ TEST_CASE_SELF(test_ll_ist_brd_bv_01_c)
                     TEST_ASSERT(rc >= 4);
                     TEST_ASSERT(llid == 0b00);
                 } else if (payload_type == BLE_HCI_PAYLOAD_TYPE_MAXIMUM_LENGTH) {
-                    TEST_ASSERT(rc == conn->mux.max_pdu);
+                    TEST_ASSERT(rc == conn->mux.config.max_pdu);
                     TEST_ASSERT(llid == 0b00);
                 }
             }
