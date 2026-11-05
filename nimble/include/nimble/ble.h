@@ -75,6 +75,10 @@ struct ble_encryption_block
 struct ble_mbuf_hdr_rxinfo
 {
     uint16_t flags;
+    uint8_t rx_state;
+#if MYNEWT_VAL(BLE_LL_EXT)
+    uint8_t rx_state_ext;
+#endif
     uint8_t channel;
     uint8_t handle;
     int8_t  rssi;
@@ -115,7 +119,6 @@ struct ble_mbuf_hdr_rxinfo
 #define BLE_MBUF_HDR_F_MIC_FAILURE      (0x0020)
 #define BLE_MBUF_HDR_F_SCAN_RSP_TXD     (0x0010)
 #define BLE_MBUF_HDR_F_SCAN_RSP_RXD     (0x0008)
-#define BLE_MBUF_HDR_F_RXSTATE_MASK     (0x0007)
 
 /* Transmit info. NOTE: no flags defined */
 struct ble_mbuf_hdr_txinfo
@@ -195,8 +198,7 @@ struct ble_mbuf_hdr
 #define BLE_MBUF_HDR_TARGETA_RESOLVED(hdr)      \
     (!!((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_TARGETA_RESOLVED))
 
-#define BLE_MBUF_HDR_RX_STATE(hdr)      \
-    ((uint8_t)((hdr)->rxinfo.flags & BLE_MBUF_HDR_F_RXSTATE_MASK))
+#define BLE_MBUF_HDR_RX_STATE(hdr) ((hdr)->rxinfo.rx_state)
 
 #define BLE_MBUF_HDR_PTR(om)            \
     (struct ble_mbuf_hdr *)((uint8_t *)om + sizeof(struct os_mbuf) + \
