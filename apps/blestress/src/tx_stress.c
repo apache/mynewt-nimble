@@ -44,6 +44,12 @@ static os_stack_t tx_stress_main_task_stack[TX_STRESS_MAIN_TASK_STACK_SIZE];
 static struct os_sem tx_stress_main_sem;
 /* Test use case and address of test advertiser. */
 static int tx_stress_use_case;
+/* Last test use case performed. RX runs tests once each in ascending order,
+ * so only adverts of a higher test ID are accepted. This ignores the advert
+ * of the just finished test, which RX keeps sending until it handles its own
+ * end of the test, and prevents re-running any earlier test with stale
+ * statistics. */
+static int tx_stress_last_use_case = -1;
 static int completed_tests = 0;
 
 static void
@@ -1163,6 +1169,9 @@ tx_stress_10_gap_event(struct ble_gap_event *event, void *arg)
     }
 }
 
+/* Status of the last connection attempt(0 if it succeeded). Used for test case 11 */
+static int tx_stress_11_last_conn_status;
+
 static int
 tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
 {
@@ -1193,6 +1202,7 @@ tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
         } else {
             MODLOG_DFLT(ERROR, "Error: connection attempt failed; "
                                "status=%d\n", event->connect.status);
+            tx_stress_11_last_conn_status = event->connect.status;
             break;
         }
         return 0;
@@ -1205,7 +1215,38 @@ tx_stress_11_gap_event(struct ble_gap_event *event, void *arg)
             tx_stress_on_test_finish(11);
             return 0;
         }
+        tx_stress_11_last_conn_status = 0;
         break;
+
+    case BLE_GAP_EVENT_DISC_COMPLETE:
+        /* Scan duration expired without finding the next test 11 advert.
+         * Nothing else will restart the scan, so end the test with an error
+         * instead of stalling. Skip it if the advert was found and a
+         * connection attempt is already in progress (conn_handle != 0xffff),
+         * because the scan timeout can be reported just after that. */
+        if (event->disc_complete.reason == 0 &&
+            !tx_stress_ctx->completed[11] &&
+            tx_stress_ctx->conn_handle == 0xffff) {
+            if (tx_stress_11_last_conn_status != 0) {
+                MODLOG_DFLT(ERROR, "Stress test 11 failed: rescan timed out "
+                                   "without finding RX advert after "
+                                   "connection attempt failed (status=%d); "
+                                   "successful connections %d/%d\n",
+                            tx_stress_11_last_conn_status,
+                            tx_stress_ctx->con_stat[11].num,
+                            MYNEWT_VAL(BLE_STRESS_REPEAT));
+            } else {
+                MODLOG_DFLT(ERROR, "Stress test 11 failed: rescan timed out "
+                                   "without finding RX advert after "
+                                   "disconnect; successful connections "
+                                   "%d/%d\n",
+                            tx_stress_ctx->con_stat[11].num,
+                            MYNEWT_VAL(BLE_STRESS_REPEAT));
+            }
+            tx_stress_ctx->completed[11] = true;
+            os_sem_release(&tx_stress_main_sem);
+        }
+        return 0;
 
     default:
         MODLOG_DFLT(DEBUG, "Other event occurs=%d\n", event->type);
@@ -1495,7 +1536,7 @@ scan_for_test_gap_event(struct ble_gap_event *event, void *arg)
         /* Check if caught advert contains known UUID128. The UUID128
          * contains the ID of test use case to be executed. */
         use_case = tx_stress_find_test(&event->ext_disc);
-        if (use_case > 0) {
+        if (use_case > 0 && use_case > tx_stress_last_use_case) {
             rc = ble_gap_disc_cancel();
             tx_stress_ctx->dev_addr = event->ext_disc.addr;
 
@@ -1654,6 +1695,7 @@ tx_stress_main_task_fn(void *arg)
 
         /* Start test. */
         tx_stress_test_perform(tx_stress_use_case);
+        tx_stress_last_use_case = tx_stress_use_case;
         tx_stress_use_case = -1;
     }
 
