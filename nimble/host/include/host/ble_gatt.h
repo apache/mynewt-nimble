@@ -1207,6 +1207,41 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Prepares and sends a response for pending ATT request.
+ *
+ * Call this exactly once for each BLE_GAP_EVENT_AUTHORIZE that the
+ * application answered with BLE_GAP_AUTHORIZE_PENDING, passing conn_handle
+ * and cid from that event. Do not call it for events answered with
+ * BLE_GAP_AUTHORIZE_ACCEPT or BLE_GAP_AUTHORIZE_REJECT: those requests are
+ * already answered, and a late call could resolve a newer pending request
+ * on the same bearer instead. May be called from any task, or from within
+ * the event callback.
+ *
+ * If the pending request is a Read Multiple and another of its attributes
+ * requires authorization, a new BLE_GAP_EVENT_AUTHORIZE is sent from within
+ * this call and BLE_HS_EPENDING is returned.
+ *
+ * @param conn_handle           The connection over which to authorize a
+ *                                  pending ATT procedure
+ * @param cid                   L2CAP channel ID on which request has been
+ *                                  received
+ * @param att_err               ATT error code: 0 to accept and execute the
+ *                                  procedure, or an ATT error code (e.g.
+ *                                  BLE_ATT_ERR_INSUFFICIENT_AUTHOR) to reject.
+ *
+ * @return                      0 if the pending request has been completed
+ *                                  and a response sent to the peer;
+ *                              BLE_HS_EPENDING if another attribute of the
+ *                                  Read Multiple request requires
+ *                                  authorization;
+ *                              BLE_HS_ENOENT if no matching pending request
+ *                              is found on the channel;
+ *                              other BLE_HS error codes on failure.
+ */
+int ble_gatts_authorize_pending_att_req(uint16_t conn_handle, uint16_t cid,
+                                        uint8_t att_err);
+
 #ifdef __cplusplus
 }
 #endif

@@ -523,6 +523,37 @@ ble_att_send_outstanding_after_response(uint16_t conn_handle)
     ble_hs_unlock();
 }
 
+/**
+ * Indicates whether the opcode is a request sent by an ATT client to an ATT
+ * server (indications and multiple notifications go the other way).
+ */
+static bool
+ble_att_is_client_request_op(uint8_t op)
+{
+    return ble_att_is_request_op(op) &&
+           op != BLE_ATT_OP_INDICATE_REQ &&
+           op != BLE_ATT_OP_NOTIFY_MULTI_REQ;
+}
+
+/**
+ * Indicates whether the ATT server has a request pending authorization on
+ * the specified bearer.
+ */
+static bool
+ble_att_svr_req_pending(uint16_t conn_handle, uint16_t cid)
+{
+    struct ble_l2cap_chan *chan;
+    struct ble_hs_conn *conn;
+    bool pending;
+
+    ble_hs_lock();
+    pending = ble_att_conn_chan_find(conn_handle, cid, &conn, &chan) == 0 &&
+              chan->att_svr_rxom != NULL;
+    ble_hs_unlock();
+
+    return pending;
+}
+
 static int
 ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 {
@@ -539,6 +570,16 @@ ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
 
     if (cid == BLE_L2CAP_CID_ATT && ble_att_is_response_op(op)) {
         ble_att_send_outstanding_after_response(conn_handle);
+    }
+
+    /* Only one request may be outstanding on a bearer. While a request is
+     * pending authorization, drop any further request from the client:
+     * a response to it would be taken by the client as the response to the
+     * pending request, and the pending request must not be replaced.
+     */
+    if (ble_att_is_client_request_op(op) &&
+        ble_att_svr_req_pending(conn_handle, cid)) {
+        return BLE_HS_EBUSY;
     }
 
     entry = ble_att_rx_dispatch_entry_find(op);

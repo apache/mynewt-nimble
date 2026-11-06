@@ -261,6 +261,9 @@ struct hci_conn_update;
 /** GAP event: Pairing request received from peer */
 #define BLE_GAP_EVENT_PAIRING_REQUEST       31
 
+/** GAP event: Authorization request for GATT operations */
+#define BLE_GAP_EVENT_AUTHORIZE             32
+
 /** @} */
 
 /**
@@ -292,6 +295,22 @@ struct hci_conn_update;
 
 /** GAP repeat pairing option: Ignore the pairing procedure. */
 #define BLE_GAP_REPEAT_PAIRING_IGNORE       2
+
+/** @} */
+
+/**
+ * @defgroup GAP Authorize event possible responses.
+ * @{
+ */
+
+/** GAP Authorize event response: reject */
+#define BLE_GAP_AUTHORIZE_REJECT 0
+
+/** GAP Authorize event response: accept */
+#define BLE_GAP_AUTHORIZE_ACCEPT 1
+
+/** GAP Authorize event response: pending */
+#define BLE_GAP_AUTHORIZE_PENDING 2
 
 /** @} */
 
@@ -1338,6 +1357,59 @@ struct ble_gap_event {
             uint8_t length;
         } unhandled_hci;
 #endif
+
+        /**
+         * GATT Authorization Event. Ask the user to authorize a GATT
+         * read/write operation.
+         *
+         * Valid for the following event types:
+         * o BLE_GAP_EVENT_AUTHORIZE
+         *
+         * Valid responses from user:
+         * o BLE_GAP_AUTHORIZE_ACCEPT  - access granted; the request is
+         *                               processed right away.
+         * o BLE_GAP_AUTHORIZE_REJECT  - access denied; the peer gets an
+         *                               Insufficient Authorization error.
+         * o BLE_GAP_AUTHORIZE_PENDING - decision deferred, see below.
+         *
+         * Any other value is treated as BLE_GAP_AUTHORIZE_REJECT.
+         *
+         * After returning BLE_GAP_AUTHORIZE_ACCEPT or
+         * BLE_GAP_AUTHORIZE_REJECT the request is already answered and the
+         * application must not call ble_gatts_authorize_pending_att_req()
+         * for it.
+         *
+         * After returning BLE_GAP_AUTHORIZE_PENDING the application must
+         * call ble_gatts_authorize_pending_att_req() exactly once, with
+         * conn_handle and cid from this event, to accept or reject the
+         * request. It may be called from any task, or from within this
+         * callback. Until then the peer gets no response on this bearer;
+         * the peer's ATT transaction times out after 30 seconds.
+         *
+         * A Read Multiple request may produce one event per attribute that
+         * requires authorization; each PENDING needs its own call.
+         *
+         * For a Write Command (access_opcode is
+         * BLE_ATT_ACCESS_OP_WRITE_CMD) the decision must be immediate: only
+         * BLE_GAP_AUTHORIZE_ACCEPT performs the write. Any other value,
+         * including BLE_GAP_AUTHORIZE_PENDING, silently drops the command,
+         * and ble_gatts_authorize_pending_att_req() must not be called.
+         */
+        struct {
+            /* Connection Handle */
+            uint16_t conn_handle;
+
+            /* Attribute handle of the attribute being accessed. */
+            uint16_t attr_handle;
+
+            /* Channel ID on which request has been received */
+            uint16_t cid;
+
+            /* ATT access opcode: BLE_ATT_ACCESS_OP_READ,
+             * BLE_ATT_ACCESS_OP_WRITE or BLE_ATT_ACCESS_OP_WRITE_CMD.
+             */
+            uint8_t access_opcode;
+        } authorize;
     };
 };
 
