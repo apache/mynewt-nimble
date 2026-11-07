@@ -484,7 +484,8 @@ ble_hs_hci_evt_le_adv_rpt_first_pass(const void *data, unsigned int len)
 
         rpt = data;
 
-        if (rpt->data_len > len) {
+        /* extra byte for RSSI after adv data */
+        if (rpt->data_len > len - sizeof(*rpt) - 1) {
             return BLE_HS_ECONTROLLER;
         }
 
@@ -545,7 +546,8 @@ ble_hs_hci_evt_le_dir_adv_rpt(uint8_t subevent, const void *data, unsigned int l
     struct ble_gap_disc_desc desc = {0};
     int i;
 
-    if (len < sizeof(*ev) || len != ev->num_reports * sizeof(ev->reports[0])) {
+    if (len < sizeof(*ev) ||
+        len != sizeof(*ev) + ev->num_reports * sizeof(ev->reports[0])) {
         return BLE_HS_ECONTROLLER;
     }
 
@@ -629,7 +631,7 @@ ble_hs_hci_evt_le_ext_adv_rpt_first_pass(const void *data, unsigned int len)
 
         report = data;
 
-        if (report->data_len > len) {
+        if (report->data_len > len - sizeof(*report)) {
             return BLE_HS_ECONTROLLER;
         }
 
@@ -818,7 +820,12 @@ ble_hs_hci_evt_le_create_big_complete(uint8_t subevent, const void *data,
 {
     const struct ble_hci_ev_le_subev_create_big_complete *ev = data;
 
-    if (len != sizeof(*ev) + (ev->num_bis * sizeof(ev->conn_handle[0]))) {
+    if (len < sizeof(*ev) ||
+        len != sizeof(*ev) + (ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    if (ev->num_bis > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
         return BLE_HS_EBADDATA;
     }
 
@@ -852,6 +859,10 @@ ble_hs_hci_evt_le_big_sync_established(uint8_t subevent, const void *data,
 
     if (len < sizeof(*ev) ||
         len != (sizeof(*ev) + ev->num_bis * sizeof(ev->conn_handle[0]))) {
+        return BLE_HS_EBADDATA;
+    }
+
+    if (ev->num_bis > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
         return BLE_HS_EBADDATA;
     }
 

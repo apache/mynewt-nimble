@@ -337,6 +337,7 @@ ble_hs_hci_cmd_tx(uint16_t opcode, const void *cmd, uint8_t cmd_len,
 
     /* on success we should always get full response */
     if (!rc && (ack.bha_params_len != rsp_len)) {
+        rc = BLE_HS_ECONTROLLER;
         ble_hs_sched_reset(rc);
         goto done;
     }
