@@ -122,6 +122,12 @@ Several other projects provide support for using NimBLE either by [NPL port](htt
 
  If you publish a NimBLE port, please let us know to include it here!
 
+## Integration testing
+
+[BSWorld](https://github.com/XiaoMi/bsworld) provides hardware-free integration
+testing for NimBLE with deterministic radio simulation and HCI and
+over-the-air traces.
+
 # Getting Help
 
 If you are having trouble using or contributing to Apache Mynewt NimBLE, or just
