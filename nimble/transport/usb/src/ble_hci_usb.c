@@ -196,6 +196,7 @@ ble_hci_trans_ll_tx(struct tx_queue *queue, struct os_mbuf *om)
         return BLE_ERR_MEM_CAPACITY;
     }
 
+    memset(pkt, 0, sizeof(*pkt));
     pkt->data = om;
     OS_ENTER_CRITICAL(sr);
     first = STAILQ_EMPTY(&queue->queue);
@@ -229,6 +230,7 @@ ble_hci_trans_ll_evt_tx(void *buf)
         return BLE_ERR_MEM_CAPACITY;
     }
 
+    memset(pkt, 0, sizeof(*pkt));
     pkt->data = hci_ev;
     OS_ENTER_CRITICAL(sr);
     first = STAILQ_EMPTY(&ble_hci_tx_evt_queue.queue);
