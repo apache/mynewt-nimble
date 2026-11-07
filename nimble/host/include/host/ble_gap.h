@@ -295,6 +295,18 @@ struct hci_conn_update;
 
 /** @} */
 
+/**
+ * @defgroup Mask for checking random address validity
+ * @{
+ */
+/** Static random address check mask. */
+#define BLE_STATIC_RAND_ADDR_MASK 0xC0
+
+/** Non RPA check mask. */
+#define BLE_NON_RPA_MASK 0x3F
+
+/** @} */
+
 /** Connection security state */
 struct ble_gap_sec_state {
     /** If connection is encrypted */
