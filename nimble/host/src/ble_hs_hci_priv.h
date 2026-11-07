@@ -129,6 +129,7 @@ int ble_hs_hci_acl_tx(struct ble_hs_conn *conn, struct os_mbuf **om);
 int ble_hs_hci_frag_num_mbufs(void);
 int ble_hs_hci_frag_num_mbufs_free(void);
 
+int ble_hs_hci_util_set_data_addr_change(uint8_t adv_handle, uint8_t change_reason);
 #ifdef __cplusplus
 }
 #endif
