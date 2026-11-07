@@ -394,6 +394,15 @@ int bt_mesh_app_decrypt(const uint8_t key[16],
 	BT_DBG("AppKey %s", bt_hex(key, 16));
 	BT_DBG("Nonce  %s", bt_hex(nonce, 13));
 
+	/* Decryption is done on flat buffers so both input (including MIC)
+	 * and output must fit into single mbuf.
+	 */
+	if (SLIST_NEXT(buf, om_next) ||
+	    buf->om_len > net_buf_simple_tailroom(out)) {
+		BT_ERR("Too large SDU (len %u)", buf->om_len);
+		return -EMSGSIZE;
+	}
+
 	err = bt_ccm_decrypt(key, nonce, buf->om_data, buf->om_len, ctx->ad,
 			     ctx->ad ? 16 : 0, out->om_data,
 			     APP_MIC_LEN(ctx->aszmic));

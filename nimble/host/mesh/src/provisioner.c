@@ -83,10 +83,13 @@ static void send_invite(void)
 
 	if (bt_mesh_prov_send(inv, NULL)) {
 		BT_ERR("Failed to send invite");
-		return;
+		goto done;
 	}
 
 	bt_mesh_prov_link.expect = PROV_CAPABILITIES;
+
+done:
+	os_mbuf_free_chain(inv);
 }
 
 static void start_sent(int err, void *cb_data)
@@ -135,13 +138,16 @@ static void send_start(void)
                      "action: 0x%02x; size: 0x%02x",
                      bt_mesh_prov_link.oob_method,
                      bt_mesh_prov_link.oob_action, bt_mesh_prov_link.oob_size);
-              return;
+              goto done;
           }
 
           if (bt_mesh_prov_send(start, start_sent)) {
               BT_ERR("Failed to send Provisioning Start");
-              return;
+              goto done;
           }
+
+done:
+	os_mbuf_free_chain(start);
 }
 
 static bool prov_check_method(struct bt_mesh_dev_capabilities *caps)
@@ -277,7 +283,7 @@ static void send_confirm(void)
 	if (bt_mesh_prov_conf_salt(inputs, bt_mesh_prov_link.conf_salt)) {
 		BT_ERR("Unable to generate confirmation salt");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("ConfirmationSalt: %s", bt_hex(bt_mesh_prov_link.conf_salt, 16));
@@ -286,7 +292,7 @@ static void send_confirm(void)
 				  bt_mesh_prov_link.conf_salt, bt_mesh_prov_link.conf_key)) {
 		BT_ERR("Unable to generate confirmation key");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("ConfirmationKey: %s", bt_hex(bt_mesh_prov_link.conf_key, 16));
@@ -294,7 +300,7 @@ static void send_confirm(void)
 	if (bt_rand(bt_mesh_prov_link.rand, 16)) {
 		BT_ERR("Unable to generate random number");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("LocalRandom: %s", bt_hex(bt_mesh_prov_link.rand, 16));
@@ -306,17 +312,20 @@ static void send_confirm(void)
 			      bt_mesh_prov_link.conf)) {
 		BT_ERR("Unable to generate confirmation value");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	net_buf_simple_add_mem(cfm, bt_mesh_prov_link.conf, 16);
 
 	if (bt_mesh_prov_send(cfm, NULL)) {
 		BT_ERR("Failed to send Provisioning Confirm");
-		return;
+		goto done;
 	}
 
 	bt_mesh_prov_link.expect = PROV_CONFIRM;
+
+done:
+	os_mbuf_free_chain(cfm);
 }
 
 static void public_key_sent(int err, void *cb_data)
@@ -339,7 +348,7 @@ static void send_pub_key(void)
 	if (!key) {
 		BT_ERR("No public key available");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("Local Public Key: %s", bt_hex(key, BT_PUB_KEY_LEN));
@@ -356,10 +365,13 @@ static void send_pub_key(void)
 
 	if (bt_mesh_prov_send(buf, public_key_sent)) {
 		BT_ERR("Failed to send Public Key");
-		return;
+		goto done;
 	}
 
 	bt_mesh_prov_link.expect = PROV_PUB_KEY;
+
+done:
+	os_mbuf_free_chain(buf);
 }
 
 static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
@@ -482,7 +494,7 @@ static void send_prov_data(void)
 	if (err) {
 		BT_ERR("Unable to generate session key");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("SessionKey: %s", bt_hex(session_key, 16));
@@ -492,7 +504,7 @@ static void send_prov_data(void)
 	if (err) {
 		BT_ERR("Unable to generate session nonce");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("Nonce: %s", bt_hex(nonce, 13));
@@ -502,7 +514,7 @@ static void send_prov_data(void)
 	if (err) {
 		BT_ERR("Unable to generate device key");
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 
 	BT_DBG("DevKey: %s", bt_hex(prov_device.node->dev_key, 16));
@@ -512,7 +524,7 @@ static void send_prov_data(void)
 		BT_ERR("No subnet with net_idx %u",
 		       prov_device.node->net_idx);
 		prov_fail(PROV_ERR_UNEXP_ERR);
-		return;
+		goto done;
 	}
 #else
     sub = bt_mesh_subnet_get(prov_device.node->net_idx);
@@ -520,7 +532,7 @@ static void send_prov_data(void)
         BT_ERR("No subnet with net_idx %u",
                 prov_device.node->net_idx);
         prov_fail(PROV_ERR_UNEXP_ERR);
-        return;
+        goto done;
     }
 #endif
 	bt_mesh_prov_buf_init(pdu, PROV_DATA);
@@ -547,15 +559,18 @@ static void send_prov_data(void)
 	if (err) {
 		BT_ERR("Unable to encrypt provisioning data");
 		prov_fail(PROV_ERR_DECRYPT);
-		return;
+		goto done;
 	}
 
 	if (bt_mesh_prov_send(pdu, NULL)) {
 		BT_ERR("Failed to send Provisioning Data");
-		return;
+		goto done;
 	}
 
 	bt_mesh_prov_link.expect = PROV_COMPLETE;
+
+done:
+	os_mbuf_free_chain(pdu);
 }
 
 static void prov_complete(const uint8_t *data)
@@ -590,10 +605,13 @@ static void send_random(void)
 
 	if (bt_mesh_prov_send(rnd, NULL)) {
 		BT_ERR("Failed to send Provisioning Random");
-		return;
+		goto done;
 	}
 
 	bt_mesh_prov_link.expect = PROV_RANDOM;
+
+done:
+	os_mbuf_free_chain(rnd);
 }
 
 static void prov_random(const uint8_t *data)
