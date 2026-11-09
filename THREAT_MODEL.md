@@ -29,7 +29,8 @@
 > §14 Q1–Q14; those answers are folded into the body. Provenance tags:
 > *(documented)* / *(maintainer)* / *(inferred)*, with every load-bearing
 > *(inferred)* claim routed to a numbered §14 question. What remains
-> *(inferred)* is noted as still-open in §14.
+> *(inferred)* is noted as still-open in §14. **Revised 2026-11-09:** the
+> HCI transport is not a security boundary (§5, §14 Q1).
 
 ## §1 Header
 
@@ -63,7 +64,7 @@ host). *(documented: `nimble/{host,controller,transport}` layout; §14 Q1)*
 | Family | Source | What it parses / does | Radio-trust tier |
 | --- | --- | --- | --- |
 | **Controller / Link Layer (LL)** | `nimble/controller/src/ble_ll_*` | Lowest level: advertising, scanning, connection establishment, LL control PDUs, channel selection, encryption (`ble_ll_crypto`), RPA resolution, whitelist, DTM. | **Tier 0 — raw radio.** Processes PDUs from *anyone in range* before any connection or authentication exists. |
-| **HCI transport** | `nimble/transport`, `ble_hs_hci*`, `ble_ll_hci*` | The command/event boundary between host and controller. | Boundary **only when split**; in a combined build it is internal. |
+| **HCI transport** | `nimble/transport`, `ble_hs_hci*`, `ble_ll_hci*` | The command/event boundary between host and controller. | **Not a security boundary**, in combined and split builds alike: the controller and host are trusted (§5). Only over-the-air data that HCI merely carries (e.g. advertising/scan-response data in advertising reports, ACL payload) is untrusted, at the tier it was received at. |
 | **Host — L2CAP** | `ble_l2cap*` (+ `_coc`, `_sig`) | Channel multiplexing, fragmentation/reassembly, connection-oriented channels, signalling. | **Tier 1 — connected peer**, pre- or post-encryption. |
 | **Host — ATT / GATT** | `ble_att*`, `ble_gattc`, `ble_gatts` | The attribute protocol server/client and GATT layer above it. | Tier 1; the server parses every ATT request from the peer. |
 | **Host — GAP + advertising data** | `ble_gap`, `ble_hs_adv` | Connection/advertisement state machine; parses advertising/scan-response data. | Tier 0/1. |
@@ -125,8 +126,9 @@ processes input at every tier:
         v
  application GATT characteristics  (permissions are the APP's choice, §10)
 
- HCI boundary (only in split host/controller builds):
-   host <== HCI events/ACL ==> controller   (trusted in combined builds)
+ HCI (not a trust boundary, combined and split builds):
+   host <== HCI events/ACL ==> controller   (both sides trusted; only the
+   over-the-air payload carried inside events/ACL is untrusted)
 ```
 
 Two consequences: (1) **most NimBLE code runs at Tier 0/1 against fully
@@ -140,10 +142,18 @@ and encrypts the link.
 - **Embedded, single address space, no MMU/process isolation.** A
   memory-safety bug in any PDU parser is a whole-device compromise.
   *(inferred — §14 Q3)*
-- **In a combined build, host and controller trust each other** over the
-  internal HCI; in a split build, the HCI transport is itself a trust
-  boundary and each side must tolerate a malformed/ hostile peer across
-  it. *(inferred — §14 Q1)*
+- **Host and controller trust each other over HCI**, both in a combined
+  build and in a split build (external controller or host over a UART,
+  USB, SPI, IPC or socket transport). A malicious or compromised
+  controller or host, or a corrupted HCI transport, is out of scope:
+  missing validation of HCI framing, event/command parameters or ACL/ISO
+  headers produced by the HCI peer is a robustness issue, fixed as
+  hardening, not a vulnerability. The exception is data that originated
+  **over the air** and that a conformant controller only relays to the
+  host inside an HCI event or ACL packet, such as advertising and
+  scan-response data in advertising reports or L2CAP payload in ACL
+  data: that content stays untrusted and is in scope at the radio tier
+  it was received at (§4, §6). *(maintainer — §14 Q1)*
 - **The RNG is the Bluetooth controller's**, not NimBLE's. On the host
   side randomness comes from the HCI `LE Rand` command
   (`ble_hs_hci_rand()`, `nimble/host/src/ble_hs_hci_util.c`), which the
@@ -163,7 +173,8 @@ and encrypts the link.
 ## §5a Build-time and configuration variants
 
 - **Role build (combined / host-only / controller-only)** changes which
-  parsers are present and whether HCI is a boundary. *(documented: layout)*
+  parsers are present. It does not make HCI a security boundary (§5).
+  *(documented: layout; maintainer — §14 Q1)*
 - **Supported pairing methods / SM features** are syscfg-selectable
   (LE Secure Connections vs legacy, bonding, MITM, OOB, key-distribution
   set). The *security posture of the link depends on which are enabled
@@ -199,7 +210,7 @@ question for each surface is only *which tier* it is reachable at.
 | Advertising / scan-response **data** | `ble_hs_adv`, `ble_ll_adv`, `ble_ll_scan` | anyone in range, no connection | memory-safe parse of arbitrary/truncated/over-length AD structures; no OOB on malformed length fields. **NimBLE ignores/rejects malformed PDUs, but passes advertising data up to the application WITHOUT LTV inspection** — parsing helpers exist, the application is not obliged to use them. So AD-parsing safety is shared with the integrator *(maintainer — §14 Q8)* |
 | `connect-ind` / connection setup | `ble_ll_conn`, `ble_gap` | anyone in range | bounded state allocation; safe handling of malformed connection parameters *(inferred — §14 Q8)* |
 | **LL control PDUs** | `ble_ll_ctrl` | a connected peer (Tier 1, pre-encryption) | safe handling of every control opcode incl. length/feature/PHY-update, version, and **encryption-start** procedures *(inferred — §14 Q9)* |
-| HCI commands/events | `ble_ll_hci*`, `ble_hs_hci*` | the HCI peer (split build) or internal | length/parameter validation on every event/command *(inferred — §14 Q1)* |
+| HCI commands/events | `ble_ll_hci*`, `ble_hs_hci*` | the HCI peer (controller or host), which is trusted | length/parameter validation of HCI framing and peer-generated parameters is **hardening**, not a security property. Over-the-air content carried in events (advertising/scan-response data in advertising reports, ACL payload) is covered by the radio rows above and below. *(maintainer — §14 Q1)* |
 | **L2CAP** packets + reassembly | `ble_l2cap`, `_coc`, `_sig` | connected peer | reassembly bounds (no overflow on a lying L2CAP length); COC credit/flow safety *(inferred — §14 Q10)* |
 | **ATT requests** | `ble_att_svr` | connected peer (pre/post-encryption per char permission) | bounds on every ATT opcode (READ/WRITE/PREPARE-WRITE queue, FIND, READ-BLOB offset); the prepared-write queue is a classic resource sink *(inferred — §14 Q11)* |
 | **SM pairing PDUs** | `ble_sm*` | connected peer, pre-encryption | correct pairing state machine; **validate the peer's ECDH public key** (reject invalid-curve / zero / debug keys); no key/nonce reuse; constant-time where it matters *(inferred — §14 Q12, the highest-value crypto question)* |
@@ -233,7 +244,7 @@ question for each surface is only *which tier* it is reachable at.
 | **Anyone in radio range** | **yes — primary** | passively sniff all pre-encryption traffic; inject/spoof advertising; initiate connections; send malformed PDUs at every layer; attempt/abort pairing; replay. |
 | **Active MITM during pairing** | **yes** | sit between two pairing devices. NimBLE's defence is an *authenticated* SM association model (Passkey / Numeric Comparison / OOB); "Just Works" provides **none** by spec (§9, §11a). |
 | **A bonded/paired peer turned malicious** | **conditionally** | has a valid LTK; can send well-formed encrypted requests. In-model only for memory safety / bounds in the request parsers — not for "a bonded peer can use the services it was granted." |
-| **HCI peer** (split builds) | **yes** | a malicious external controller/host across the HCI transport. |
+| **HCI peer** (controller or host, also in split builds) | **out of scope** | a malicious or compromised controller/host, or a corrupted HCI transport, is trusted like the rest of the firmware (§5); bugs it could trigger are fixed as hardening. Over-the-air data it relays stays in scope via the radio actors above. |
 | **Application firmware author** | **out of scope** | trusted; chooses pairing requirements and characteristic permissions. |
 | **Physical / RF-layer attacker** (jam, glitch, decap) | **out of scope** | §3.3, §3.6. |
 | **Side-channel observer** of SM crypto | **partially — §14 Q13** | timing/DPA on pairing; NimBLE's constant-time posture is unconfirmed. |
@@ -253,9 +264,11 @@ NimBLE bug — **unless** NimBLE failed to enforce a permission the app
 
 For each: condition, violation symptom, severity, provenance.
 
-1. **Memory-safe parsing of malformed PDUs across LL / HCI / L2CAP /
-   ATT / SM**, given a correct platform. *(inferred — §14 Q8–Q12; the
-   foundational property)*
+1. **Memory-safe parsing of malformed PDUs across LL / L2CAP / ATT /
+   SM**, and of over-the-air data the host receives inside HCI events
+   (e.g. advertising/scan-response data), given a correct platform. HCI
+   framing and controller-generated event parameters are trusted (§5).
+   *(inferred — §14 Q8–Q12; the foundational property)*
    - *Violation:* a crafted PDU (bad length, malformed AD, oversized ATT
      write, lying L2CAP reassembly length) → OOB read/write or overflow.
    - *Severity:* **high** (single address space; reachable by anyone in
@@ -350,6 +363,7 @@ For each: condition, violation symptom, severity, provenance.
 | "Static/public BD address is trackable" | RPA exists for exactly this; if disabled, that is the integrator's choice. | §9, §10.4 |
 | "Characteristic X is readable by an unpaired peer" | That is the application's ATT-permission choice, not a NimBLE bug — *unless* NimBLE failed to enforce a permission that **was** set (then VALID). | §9, §10.2 |
 | "ECDH debug keys accepted in test build" | Debug keys are a spec test feature; relevant only if reachable in a production build (→ §14 Q12). | §5a, §14 Q12 |
+| "A malformed HCI event/command/ACL header from the controller (or host) causes OOB access or assert" | The HCI peer is trusted in every build; such bugs are fixed as hardening. VALID only if a remote device can cause it through a conformant controller, i.e. the bad bytes are over-the-air content (advertising/scan-response data, ACL payload) that the controller relays. | §5, §7, §14 Q1 |
 
 The discriminator: anything resting on **"BLE/this pairing mode is
 unauthenticated"** is spec, not bug. A **memory-safety/bounds failure in
@@ -369,7 +383,7 @@ enforcing an app-set permission)**, is VALID.
 
 | Disposition | Use when |
 | --- | --- |
-| **VALID** | Memory-unsafety/bounds failure in any LL/HCI/L2CAP/ATT/SM parser reachable from the radio; SM cryptographic/state-machine error (bad ECDH key accepted, nonce/key reuse, silent MITM-downgrade); encryption not applied after start; failure to enforce an ATT permission the app set. |
+| **VALID** | Memory-unsafety/bounds failure in any LL/L2CAP/ATT/SM parser reachable from the radio, or in host parsing of over-the-air data carried in HCI events (not HCI framing itself, §5); SM cryptographic/state-machine error (bad ECDH key accepted, nonce/key reuse, silent MITM-downgrade); encryption not applied after start; failure to enforce an ATT permission the app set. |
 | **OUT-OF-MODEL** | The report depends on a spec-defined unauthenticated/weak behaviour (open advertising, Just Works, pre-encryption sniffing, legacy pairing) — §9. |
 | **DOWNSTREAM** | Fix is the integrator's: require authenticated pairing, set char permissions, enable RPA, disable legacy/DTM (§10). |
 | **NON-FINDING** | Matches a §11a row. |
@@ -383,10 +397,15 @@ into the body above.
 
 **Build / architecture — ANSWERED**
 - **Q1.** Is the HCI transport a trust boundary in split host/controller
-  builds? → **Yes, treat it as a boundary** — a bug on one side should
-  not affect the other. Szymon rates such issues **low severity** in
-  practice, with the notable exception of a controller bug that lets a
-  remote peer crash the host (e.g. during an LL procedure).
+  builds? → **No** (revised 2026-11-09; the 2026-07-24 answer treated it
+  as a low-severity boundary). The controller and host trust each other
+  over HCI in every build, so bugs that only a malicious or compromised
+  HCI peer (or a corrupted transport) can trigger are fixed as
+  **hardening, not vulnerabilities**. Over-the-air data that a
+  conformant controller relays inside HCI events or ACL packets, such
+  as advertising and scan-response data, remains untrusted and in scope.
+  A controller bug that lets a remote peer crash the host (e.g. during
+  an LL procedure) is a controller (radio-tier) issue and in scope.
 - **Q2.** Where do bonds/keys persist? → **Outside "core-host."**
   Persistence is done by callbacks registered in `ble_hs_cfg` (the host's
   main configuration struct), so the backend may store keys anywhere —
