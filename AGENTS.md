@@ -35,6 +35,9 @@ Before reporting a security issue, consult `THREAT_MODEL.md`: most BLE
 traffic is unauthenticated by the Bluetooth specification (open
 advertising, pre-encryption traffic, and "Just Works" pairing has no MITM
 protection), and those spec-defined behaviours are not NimBLE defects. The
-in-model surface is memory safety in the radio PDU parsers (LL / HCI /
-L2CAP / ATT / SM) and the correctness of the Security Manager's pairing
-cryptography. See the §11a known-non-findings list.
+in-model surface is memory safety in the radio PDU parsers (LL / L2CAP /
+ATT / SM, and over-the-air data such as advertising reports that HCI
+carries to the host) and the correctness of the Security Manager's
+pairing cryptography. The HCI transport itself is not a security
+boundary: issues that need a malicious controller or host are hardening.
+See the §11a known-non-findings list.
