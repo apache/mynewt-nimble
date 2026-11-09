@@ -2734,6 +2734,7 @@ ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
                struct ble_sm_result *res)
 {
     struct ble_sm_pair_fail *cmd;
+    uint8_t reason;
 
     res->enc_cb = 1;
 
@@ -2741,8 +2742,16 @@ ble_sm_fail_rx(uint16_t conn_handle, struct os_mbuf **om,
     if (res->app_status == 0) {
         cmd = (struct ble_sm_pair_fail *)(*om)->om_data;
 
-        res->app_status = BLE_HS_SM_PEER_ERR(cmd->reason);
-        res->sm_err =  cmd->reason;
+        /* Reserved reason values are reported as unspecified reason, 0x00
+         * must not be reported as success
+         */
+        reason = cmd->reason;
+        if (reason == BLE_SM_ERR_SUCCESS || reason >= BLE_SM_ERR_MAX_PLUS_1) {
+            reason = BLE_SM_ERR_UNSPECIFIED;
+        }
+
+        res->app_status = BLE_HS_SM_PEER_ERR(reason);
+        res->sm_err = reason;
     }
 }
 
