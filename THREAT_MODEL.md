@@ -102,6 +102,12 @@ host). *(documented: `nimble/{host,controller,transport}` layout; §14 Q1)*
    `apache/mynewt-core`'s `THREAT_MODEL.md`.
 6. **Physical / invasive and side-channel attacks** on the device.
 7. **Supply-chain / build hygiene.**
+8. **Issues present only on the development branch (`master`) and not in
+   any release.** Unreleased code is not shipped to users, so a flaw that
+   was introduced after the latest release and does not affect any
+   released version is a regular bug or regression: it is fixed in
+   `master` like any other bug, without a CVE or security advisory.
+   *(maintainer)*
 
 ## §4 Trust boundaries and data flow
 
@@ -363,6 +369,7 @@ For each: condition, violation symptom, severity, provenance.
 | "Static/public BD address is trackable" | RPA exists for exactly this; if disabled, that is the integrator's choice. | §9, §10.4 |
 | "Characteristic X is readable by an unpaired peer" | That is the application's ATT-permission choice, not a NimBLE bug — *unless* NimBLE failed to enforce a permission that **was** set (then VALID). | §9, §10.2 |
 | "ECDH debug keys accepted in test build" | Debug keys are a spec test feature; relevant only if reachable in a production build (→ §14 Q12). | §5a, §14 Q12 |
+| "Memory-safety bug in `master`" where the affected code is not in any release | Unreleased code; a regression fixed as a regular bug, no CVE. VALID only if a released version is affected. | §3.8 |
 | "A malformed HCI event/command/ACL header from the controller (or host) causes OOB access or assert" | The HCI peer is trusted in every build; such bugs are fixed as hardening. VALID only if a remote device can cause it through a conformant controller, i.e. the bad bytes are over-the-air content (advertising/scan-response data, ACL payload) that the controller relays. | §5, §7, §14 Q1 |
 
 The discriminator: anything resting on **"BLE/this pairing mode is
@@ -384,7 +391,7 @@ enforcing an app-set permission)**, is VALID.
 | Disposition | Use when |
 | --- | --- |
 | **VALID** | Memory-unsafety/bounds failure in any LL/L2CAP/ATT/SM parser reachable from the radio, or in host parsing of over-the-air data carried in HCI events (not HCI framing itself, §5); SM cryptographic/state-machine error (bad ECDH key accepted, nonce/key reuse, silent MITM-downgrade); encryption not applied after start; failure to enforce an ATT permission the app set. |
-| **OUT-OF-MODEL** | The report depends on a spec-defined unauthenticated/weak behaviour (open advertising, Just Works, pre-encryption sniffing, legacy pairing) — §9. |
+| **OUT-OF-MODEL** | The report depends on a spec-defined unauthenticated/weak behaviour (open advertising, Just Works, pre-encryption sniffing, legacy pairing) — §9; or the issue exists only in unreleased `master` code (§3.8), which is handled as a regular bug. |
 | **DOWNSTREAM** | Fix is the integrator's: require authenticated pairing, set char permissions, enable RPA, disable legacy/DTM (§10). |
 | **NON-FINDING** | Matches a §11a row. |
 | **MODEL-GAP** | In-scope in spirit but no §8/§9 item covers it → §14. |

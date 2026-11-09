@@ -40,4 +40,6 @@ ATT / SM, and over-the-air data such as advertising reports that HCI
 carries to the host) and the correctness of the Security Manager's
 pairing cryptography. The HCI transport itself is not a security
 boundary: issues that need a malicious controller or host are hardening.
-See the §11a known-non-findings list.
+Issues present only in unreleased `master` code are regular
+bugs/regressions, not vulnerabilities; check that a released version is
+affected before reporting. See the §11a known-non-findings list.
