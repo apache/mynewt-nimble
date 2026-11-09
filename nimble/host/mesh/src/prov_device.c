@@ -313,7 +313,7 @@ static void prov_dh_key_cb(const uint8_t dhkey[BT_DH_KEY_LEN])
 static int
 mbedtls_rand(void *arg, unsigned char *buf, size_t size)
 {
-	return bt_rand(arg, size);
+	return bt_rand(buf, size);
 }
 
 int bt_mesh_dhkey_gen(const uint8_t *remote_pk, const uint8_t *private_key_be,
