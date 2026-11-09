@@ -466,6 +466,78 @@ TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_inval)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+static void
+ble_sm_test_util_rx_pair_fail(uint16_t conn_handle, uint8_t reason)
+{
+    uint8_t pdu[] = { BLE_SM_OP_PAIR_FAIL, reason };
+    int rc;
+
+    rc = ble_hs_test_util_l2cap_rx_payload_flat(conn_handle, BLE_L2CAP_CID_SM,
+                                                pdu, sizeof(pdu));
+    TEST_ASSERT(rc == BLE_HS_SM_PEER_ERR(BLE_SM_ERR_UNSPECIFIED));
+}
+
+static void
+ble_sm_test_util_verify_reserved_fail_reason(void)
+{
+    /* Reserved reason is reported as unspecified error, never as success. */
+    TEST_ASSERT(ble_sm_test_gap_status == BLE_HS_SM_PEER_ERR(BLE_SM_ERR_UNSPECIFIED));
+    TEST_ASSERT(!ble_sm_test_sec_state.encrypted);
+    TEST_ASSERT(!ble_sm_test_sec_state.authenticated);
+    TEST_ASSERT(ble_sm_num_procs() == 0);
+
+    /* Pairing Failed is not sent in response to Pairing Failed. */
+    TEST_ASSERT(ble_hs_test_util_prev_tx_queue_sz() == 0);
+}
+
+static void
+ble_sm_test_util_peer_fail_reserved_reason(uint8_t reason)
+{
+    struct ble_sm_sec_req sec_req;
+    int rc;
+
+    /*** We initiate pairing. */
+    ble_sm_test_gap_status = -1;
+    memset(&ble_sm_test_sec_state, 0xff, sizeof(ble_sm_test_sec_state));
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){ 0 }));
+
+    rc = ble_sm_pair_initiate(2);
+    TEST_ASSERT_FATAL(rc == 0);
+    ble_hs_test_util_prev_tx_queue_clear();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    ble_sm_test_util_rx_pair_fail(2, reason);
+    ble_sm_test_util_verify_reserved_fail_reason();
+
+    /*** Peer requests security, then fails pairing. */
+    ble_sm_test_gap_status = -1;
+    memset(&ble_sm_test_sec_state, 0xff, sizeof(ble_sm_test_sec_state));
+    ble_sm_dbg_set_next_pair_rand(((uint8_t[16]){ 0 }));
+
+    sec_req.authreq = 0;
+    ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
+    TEST_ASSERT(ble_sm_num_procs() == 1);
+    ble_hs_test_util_prev_tx_queue_clear();
+    TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue_pullup() == NULL);
+
+    ble_sm_test_util_rx_pair_fail(2, reason);
+    ble_sm_test_util_verify_reserved_fail_reason();
+}
+
+TEST_CASE_SELF(ble_sm_test_case_peer_fail_reserved_reason)
+{
+    ble_sm_test_util_init();
+
+    ble_hs_test_util_create_conn(2, ((uint8_t[6]){ 1, 2, 3, 5, 6, 7 }),
+                                 ble_sm_test_util_conn_cb, NULL);
+
+    ble_sm_test_util_peer_fail_reserved_reason(0x00);
+    ble_sm_test_util_peer_fail_reserved_reason(BLE_SM_ERR_MAX_PLUS_1);
+    ble_sm_test_util_peer_fail_reserved_reason(0xff);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_CASE_SELF(ble_sm_test_case_peer_sec_req_reject)
 {
     struct ble_sm_sec_req sec_req;
@@ -584,5 +656,6 @@ TEST_SUITE(ble_sm_gen_test_suite)
     ble_sm_test_case_conn_broken();
     ble_sm_test_case_peer_sec_req_inval();
     ble_sm_test_case_peer_sec_req_reject();
+    ble_sm_test_case_peer_fail_reserved_reason();
 }
 #endif
