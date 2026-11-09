@@ -59,6 +59,9 @@ struct ble_ll_isoal_mux {
     uint32_t iso_interval_us;
     uint32_t sdu_interval_us;
 
+    /* Reference time of the last SDU received from the Host */
+    uint32_t last_sdu_timestamp;
+
     uint32_t event_tx_timestamp;
     uint32_t last_tx_timestamp;
     uint16_t last_tx_packet_seq_num;
@@ -67,6 +70,7 @@ struct ble_ll_isoal_mux {
     uint8_t sc : 1;
     uint8_t framed : 1;
     uint8_t framing_mode : 1;
+    uint8_t last_sdu_timestamp_valid : 1;
 };
 
 #define BLE_LL_ISOAL_SEGHDR(sc, cmplt, len) \
@@ -96,8 +100,8 @@ int ble_ll_isoal_mux_pdu_get(struct ble_ll_isoal_mux *mux, uint8_t idx,
 void ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux,
                                   struct os_mbuf *om);
 
-uint32_t ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
-                                        uint32_t rx_time, uint32_t time_stamp);
+uint32_t ble_ll_isoal_mux_sdu_timestamp(struct ble_ll_isoal_mux *mux,
+                                        uint32_t rx_time, const uint32_t *hci_ts);
 
 void ble_ll_isoal_init(void);
 void ble_ll_isoal_reset(void);

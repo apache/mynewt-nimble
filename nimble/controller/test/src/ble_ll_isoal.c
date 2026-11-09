@@ -521,7 +521,7 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp)
 
     mux = &fixture.mux;
 
-    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, &time_stamp);
     TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
 
     num_pkt = test_sdu_enqueue(mux, sdu_len, 0, sdu_ts);
@@ -559,20 +559,77 @@ TEST_CASE_SELF(test_ble_ll_isoal_mux_framed_sdu_time_stamp_range)
     mux = &fixture.mux;
 
     time_stamp = rx_time + range_us;
-    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, &time_stamp);
     TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
 
     time_stamp = rx_time - range_us;
-    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, &time_stamp);
     TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
 
+    /* Not following a previous SDU */
+    mux->last_sdu_timestamp_valid = 0;
     time_stamp = rx_time + range_us + 1;
-    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, &time_stamp);
     TEST_ASSERT(sdu_ts == rx_time, "SDU timestamp is incorrect %d", sdu_ts);
 
+    mux->last_sdu_timestamp_valid = 0;
     time_stamp = rx_time - range_us - 1;
-    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, time_stamp);
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, &time_stamp);
     TEST_ASSERT(sdu_ts == rx_time, "SDU timestamp is incorrect %d", sdu_ts);
+
+    test_ll_isoal_teardown(&fixture);
+}
+
+TEST_CASE_SELF(test_ble_ll_isoal_mux_sdu_timestamp_no_time_stamp)
+{
+    struct test_ll_isoal_fixture fixture;
+    struct ble_ll_isoal_mux *mux;
+    const uint32_t iso_interval_us = 30000;
+    const uint32_t sdu_interval_us = 10000;
+    const uint32_t range_us = iso_interval_us + sdu_interval_us;
+    const uint32_t rx_time = 100000;
+    uint32_t time_stamp;
+    uint32_t expected;
+    uint32_t sdu_ts;
+
+    test_ll_isoal_setup(&fixture, 20, 40, iso_interval_us, sdu_interval_us, 3,
+                        true, false);
+
+    mux = &fixture.mux;
+
+    /* The first SDU at the time of reception */
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time, NULL);
+    TEST_ASSERT(sdu_ts == rx_time, "SDU timestamp is incorrect %d", sdu_ts);
+
+    /* SDUs received in a burst, an SDU interval apart */
+    for (int i = 1; i < 6; i++) {
+        sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, rx_time + i * 3000, NULL);
+        TEST_ASSERT(sdu_ts == rx_time + i * sdu_interval_us,
+                    "SDU timestamp is incorrect %d", sdu_ts);
+    }
+
+    /* An SDU skipped by the Host: two SDU intervals */
+    expected = sdu_ts + 2 * sdu_interval_us;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, expected + 1000, NULL);
+    TEST_ASSERT(sdu_ts == expected, "SDU timestamp is incorrect %d", sdu_ts);
+
+    /* After a gap, on the SDU intervals from the previous SDU */
+    expected = sdu_ts + 10 * sdu_interval_us;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, expected - 2000, NULL);
+    TEST_ASSERT(sdu_ts == expected, "SDU timestamp is incorrect %d", sdu_ts);
+
+    /* Far ahead of the time of reception, e.g. after a clock drift */
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, sdu_ts - range_us, NULL);
+    TEST_ASSERT(sdu_ts == expected - range_us, "SDU timestamp is incorrect %d", sdu_ts);
+
+    /* A valid Time_Stamp is the reference for the next SDU */
+    time_stamp = sdu_ts + 3000;
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, time_stamp, &time_stamp);
+    TEST_ASSERT(sdu_ts == time_stamp, "SDU timestamp is incorrect %d", sdu_ts);
+
+    sdu_ts = ble_ll_isoal_mux_sdu_timestamp(mux, time_stamp + 2000, NULL);
+    TEST_ASSERT(sdu_ts == time_stamp + sdu_interval_us,
+                "SDU timestamp is incorrect %d", sdu_ts);
 
     test_ll_isoal_teardown(&fixture);
 }
@@ -1499,6 +1556,7 @@ TEST_SUITE(ble_ll_isoal_test_suite)
     test_ble_ll_isoal_mux_framed_sdu_not_sent_early();
     test_ble_ll_isoal_mux_framed_sdu_time_stamp();
     test_ble_ll_isoal_mux_framed_sdu_time_stamp_range();
+    test_ble_ll_isoal_mux_sdu_timestamp_no_time_stamp();
 
     /* Broadcast Single SDU, BIS */
     test_ial_bis_unf_brd_bv_01_c();
