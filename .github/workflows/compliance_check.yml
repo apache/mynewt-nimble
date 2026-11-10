@@ -213,3 +213,16 @@ jobs:
           else
             echo "All commit messages pass style rules."
           fi
+
+  style_check_mynewt_format:
+    name: Coding style (mynewt-format)
+    runs-on: ubuntu-slim
+    steps:
+      # Pull request head instead of merge commit, so that reported lines
+      # match lines of review comments
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      # Runs mynewt-format of the same apache-mynewt-core ref as the action
+      - uses: apache/mynewt-core/.github/actions/mynewt-format-check@master

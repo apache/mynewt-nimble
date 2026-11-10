@@ -3,6 +3,33 @@
 Apache NimBLE project is part of Apache Mynewt projct and follows its coding
 style.
 
+## Checking coding style
+
+Coding style of pull requests is checked in CI by mynewt-format, which lives
+in apache-mynewt-core (`tools/mynewt-format.py`, see `tools/README.md` and
+`tools/mynewt_style/CODING_STANDARDS.md` there). NimBLE uses the same options
+as mynewt-core: `.mynewt-format` is a copy of the one there, kept in sync by a
+daily workflow, so change it in mynewt-core. Only `.mynewt-format-ignore` is
+NimBLE's own. Errors fail the check, warnings are reported only; both are
+commented on in the pull request.
+
+Check your changes before pushing, e.g. in a newt project, where mynewt-core
+is checked out next to NimBLE:
+
+```sh
+cd repos/apache-mynewt-nimble
+python3 ../apache-mynewt-core/tools/mynewt-format.py -i --git-diff upstream/master
+```
+
+`tools/mynewt-format-setup.sh --hook /path/to/mynewt-nimble` in mynewt-core
+installs a `mynewt-format` command and a pre-commit hook.
+
+To silence a rule for some lines use `/* mynewt-format: ignore RULE */`,
+`/* mynewt-format: ignore-next-line */` or `/* mynewt-format: off */` ...
+`/* mynewt-format: on */`. If that is not possible, the skip-style-check label
+makes the check not fail; use it only when necessary and explain the reason in
+the pull request.
+
 # Coding Style for Apache Mynewt Core
 
 This document is meant to define the coding style for Apache Mynewt, and
@@ -115,7 +142,9 @@ not:
 
 ## Line Length and Wrap
 
-* Line length should never exceed 79 columns.
+* Lines of at most 80 columns are preferred. Up to 100 columns is allowed
+  when breaking the line would hurt readability; longer lines are errors.
+  URLs and `#include` lines are exempt.
 
 * When you have to wrap a long statement, put the operator at the end of the
   line.  i.e.:
