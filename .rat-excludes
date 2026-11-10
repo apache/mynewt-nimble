@@ -6,9 +6,7 @@ repos
 RELEASE_NOTES.md
 **/README.md
 Doxyfile
-.clang-format
 .mailmap
-.clang-format-ignore
 **/requirements.txt
 
 # Ignore documentation folder
