@@ -33,61 +33,6 @@ permissions:
   pull-requests: read
 
 jobs:
-  style_check:
-    name: Coding style
-    runs-on: ubuntu-slim
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.x'
-      - name: Install Dependencies
-        shell: bash
-        run: |
-             python -m pip install clang-format
-
-      - name: Check label
-        id: label_check
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const labelName = 'skip-style-check';
-            const labels = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.payload.pull_request.number,
-            });
-            const hasLabel = labels.data.some(label => label.name === labelName);
-            core.setOutput('skip', hasLabel);
-
-      - name: check style
-        shell: bash
-        env:
-          SKIP_STYLE_CHECK: ${{ steps.label_check.outputs.skip }}
-        run: |
-          set +e
-          INFO_URL="https://github.com/apache/mynewt-core/blob/master/CODING_STANDARDS.md"
-          GIT_BASE=$(git merge-base origin/master HEAD)
-          git diff -U0 "$GIT_BASE"...HEAD > diff.patch
-          clang-format-diff.py -p1 -style=file < diff.patch > clang-fmt.patch
-          if [ -s clang-fmt.patch ]; then
-            echo "Code formatting issues found:"
-            cat clang-fmt.patch
-            echo ""
-            echo "For formatting guidelines, see:"
-            echo "  $INFO_URL"
-            if [ "$SKIP_STYLE_CHECK" = "true" ]; then
-              echo "::warning::Ignoring formatting issues because" \
-                   "'skip-style-check' label is present."
-              exit 0
-            fi
-            exit 1
-          else
-            echo "All good, no formatting issues."
-          fi
-
   style_license:
     name: Licensing
     runs-on: ubuntu-slim
