@@ -7,22 +7,23 @@ style.
 
 Coding style of pull requests is checked in CI by mynewt-format, which lives
 in apache-mynewt-core (`tools/mynewt-format.py`, see `tools/README.md` and
-`tools/mynewt_style/CODING_STANDARDS.md` there). NimBLE uses the same options
-as mynewt-core: `.mynewt-format` is a copy of the one there, kept in sync by a
-daily workflow, so change it in mynewt-core. Only `.mynewt-format-ignore` is
-NimBLE's own. Errors fail the check, warnings are reported only; both are
-commented on in the pull request.
+`tools/mynewt_style/CODING_STANDARDS.md` there), with the options of
+mynewt-core (its `.mynewt-format`). Only `.mynewt-format-ignore`, listing
+files not to check, is NimBLE's own. Errors fail the check, warnings are
+reported only; both are commented on in the pull request.
 
 Check your changes before pushing, e.g. in a newt project, where mynewt-core
 is checked out next to NimBLE:
 
 ```sh
 cd repos/apache-mynewt-nimble
-python3 ../apache-mynewt-core/tools/mynewt-format.py -i --git-diff upstream/master
+python3 ../apache-mynewt-core/tools/mynewt-format.py \
+    --config ../apache-mynewt-core/.mynewt-format \
+    --ignore-file .mynewt-format-ignore -i --git-diff upstream/master
 ```
 
 `tools/mynewt-format-setup.sh --hook /path/to/mynewt-nimble` in mynewt-core
-installs a `mynewt-format` command and a pre-commit hook.
+installs a `mynewt-format` command and a pre-commit hook using those options.
 
 To silence a rule for some lines use `/* mynewt-format: ignore RULE */`,
 `/* mynewt-format: ignore-next-line */` or `/* mynewt-format: off */` ...
