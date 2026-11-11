@@ -98,22 +98,55 @@ ble_ll_isoal_mux_sdu_enqueue(struct ble_ll_isoal_mux *mux, struct os_mbuf *om)
 }
 
 uint32_t
-ble_ll_isoal_mux_sdu_timestamp(const struct ble_ll_isoal_mux *mux,
-                               uint32_t rx_time, uint32_t time_stamp)
+ble_ll_isoal_mux_sdu_timestamp(struct ble_ll_isoal_mux *mux, uint32_t rx_time,
+                               const uint32_t *hci_ts)
 {
+    const uint32_t sdu_interval_us = mux->sdu_interval_us;
+    uint32_t num_intervals;
+    uint32_t timestamp;
+    uint32_t expected;
     int32_t range_us;
     int32_t diff;
+
+    range_us = mux->iso_interval_us + sdu_interval_us;
 
     /* Time_Stamp far from the time of reception is not based on the
      * Controller clock (Vol 6, Part G, 3.3), so it is ignored.
      */
-    range_us = mux->iso_interval_us + mux->sdu_interval_us;
-    diff = time_stamp - rx_time;
-    if ((diff < -range_us) || (diff > range_us)) {
-        return rx_time;
+    if (hci_ts != NULL) {
+        diff = *hci_ts - rx_time;
+        if ((diff >= -range_us) && (diff <= range_us)) {
+            timestamp = *hci_ts;
+            goto done;
+        }
     }
 
-    return time_stamp;
+    /* Without Time_Stamp, whole SDU intervals after the previous SDU, at
+     * least one, as the Host may send the SDUs in bursts or skip one. The
+     * time of reception if far from it. A clock drift between the Host and
+     * the Controller makes one SDU interval more from time to time with a
+     * slower Host, or the time of reception again with a faster one.
+     */
+    timestamp = rx_time;
+    if (mux->last_sdu_timestamp_valid) {
+        num_intervals = 1;
+        diff = rx_time - mux->last_sdu_timestamp;
+        if (diff > (int32_t)(sdu_interval_us / 2)) {
+            num_intervals = ((uint32_t)diff + sdu_interval_us / 2) / sdu_interval_us;
+        }
+
+        expected = mux->last_sdu_timestamp + num_intervals * sdu_interval_us;
+        diff = expected - rx_time;
+        if ((diff >= -range_us) && (diff <= range_us)) {
+            timestamp = expected;
+        }
+    }
+
+done:
+    mux->last_sdu_timestamp = timestamp;
+    mux->last_sdu_timestamp_valid = 1;
+
+    return timestamp;
 }
 
 #if MYNEWT_VAL(BLE_LL_ISOAL_MUX_DROP_LATE)
