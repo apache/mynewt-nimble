@@ -1,0 +1,63 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+pkg.name: babblesim/ext/native_simulator
+pkg.type: sdk
+pkg.description: Native simulator runner used by BabbleSim HW models
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://github.com/BabbleSim/native_simulator"
+
+# Native simulator tasks and HW events are registered via linker sections
+# only, so nothing references them directly.
+pkg.whole_archive: true
+
+pkg.cflags:
+    - -std=c11
+    - -DNSI_RUNNER_BUILD
+    - -DNSI_N_CPUS=1
+    - -DNSI_PRIMARY_MCU_N=0
+    - -D_POSIX_C_SOURCE=200809L
+    - -D_XOPEN_SOURCE=600
+    - -D_XOPEN_SOURCE_EXTENDED
+
+pkg.include_dirs:
+    - "@babblesim-native_simulator/common/src/include"
+
+pkg.private_include_dirs:
+    - "@babblesim-native_simulator/common/src"
+
+pkg.source_files:
+    - "@babblesim-native_simulator/common/src/main.c"
+    - "@babblesim-native_simulator/common/src/nce.c"
+    - "@babblesim-native_simulator/common/src/nct.c"
+    - "@babblesim-native_simulator/common/src/nsi_cpu_ctrl.c"
+    - "@babblesim-native_simulator/common/src/nsi_cpun_if.c"
+    - "@babblesim-native_simulator/common/src/nsi_errno.c"
+    - "@babblesim-native_simulator/common/src/nsi_host_trampolines.c"
+    - "@babblesim-native_simulator/common/src/nsi_hw_scheduler.c"
+    - "@babblesim-native_simulator/common/src/nsi_tasks.c"
+    - "@babblesim-native_simulator/common/src/nsi_trace_varg.c"
+    - "@babblesim-native_simulator/common/src/nsi_weak_stubs.c"
+
+repository.babblesim-native_simulator:
+    type: github
+    vers: 7e9bc5a32b423bee7f4f9d955df6239d1f6e9425-commit
+    branch: main
+    user: BabbleSim
+    repo: native_simulator

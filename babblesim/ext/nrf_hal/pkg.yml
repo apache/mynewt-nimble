@@ -1,0 +1,75 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+pkg.name: babblesim/ext/nrf_hal
+pkg.type: sdk
+pkg.description: nrfx and nrfx HAL replacements for BabbleSim nRF HW models (built in embedded SW context)
+pkg.author: "Apache Mynewt <dev@mynewt.apache.org>"
+pkg.homepage: "https://github.com/BabbleSim/ext_nRF_hw_models"
+
+# nrf_hal_originals.c provides weak versions of all nrfx HAL functions, so
+# all objects need to be linked to make sure replacements from HW models are
+# used instead of originals.
+pkg.whole_archive: true
+
+pkg.deps:
+    - "@apache-mynewt-nimble/babblesim/ext/nrf_hw_models"
+
+# nrfx (nordic-nrfx repository) is declared by apache-mynewt-core, so the same
+# version is used as for nRF targets.
+#
+# Headers from HW models replace some of the original nrfx headers so they
+# need to come first. newt sorts include paths alphabetically, so
+# babblesim-nrf_hw_models paths precede nordic-nrfx paths.
+pkg.include_dirs:
+    - "@babblesim-nrf_hw_models/src/HW_models"
+    - "@babblesim-nrf_hw_models/src/nrfx_config"
+    - "@babblesim-nrf_hw_models/src/nrfx/mdk_replacements"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal_replacements"
+    - "@babblesim-nrf_hw_models/src/nrfx/nrfx_replacements"
+    - "@nordic-nrfx/."
+    - "@nordic-nrfx/hal"
+    - "@nordic-nrfx/drivers/include"
+    - "@nordic-nrfx/bsp/stable"
+    - "@nordic-nrfx/bsp/stable/mdk"
+
+pkg.source_files:
+    - "@babblesim-nrf_hw_models/src/nrfx/drivers/nrfx_common.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/drivers/nrfx_common.52833.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_ccm.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_common.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_rtc.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_gpio.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_temp.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_radio.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_egu.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_timer.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_hal_originals.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_nvmc.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_clock.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_gpiote.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_rng.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_aar.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_ppi.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_ecb.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_uart.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_uarte.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_hack.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/hal/nrf_hack.52833.c"
+    - "@babblesim-nrf_hw_models/src/nrfx/mdk_replacements/system.c"

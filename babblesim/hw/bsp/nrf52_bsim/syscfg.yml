@@ -42,8 +42,8 @@ syscfg.vals:
     BLE_LL_PRIO: 1
     MCU_UART_POLLER_PRIO: 9
 
-    # Enable nRF52832 MCU
-    MCU_TARGET: nRF52832
+    # Enable nRF52833 MCU
+    MCU_TARGET: nRF52833
     # Set default pins for peripherals
     UART_0_PIN_TX: 6
     UART_0_PIN_RX: 8
