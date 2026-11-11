@@ -43,7 +43,16 @@ struct hci_h4_allocators {
 extern const struct hci_h4_allocators hci_h4_allocs_from_ll;
 extern const struct hci_h4_allocators hci_h4_allocs_from_hs;
 
+/** Callback invoked on every frame that the H4 parser sees; it is this
+ *  callback's responsibility to dispatch packets to the transport layer.
+ */
 typedef int (hci_h4_frame_cb)(uint8_t pkt_type, void *data);
+
+/** Callback invoked at the start of every packet that the H4 parser sees,
+ *  to allow a transport to parse custom types of packets that the H4 parser
+ *  may not otherwise understand (for instance, TI eHCILL packets).
+ */
+typedef uint16_t(hci_h4_packet_cb)(const uint8_t *buf, uint16_t len);
 
 struct hci_h4_sm {
     uint8_t state;
@@ -59,11 +68,18 @@ struct hci_h4_sm {
 
     const struct hci_h4_allocators *allocs;
     hci_h4_frame_cb *frame_cb;
+    hci_h4_packet_cb *packet_cb;
 };
 
 void hci_h4_sm_init(struct hci_h4_sm *h4sm,
                     const struct hci_h4_allocators *allocs,
                     hci_h4_frame_cb *frame_cb);
+
+/* We do not include this in sm_init to avoid breaking the API for other
+ * users, but ideally if you need to call this, you will call it immediately
+ * once, right after sm_init.
+ */
+void hci_h4_sm_set_packet_cb(struct hci_h4_sm *h4sm, hci_h4_packet_cb *packet_cb);
 
 int hci_h4_sm_rx(struct hci_h4_sm *h4sm, const uint8_t *buf, uint16_t len);
 
