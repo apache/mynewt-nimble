@@ -58,6 +58,10 @@
 #define BTP_STATUS_UNKNOWN_CMD    0x02
 #define BTP_STATUS_NOT_READY    0x03
 
+/* Event opcodes are 0x80-0xff, bit 0 of the supported events bitmap is 0x80 */
+#define BTP_EVENT_OPCODE_BASE      0x80
+#define BTP_EVENT_BITMAP_MAX_LEN   16
+
 /* TODO indicate delay response, should be removed when all commands are
  * converted to cmd+status+ev pattern
  */
