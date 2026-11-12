@@ -1504,7 +1504,7 @@ ble_l2cap_sig_ecoc_connect_nolock(uint16_t conn_handle, uint16_t psm, uint16_t m
     int rc;
     int i;
 
-    if (!sdu_rx || !cb) {
+    if (!sdu_rx || !cb || num == 0 || num > BLE_L2CAP_MAX_COC_CONN_REQ) {
         return BLE_HS_EINVAL;
     }
 
