@@ -29,6 +29,21 @@ pkg.type: sdk
 pkg.cflags: -O3 -std=c11 -ffast-math -Wno-array-bounds
 pkg.lflags: -lm
 
+# Resamplers are referenced from a table indexed by sampling rate, so they
+# are not removed by linker even if never used. Defining resampler name
+# makes liblc3 skip it (hook for arch specific versions), NULL is stored in
+# table instead.
+pkg.cflags.'!LIBLC3_ENABLE_LTPF_RESAMPLE_8K':
+    - -Dresample_8k_12k8=NULL
+pkg.cflags.'!LIBLC3_ENABLE_LTPF_RESAMPLE_16K':
+    - -Dresample_16k_12k8=NULL
+pkg.cflags.'!LIBLC3_ENABLE_LTPF_RESAMPLE_24K':
+    - -Dresample_24k_12k8=NULL
+pkg.cflags.'!LIBLC3_ENABLE_LTPF_RESAMPLE_32K':
+    - -Dresample_32k_12k8=NULL
+pkg.cflags.'!LIBLC3_ENABLE_LTPF_RESAMPLE_48K':
+    - -Dresample_48k_12k8=NULL
+
 pkg.ign_dirs:
     - "@liblc3/test"
     - "@liblc3/zephyr"
