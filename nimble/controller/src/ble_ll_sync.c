@@ -725,6 +725,7 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
 {
     uint32_t fields_buf;
     uint32_t sdu_interval;
+    uint32_t iso_interval_us;
     uint16_t iso_interval;
     uint16_t max_sdu;
     uint8_t max_pdu;
@@ -756,14 +757,34 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
     }
     ev->max_pdu = htole16(max_pdu);
 
+    framing_mode = biginfo[12] >> 7;
+    framed = biginfo[32] >> 7;
+
     fields_buf = get_le32(&biginfo[17]);
     sdu_interval = fields_buf & 0x0FFFFF;
     max_sdu = (fields_buf >> 20) & 0x0FFF;
     if (sdu_interval < BLE_LL_SYNC_BIGINFO_SDU_ITVL_MIN || max_sdu == 0) {
         return false;
     }
+
+    /* Core 6.2 | Vol 6, Part G, 2.1
+     * For unframed PDUs, the ISO_Interval is a multiple of the SDU_Interval
+     * and BN is a multiple of the number of SDUs per ISO_Interval.
+     */
+    if (!framed) {
+        iso_interval_us = iso_interval * 1250;
+        if (sdu_interval > iso_interval_us || (iso_interval_us % sdu_interval) != 0 ||
+            (ev->bn % (iso_interval_us / sdu_interval)) != 0) {
+            return false;
+        }
+    }
     put_le24(ev->sdu_interval, sdu_interval);
     ev->max_sdu = htole16(max_sdu);
+
+    /* Channel map in octets 23-27, at least 2 channels used */
+    if (ble_ll_utils_chan_map_used_get(&biginfo[23]) < 2) {
+        return false;
+    }
 
     ev->phy = ble_ll_sync_biginfo_phy_get(biginfo);
     if (ev->phy == 0) {
@@ -777,8 +798,6 @@ ble_ll_sync_parse_biginfo_to_ev(struct ble_hci_ev_le_subev_biginfo_adv_report *e
         return false;
     }
 
-    framing_mode = biginfo[12] >> 7;
-    framed = biginfo[32] >> 7;
     if (!framed) {
         ev->framing = BLE_HCI_ISO_FRAMING_UNFRAMED;
     } else if (framing_mode) {
