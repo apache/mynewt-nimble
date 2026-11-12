@@ -62,6 +62,41 @@ void ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm);
 
 uint32_t ble_ll_sync_get_event_end_time(void);
 
+/* Anchor point of periodic advertising event was received */
+#define BLE_LL_SYNC_NOTIFY_ANCHOR       0
+/* Sync was lost (timeout), no more anchors */
+#define BLE_LL_SYNC_NOTIFY_LOST         1
+/* Sync was terminated by host, no more anchors */
+#define BLE_LL_SYNC_NOTIFY_TERMINATED   2
+
+/**
+ * Callback with notifications about established syncs. Called from LL task.
+ *
+ * BLE_LL_SYNC_NOTIFY_ANCHOR is sent on first PDU of each periodic advertising
+ * event received with valid CRC (not for chained PDUs).
+ * BLE_LL_SYNC_NOTIFY_LOST and BLE_LL_SYNC_NOTIFY_TERMINATED are sent when sync
+ * ends, sync handle is no longer valid then. No notification is sent on LL
+ * reset.
+ *
+ * @param sync_handle     Sync handle
+ * @param event           BLE_LL_SYNC_NOTIFY_*
+ * @param event_cntr      paEventCounter of the event (ANCHOR only)
+ * @param anchor_ticks    Anchor point, i.e. start of received PDU (ANCHOR only)
+ * @param anchor_rem_us   Anchor point usecs remainder (ANCHOR only)
+ * @param arg             Argument passed to ble_ll_sync_notify_cb_set()
+ */
+typedef void (*ble_ll_sync_notify_cb_t)(uint16_t sync_handle, uint8_t event,
+                                        uint16_t event_cntr, uint32_t anchor_ticks,
+                                        uint8_t anchor_rem_us, void *arg);
+
+/**
+ * Sets notification callback for all syncs. It is not cleared when sync ends.
+ *
+ * @param cb   Callback, NULL to disable
+ * @param arg  Argument passed to callback
+ */
+void ble_ll_sync_notify_cb_set(ble_ll_sync_notify_cb_t cb, void *arg);
+
 bool ble_ll_sync_enabled(void);
 
 void ble_ll_sync_reset(void);

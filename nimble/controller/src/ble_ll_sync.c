@@ -152,6 +152,9 @@ static uint8_t *g_ble_ll_sync_create_comp_ev;
 
 static struct ble_ll_sync_sm *g_ble_ll_sync_sm_current;
 
+static ble_ll_sync_notify_cb_t g_ble_ll_sync_notify_cb;
+static void *g_ble_ll_sync_notify_cb_arg;
+
 static int ble_ll_sync_event_start_cb(struct ble_ll_sched_item *sch);
 
 static int
@@ -425,6 +428,15 @@ ble_ll_sync_est_event_failed(struct ble_ll_sync_sm *sm, uint8_t status)
     }
 
     g_ble_ll_sync_create_comp_ev = NULL;
+}
+
+static void
+ble_ll_sync_notify(struct ble_ll_sync_sm *sm, uint8_t event)
+{
+    if (g_ble_ll_sync_notify_cb) {
+        g_ble_ll_sync_notify_cb(ble_ll_sync_get_handle(sm), event, 0, 0, 0,
+                                g_ble_ll_sync_notify_cb_arg);
+    }
 }
 
 static void
@@ -1225,6 +1237,7 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     int datalen;
     bool reports_enabled;
     bool is_duplicate = false;
+    bool anchor_rxd = false;
 
     BLE_LL_ASSERT(sm);
 
@@ -1247,6 +1260,8 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         sm->anchor_point = hdr->beg_cputime;
         sm->anchor_point_usecs = hdr->rem_usecs;
         sm->last_anchor_point = sm->anchor_point;
+
+        anchor_rxd = true;
     }
 
     /* CRC error, end event */
@@ -1304,6 +1319,12 @@ ble_ll_sync_rx_pkt_in(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     /* we need to establish link even if reporting was disabled */
     if (sm->flags & BLE_LL_SYNC_SM_FLAG_ESTABLISHING) {
         ble_ll_sync_established(sm);
+    }
+
+    if (anchor_rxd && g_ble_ll_sync_notify_cb) {
+        g_ble_ll_sync_notify_cb(ble_ll_sync_get_handle(sm), BLE_LL_SYNC_NOTIFY_ANCHOR,
+                                sm->event_cntr, hdr->beg_cputime, hdr->rem_usecs,
+                                g_ble_ll_sync_notify_cb_arg);
     }
 
     /* only if reporting is enabled */
@@ -1467,6 +1488,7 @@ ble_ll_sync_event_end(struct ble_npl_event *ev)
                 ble_ll_sync_check_failed(sm);
             } else {
                 ble_ll_sync_lost_event(sm);
+                ble_ll_sync_notify(sm, BLE_LL_SYNC_NOTIFY_LOST);
             }
 
             /* at this point SM is no longer valid */
@@ -1855,6 +1877,8 @@ ble_ll_sync_terminate(const uint8_t *cmdbuf, uint8_t len)
     ble_ll_sync_sm_clear(sm);
 
     OS_EXIT_CRITICAL(sr);
+
+    ble_ll_sync_notify(sm, BLE_LL_SYNC_NOTIFY_TERMINATED);
 
     return BLE_ERR_SUCCESS;
 }
@@ -2467,6 +2491,13 @@ void
 ble_ll_sync_rmvd_from_sched(struct ble_ll_sync_sm *sm)
 {
     ble_ll_event_add(&sm->sync_ev_end);
+}
+
+void
+ble_ll_sync_notify_cb_set(ble_ll_sync_notify_cb_t cb, void *arg)
+{
+    g_ble_ll_sync_notify_cb = cb;
+    g_ble_ll_sync_notify_cb_arg = arg;
 }
 
 bool

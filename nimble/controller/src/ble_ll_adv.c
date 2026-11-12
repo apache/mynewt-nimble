@@ -5527,6 +5527,19 @@ ble_ll_adv_padv_event_start_get(struct ble_ll_adv_sm *advsm,
 }
 
 int
+ble_ll_adv_padv_event_counter_get(struct ble_ll_adv_sm *advsm,
+                                  uint16_t *event_counter)
+{
+    if (!advsm || !advsm->periodic_adv_active) {
+        return -EINVAL;
+    }
+
+    *event_counter = advsm->periodic_event_cntr;
+
+    return 0;
+}
+
+int
 ble_ll_adv_sync_big_add(struct ble_ll_adv_sm *advsm,
                         struct ble_ll_iso_big *big)
 {

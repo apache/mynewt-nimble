@@ -204,6 +204,9 @@ struct ble_ll_adv_sm *ble_ll_adv_sync_get(uint8_t handle);
 int ble_ll_adv_padv_event_start_get(struct ble_ll_adv_sm *advsm,
                                     uint32_t *event_start,
                                     uint8_t *event_start_rem_us);
+/* Get paEventCounter of event returned by ble_ll_adv_padv_event_start_get() */
+int ble_ll_adv_padv_event_counter_get(struct ble_ll_adv_sm *advsm,
+                                      uint16_t *event_counter);
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 struct ble_ll_iso_big;
