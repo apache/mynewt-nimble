@@ -58,7 +58,7 @@ struct ble_ll_iso_conn_q ll_iso_conn_q;
 STAILQ_HEAD(hci_iso_frag_q, os_mbuf_pkthdr);
 
 static void
-hci_iso_sdu_send(uint16_t conn_handle, const struct os_mbuf *sdu,
+hci_iso_sdu_send(uint8_t data_path_id, uint16_t conn_handle, const struct os_mbuf *sdu,
                  uint32_t timestamp, uint16_t seq_num, bool valid)
 {
     struct hci_iso_frag_q frags = STAILQ_HEAD_INITIALIZER(frags);
@@ -162,12 +162,17 @@ drop:
     }
 }
 
-static struct ble_ll_iso_data_path_cb hci_iso_data_path_cb = {
+static const struct ble_ll_iso_data_path_ops hci_iso_data_path_ops = {
     .sdu_out = hci_iso_sdu_send,
 };
 
+static struct ble_ll_iso_data_path hci_iso_data_path = {
+    .id = BLE_HCI_ISO_DATA_PATH_ID_HCI,
+    .ops = &hci_iso_data_path_ops,
+};
+
 static void
-iso_test_sdu_send(uint16_t conn_handle, const struct os_mbuf *sdu,
+iso_test_sdu_send(uint8_t data_path_id, uint16_t conn_handle, const struct os_mbuf *sdu,
                   uint32_t timestamp, uint16_t seq_num, bool valid)
 {
     struct ble_ll_iso_conn *conn;
@@ -206,19 +211,54 @@ iso_test_sdu_send(uint16_t conn_handle, const struct os_mbuf *sdu,
     rx->test.received_sdu_count++;
 }
 
-static struct ble_ll_iso_data_path_cb test_iso_data_path_cb = {
+static const struct ble_ll_iso_data_path_ops test_iso_data_path_ops = {
     .sdu_out = iso_test_sdu_send,
 };
 
-static const struct ble_ll_iso_data_path_cb *
-ble_ll_iso_data_path_get(uint8_t data_path_id)
+/* Set by ISO test commands, so it is not registered */
+static const struct ble_ll_iso_data_path test_iso_data_path = {
+    .id = 0xff,
+    .ops = &test_iso_data_path_ops,
+};
+
+static STAILQ_HEAD(, ble_ll_iso_data_path) g_data_paths;
+
+static struct ble_ll_iso_data_path *
+data_path_find(uint8_t data_path_id)
 {
-    if (data_path_id == BLE_HCI_ISO_DATA_PATH_ID_HCI) {
-        return &hci_iso_data_path_cb;
+    struct ble_ll_iso_data_path *dp;
+
+    STAILQ_FOREACH(dp, &g_data_paths, next) {
+        if (dp->id == data_path_id) {
+            return dp;
+        }
     }
 
-    /* We do not (yet) support any vendor-specific data path */
     return NULL;
+}
+
+int
+ble_ll_iso_data_path_register(struct ble_ll_iso_data_path *dp)
+{
+    if (dp->id == 0xff || dp->ops == NULL) {
+        return -EINVAL;
+    }
+
+    if (data_path_find(dp->id) != NULL) {
+        return -EALREADY;
+    }
+
+    STAILQ_INSERT_TAIL(&g_data_paths, dp, next);
+
+    return 0;
+}
+
+static void
+data_path_remove(const struct ble_ll_iso_data_path *dp, uint16_t conn_handle, uint8_t dir)
+{
+    if (dp->ops->remove != NULL) {
+        dp->ops->remove(dp->id, conn_handle, dir);
+    }
 }
 
 static void
@@ -229,8 +269,9 @@ iso_sdu_cb(struct ble_ll_isoal_demux *demux, const struct os_mbuf *om,
 
     rx = CONTAINER_OF(demux, struct ble_ll_iso_rx, demux);
 
-    if (rx->data_path != NULL && rx->data_path->sdu_out != NULL) {
-        rx->data_path->sdu_out(rx->conn->handle, om, timestamp, seq_num, valid);
+    if (rx->data_path != NULL) {
+        rx->data_path->ops->sdu_out(rx->data_path->id, rx->conn->handle, om,
+                                    timestamp, seq_num, valid);
     }
 }
 
@@ -244,7 +285,9 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
 {
     const struct ble_hci_le_setup_iso_data_path_cp *cmd = (const void *)cmdbuf;
     struct ble_hci_le_setup_iso_data_path_rp *rsp = (void *)rspbuf;
-    const struct ble_ll_iso_data_path_cb *data_path;
+    struct ble_ll_iso_data_path_setup_params params;
+    struct ble_ll_iso_data_path *data_path;
+    int rc;
     struct ble_ll_iso_conn *conn;
     struct ble_ll_iso_rx *rx;
     struct ble_ll_iso_tx *tx;
@@ -266,10 +309,17 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
         return BLE_ERR_UNK_CONN_ID;
     }
 
-    data_path = ble_ll_iso_data_path_get(cmd->data_path_id);
+    data_path = data_path_find(cmd->data_path_id);
     if (data_path == NULL) {
         return BLE_ERR_CMD_DISALLOWED;
     }
+
+    params.conn_handle = conn_handle;
+    params.dir = cmd->data_path_dir;
+    memcpy(params.codec_id, cmd->codec_id, sizeof(params.codec_id));
+    params.controller_delay = get_le24(cmd->controller_delay);
+    params.codec_config_len = cmd->codec_config_len;
+    params.codec_config = cmd->codec_config;
 
     if (cmd->data_path_dir == BLE_HCI_ISO_DATA_PATH_DIR_INPUT) {
         /* Input (Host to Controller) */
@@ -281,6 +331,13 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
             return BLE_ERR_UNSUPPORTED;
         }
 
+        if (data_path->ops->setup != NULL) {
+            rc = data_path->ops->setup(data_path->id, &params);
+            if (rc != 0) {
+                return rc;
+            }
+        }
+
         tx->data_path = data_path;
     } else {
         /* Output (Controller to Host) */
@@ -290,6 +347,15 @@ ble_ll_iso_setup_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
         }
         if (rx->params->bn == 0) {
             return BLE_ERR_UNSUPPORTED;
+        }
+        if (data_path->ops->sdu_out == NULL) {
+            return BLE_ERR_CMD_DISALLOWED;
+        }
+        if (data_path->ops->setup != NULL) {
+            rc = data_path->ops->setup(data_path->id, &params);
+            if (rc != 0) {
+                return rc;
+            }
         }
 
         rx->data_path = data_path;
@@ -348,11 +414,13 @@ ble_ll_iso_remove_iso_data_path(const uint8_t *cmdbuf, uint8_t cmdlen,
 
     if (remove_tx) {
         BLE_LL_ASSERT(tx != NULL);
+        data_path_remove(tx->data_path, conn_handle, BLE_HCI_ISO_DATA_PATH_DIR_INPUT);
         tx->data_path = NULL;
     }
 
     if (remove_rx) {
         BLE_LL_ASSERT(rx != NULL);
+        data_path_remove(rx->data_path, conn_handle, BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT);
         ble_ll_isoal_demux_cb_set(&rx->demux, NULL);
         rx->data_path = NULL;
     }
@@ -401,7 +469,7 @@ ble_ll_iso_transmit_test(const uint8_t *cmdbuf, uint8_t cmdlen,
     }
 
     tx->test.payload_type = cmd->payload_type;
-    tx->data_path = &test_iso_data_path_cb;
+    tx->data_path = &test_iso_data_path;
 
     rsp->conn_handle = cmd->conn_handle;
 
@@ -444,7 +512,7 @@ ble_ll_iso_receive_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
     rx->test.received_sdu_count = 0;
     rx->test.missed_sdu_count = 0;
     rx->test.failed_sdu_count = 0;
-    rx->data_path = &test_iso_data_path_cb;
+    rx->data_path = &test_iso_data_path;
     ble_ll_isoal_demux_cb_set(&rx->demux, &isoal_demux_cb);
 
     rsp->conn_handle = cmd->conn_handle;
@@ -476,7 +544,7 @@ ble_ll_iso_read_counters_test(const uint8_t *cmdbuf, uint8_t cmdlen,
     }
 
     rx = conn->rx;
-    if (rx == NULL || rx->data_path != &test_iso_data_path_cb) {
+    if (rx == NULL || rx->data_path != &test_iso_data_path) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -519,7 +587,7 @@ ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
     rsp->conn_handle = htole16(handle);
 
     rx = conn->rx;
-    if (rx != NULL && rx->data_path == &test_iso_data_path_cb) {
+    if (rx != NULL && rx->data_path == &test_iso_data_path) {
         rx->data_path = NULL;
         ble_ll_isoal_demux_cb_set(&rx->demux, NULL);
         rsp->received_sdu_count = htole32(rx->test.received_sdu_count);
@@ -529,7 +597,7 @@ ble_ll_iso_end_test(const uint8_t *cmdbuf, uint8_t cmdlen, uint8_t *rspbuf,
     }
 
     tx = conn->tx;
-    if (tx != NULL && tx->data_path == &test_iso_data_path_cb) {
+    if (tx != NULL && tx->data_path == &test_iso_data_path) {
         tx->data_path = NULL;
         rc = BLE_ERR_SUCCESS;
     }
@@ -633,6 +701,11 @@ ble_ll_iso_init(void)
     BLE_LL_ASSERT(rc == 0);
 
     STAILQ_INIT(&ll_iso_conn_q);
+
+    STAILQ_INIT(&g_data_paths);
+
+    rc = ble_ll_iso_data_path_register(&hci_iso_data_path);
+    BLE_LL_ASSERT(rc == 0);
 }
 
 void
@@ -831,7 +904,7 @@ int
 ble_ll_iso_tx_pdu_get(struct ble_ll_iso_tx *tx, uint8_t idx,
                       uint32_t pkt_counter, uint8_t *llid, void *dptr)
 {
-    if (tx->data_path == &test_iso_data_path_cb) {
+    if (tx->data_path == &test_iso_data_path) {
         return ble_ll_iso_test_pdu_get(&tx->mux, idx, pkt_counter, llid, dptr,
                                        tx->test.payload_type, tx->test.rand);
     }
@@ -922,13 +995,18 @@ ble_ll_iso_tx_init(struct ble_ll_iso_tx *tx, struct ble_ll_iso_conn *conn,
 void
 ble_ll_iso_tx_reset(struct ble_ll_iso_tx *tx)
 {
+    if (tx->data_path != NULL) {
+        data_path_remove(tx->data_path, tx->conn->handle, BLE_HCI_ISO_DATA_PATH_DIR_INPUT);
+        tx->data_path = NULL;
+    }
+
     ble_ll_isoal_mux_free(&tx->mux);
 }
 
 int
 ble_ll_iso_tx_event_start(struct ble_ll_iso_tx *tx, uint32_t timestamp)
 {
-    if (tx->data_path == &test_iso_data_path_cb) {
+    if (tx->data_path == &test_iso_data_path) {
         tx->test.rand = ble_ll_rand() % tx->params->max_sdu;
     }
 
@@ -963,6 +1041,11 @@ ble_ll_iso_rx_init(struct ble_ll_iso_rx *rx, struct ble_ll_iso_conn *conn,
 void
 ble_ll_iso_rx_reset(struct ble_ll_iso_rx *rx)
 {
+    if (rx->data_path != NULL) {
+        data_path_remove(rx->data_path, rx->conn->handle, BLE_HCI_ISO_DATA_PATH_DIR_OUTPUT);
+        rx->data_path = NULL;
+    }
+
     ble_ll_isoal_demux_reset(&rx->demux);
 }
 
