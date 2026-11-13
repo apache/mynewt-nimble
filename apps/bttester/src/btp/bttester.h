@@ -36,6 +36,14 @@
 
 #define BIT(n)  (1UL << (n))
 
+/* BTP commands carry no advertising handle, so the tester uses fixed
+ * advertising instances.
+ */
+/* Legacy, extended and directed advertising */
+#define BTTESTER_ADV_INSTANCE          0
+/* Periodic advertising, also used by the BAP broadcast source */
+#define BTTESTER_PER_ADV_INSTANCE      1
+
 /* Reset os_mbuf to reusable state */
 void
 tester_mbuf_reset(struct os_mbuf *buf);

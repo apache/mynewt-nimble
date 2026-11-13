@@ -434,7 +434,8 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         adv_params.filter_policy = BLE_HCI_ADV_FILT_BOTH;
     }
 
-    err = ble_gap_ext_adv_configure(0, &adv_params, NULL, gap_event_cb, NULL);
+    err = ble_gap_ext_adv_configure(BTTESTER_ADV_INSTANCE, &adv_params, NULL,
+                                    gap_event_cb, NULL);
     if (err) {
         SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", err);
         return BTP_STATUS_FAILED;
@@ -446,7 +447,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
         os_mbuf_free_chain(ad_buf);
         return BTP_STATUS_FAILED;
     }
-    err = ble_gap_ext_adv_set_data(0, ad_buf);
+    err = ble_gap_ext_adv_set_data(BTTESTER_ADV_INSTANCE, ad_buf);
 #else
     err = ble_gap_adv_set_data(buf, buf_len);
 #endif
@@ -471,7 +472,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
             os_mbuf_free_chain(ad_buf);
             return BTP_STATUS_FAILED;
         }
-        err = ble_gap_ext_adv_rsp_set_data(0, ad_buf);
+        err = ble_gap_ext_adv_rsp_set_data(BTTESTER_ADV_INSTANCE, ad_buf);
 #else
         err = ble_gap_adv_rsp_set_data(buf, buf_len);
 #endif
@@ -512,7 +513,7 @@ start_advertising(const void *cmd, uint16_t cmd_len,
     }
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    err = ble_gap_ext_adv_start(0, duration_ms / 10, 0);
+    err = ble_gap_ext_adv_start(BTTESTER_ADV_INSTANCE, duration_ms / 10, 0);
 #else
     err = ble_gap_adv_start(own_addr_type, NULL, duration_ms,
                             &adv_params, gap_event_cb, NULL);
@@ -539,7 +540,7 @@ stop_advertising(const void *cmd, uint16_t cmd_len,
     SYS_LOG_DBG("");
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
-    if (ble_gap_ext_adv_stop(0) != 0) {
+    if (ble_gap_ext_adv_stop(BTTESTER_ADV_INSTANCE) != 0) {
         return BTP_STATUS_FAILED;
     }
 #else
@@ -1747,13 +1748,14 @@ start_direct_adv(const void *cmd, uint16_t cmd_len,
     dir_adv_params.own_addr_type = own_addr_type;
     memcpy(&dir_adv_params.peer, &cp->address, sizeof(dir_adv_params.peer));
 
-    err = ble_gap_ext_adv_configure(0, &dir_adv_params, NULL, gap_event_cb, NULL);
+    err = ble_gap_ext_adv_configure(BTTESTER_ADV_INSTANCE, &dir_adv_params,
+                                    NULL, gap_event_cb, NULL);
     if (err) {
         SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", err);
         return BTP_STATUS_FAILED;
     }
 
-    err = ble_gap_ext_adv_start(0, 128, 0);
+    err = ble_gap_ext_adv_start(BTTESTER_ADV_INSTANCE, 128, 0);
 #else
     dir_adv_params.high_duty_cycle = cp->options & BIT(1);
 
@@ -2004,13 +2006,14 @@ periodic_adv_configure(const void *cmd, uint16_t cmd_len,
     ext_params.secondary_phy = BLE_HCI_LE_PHY_1M;
     ext_params.sid = 1;
 
-    rc = ble_gap_ext_adv_configure(1, &ext_params, NULL, gap_event_cb, NULL);
+    rc = ble_gap_ext_adv_configure(BTTESTER_PER_ADV_INSTANCE, &ext_params, NULL,
+                                   gap_event_cb, NULL);
     if (rc) {
         SYS_LOG_ERR("Failed to configure extended advertiser; rc=%d", rc);
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_configure(1, &params);
+    rc = ble_gap_periodic_adv_configure(BTTESTER_PER_ADV_INSTANCE, &params);
     if (rc) {
         SYS_LOG_ERR("Failed to configure periodic advertiser; rc=%d\n"
                     "params.itvl_min %d\n"
@@ -2034,13 +2037,13 @@ periodic_adv_start(const void *cmd, uint16_t cmd_len,
     int rc;
     struct btp_gap_periodic_adv_start_rp *rp = rsp;
 
-    rc = ble_gap_ext_adv_start(1, 0, 0);
+    rc = ble_gap_ext_adv_start(BTTESTER_PER_ADV_INSTANCE, 0, 0);
     if (rc) {
         SYS_LOG_ERR("Failed to start extended advertiser; rc=%d", rc);
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_start(1, NULL);
+    rc = ble_gap_periodic_adv_start(BTTESTER_PER_ADV_INSTANCE, NULL);
     if (rc) {
         SYS_LOG_ERR("Failed to start periodic advertiser; rc=%d", rc);
         return BTP_STATUS_FAILED;
@@ -2069,7 +2072,8 @@ periodic_adv_set_data(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_set_data(1, adv_data, NULL);
+    rc = ble_gap_periodic_adv_set_data(BTTESTER_PER_ADV_INSTANCE, adv_data,
+                                       NULL);
     if (rc) {
         SYS_LOG_ERR("Failed to set periodic advertiser data; rc=%d", rc);
         return BTP_STATUS_FAILED;
@@ -2174,8 +2178,8 @@ periodic_adv_sync_transfer_set_info(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    rc = ble_gap_periodic_adv_sync_set_info(1, desc.conn_handle,
-                                            cp->svc_data);
+    rc = ble_gap_periodic_adv_sync_set_info(BTTESTER_PER_ADV_INSTANCE,
+                                            desc.conn_handle, cp->svc_data);
     if (rc) {
         SYS_LOG_ERR("Failed to set info; rc=%d", rc);
         return BTP_STATUS_FAILED;
