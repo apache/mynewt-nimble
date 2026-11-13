@@ -271,6 +271,13 @@ struct os_mbuf;
 /** Access operation: Write. */
 #define BLE_ATT_ACCESS_OP_WRITE             2
 
+/**
+ * Access operation: Write without response (ATT Write Command).
+ * Only reported in BLE_GAP_EVENT_AUTHORIZE; attribute access callbacks
+ * receive BLE_ATT_ACCESS_OP_WRITE.
+ */
+#define BLE_ATT_ACCESS_OP_WRITE_CMD         3
+
 /** @} */
 
 /** Default ATT MTU. Also the minimum. */
