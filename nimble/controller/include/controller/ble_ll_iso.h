@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <os/os_mbuf.h>
+#include <syscfg/syscfg.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,6 +58,90 @@ void ble_ll_iso_reset(void);
 
 /* HCI ISO Data SDU handler */
 int ble_ll_hci_iso_data_in(struct os_mbuf *om);
+
+#if MYNEWT_VAL(BLE_LL_ISO)
+
+/** Parameters of LE Setup ISO Data Path passed to a data path. */
+struct ble_ll_iso_data_path_setup_params {
+    /** CIS or BIS connection handle. */
+    uint16_t conn_handle;
+    /** Data path direction (BLE_HCI_ISO_DATA_PATH_DIR_*). */
+    uint8_t dir;
+    /** Codec ID. */
+    uint8_t codec_id[5];
+    /** Controller delay in microseconds. */
+    uint32_t controller_delay;
+    /** Codec configuration length. */
+    uint8_t codec_config_len;
+    /** Codec configuration, valid only during the setup callback. */
+    const uint8_t *codec_config;
+};
+
+/** ISO data path callbacks. */
+struct ble_ll_iso_data_path_ops {
+    /**
+     * @brief Sets up the data path (optional).
+     *
+     * @param data_path_id Data path ID.
+     * @param params LE Setup ISO Data Path parameters.
+     *
+     * @return 0 on success, HCI error code otherwise.
+     */
+    int (*setup)(uint8_t data_path_id,
+                 const struct ble_ll_iso_data_path_setup_params *params);
+
+    /**
+     * @brief Removes the data path (optional).
+     *
+     * Called also when the CIS or BIS is terminated.
+     *
+     * @param data_path_id Data path ID.
+     * @param conn_handle CIS or BIS connection handle.
+     * @param dir Data path direction.
+     */
+    void (*remove)(uint8_t data_path_id, uint16_t conn_handle, uint8_t dir);
+
+    /**
+     * @brief Delivers a received SDU, mandatory for the output direction.
+     *
+     * @param data_path_id Data path ID.
+     * @param conn_handle CIS or BIS connection handle.
+     * @param om SDU data, NULL if the SDU is lost.
+     * @param timestamp SDU timestamp.
+     * @param seq_num SDU sequence number.
+     * @param valid false if the SDU was received with errors.
+     */
+    void (*sdu_out)(uint8_t data_path_id, uint16_t conn_handle,
+                    const struct os_mbuf *om, uint32_t timestamp,
+                    uint16_t seq_num, bool valid);
+};
+
+/**
+ * ISO data path. In the input direction its user passes SDUs to the
+ * controller with ble_ll_hci_iso_data_in().
+ */
+struct ble_ll_iso_data_path {
+    /** Data path ID, 0x01-0xFE for vendor specific data paths. */
+    uint8_t id;
+    /** Data path callbacks. */
+    const struct ble_ll_iso_data_path_ops *ops;
+
+    STAILQ_ENTRY(ble_ll_iso_data_path) next;
+};
+
+/**
+ * @brief Registers an ISO data path.
+ *
+ * The data path shall stay valid as long as the controller runs.
+ *
+ * @param dp Data path to register.
+ *
+ * @return 0 on success or if already registered, -EINVAL if the ID is
+ *         reserved or ops is NULL, -EALREADY if the ID is taken.
+ */
+int ble_ll_iso_data_path_register(struct ble_ll_iso_data_path *dp);
+
+#endif /* BLE_LL_ISO */
 
 #ifdef __cplusplus
 }

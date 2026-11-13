@@ -48,29 +48,6 @@ struct ble_ll_iso_params {
     uint8_t framing_mode : 1;
 };
 
-/**
- * @struct ble_ll_iso_data_path_cb
- *
- * Interface structure for ISO data path callbacks.
- */
-struct ble_ll_iso_data_path_cb {
-    /**
-     * @brief Callback function for ISO SDU (Service Data Unit) output.
-     *
-     * @param conn_handle The connection handle associated with the received SDU.
-     * @param om Pointer to the `os_mbuf` structure containing the SDU data.
-     *           Can be `NULL` if the SDU is considered as lost.
-     * @param timestamp Timestamp associated with the received SDU.
-     * @param seq_num Sequence number of the SDU.
-     * @param valid Status of the SDU reception.
-     *              - `true`: SDU was received successfully, and `om` contains valid data.
-     *              - `false`: An error occurred during processing, but partial or corrupted
-     *                         SDU data may be available in `om`.
-     */
-    void (*sdu_out)(uint16_t conn_handle, const struct os_mbuf *om,
-                    uint32_t timestamp, uint16_t seq_num, bool valid);
-};
-
 /* Forward declaration */
 struct ble_ll_iso_conn;
 
@@ -99,7 +76,7 @@ struct ble_ll_iso_rx {
     const struct ble_ll_iso_params *params;
 
     /* ISO Data Path */
-    const struct ble_ll_iso_data_path_cb *data_path;
+    const struct ble_ll_iso_data_path *data_path;
 };
 
 /* ISO Tx object */
@@ -119,7 +96,7 @@ struct ble_ll_iso_tx {
     const struct ble_ll_iso_params *params;
 
     /* ISO Data Path */
-    const struct ble_ll_iso_data_path_cb *data_path;
+    const struct ble_ll_iso_data_path *data_path;
 };
 
 /* ISO Connection object */
