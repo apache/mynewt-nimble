@@ -1723,6 +1723,10 @@ ble_gap_rx_adv_report(struct ble_gap_disc_desc *desc)
         return;
     }
 
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    ble_hs_resolv_addr(&desc->addr);
+#endif
+
     ble_gap_disc_report(desc);
 #endif
 }
@@ -1741,6 +1745,10 @@ ble_gap_rx_ext_adv_report(struct ble_gap_ext_disc_desc *desc)
     if (ble_gap_rx_adv_report_sanity_check(desc->data, desc->length_data)) {
         return;
     }
+
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    ble_hs_resolv_addr(&desc->addr);
+#endif
 
     ble_gap_ext_disc_report(desc);
 }
@@ -2200,6 +2208,13 @@ ble_gap_rx_conn_complete(struct ble_gap_conn_complete *evt, uint8_t instance)
         }
         return 0;
     }
+
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    /* Report a bonded peer's RPA as its identity address, as a controller
+     * resolving list would.
+     */
+    ble_hs_resolv_conn_complete(evt);
+#endif
 
     /* Apply the event to the existing connection if it exists. */
     if (ble_hs_atomic_conn_flags(evt->connection_handle, NULL) == 0) {
@@ -5816,6 +5831,16 @@ ble_gap_ext_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 #if MYNEWT_VAL(BLE_ROLE_CENTRAL)
     ble_npl_time_t duration_ticks;
     int rc;
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    ble_addr_t rpa;
+
+    /* The controller cannot resolve: connect to the RPA a bonded peer was
+     * last seen with.
+     */
+    if (peer_addr != NULL && ble_hs_resolv_peer_rpa(peer_addr, &rpa) == 0) {
+        peer_addr = &rpa;
+    }
+#endif
 
     STATS_INC(ble_gap_stats, initiate);
 
@@ -5945,6 +5970,16 @@ ble_gap_connect(uint8_t own_addr_type, const ble_addr_t *peer_addr,
 #else
     uint32_t duration_ticks;
     int rc;
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    ble_addr_t rpa;
+
+    /* The controller cannot resolve: connect to the RPA a bonded peer was
+     * last seen with.
+     */
+    if (peer_addr != NULL && ble_hs_resolv_peer_rpa(peer_addr, &rpa) == 0) {
+        peer_addr = &rpa;
+    }
+#endif
 
     STATS_INC(ble_gap_stats, initiate);
 

@@ -506,8 +506,12 @@ ble_sm_alg_csis_sdf(const uint8_t *k, const uint8_t *enc_sirk, uint8_t *out)
     return 0;
 }
 
+/* Random address hash function ah (Vol 3, Part H, 2.2.2). r is the 24-bit
+ * prand of an RPA and out its 24-bit hash, both least significant octet
+ * first.
+ */
 int
-ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out)
+ble_sm_alg_ah(const uint8_t *irk, const uint8_t *r, uint8_t *out)
 {
     uint8_t r1[16];
     int rc;
@@ -515,7 +519,7 @@ ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out)
     memcpy(r1, r, 3);
     memset(r1 + 3, 0, 13);
 
-    rc = ble_sm_alg_encrypt(k, r1, r1);
+    rc = ble_sm_alg_encrypt(irk, r1, r1);
     if (rc != 0) {
         return rc;
     }
@@ -523,6 +527,13 @@ ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out)
     memcpy(out, r1, 3);
 
     return 0;
+}
+
+int
+ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out)
+{
+    /* CSIS sih is defined as ah */
+    return ble_sm_alg_ah(k, r, out);
 }
 
 int
