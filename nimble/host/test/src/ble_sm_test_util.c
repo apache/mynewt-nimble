@@ -1660,6 +1660,8 @@ ble_sm_test_util_peer_bonding_bad(uint16_t ediv, uint64_t rand_num)
  *                                  security request;
  *                                  1: Peer sends a security request at start.
  *                                  0: No security request; we initiate.
+ *                                  2: We initiate; peer sends a security
+ *                                     request before encryption completes.
  */
 static void
 ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
@@ -1690,12 +1692,13 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
     ble_hs_test_util_hci_ack_set(
         ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_START_ENCRYPT), 0);
 
-    if (send_enc_req) {
-        sec_req.authreq = 0;
-        sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_BOND;
-        if (authenticated) {
-            sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_MITM;
-        }
+    sec_req.authreq = 0;
+    sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_BOND;
+    if (authenticated) {
+        sec_req.authreq |= BLE_SM_PAIR_AUTHREQ_MITM;
+    }
+
+    if (send_enc_req == 1) {
         ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
     } else {
         ble_gap_security_initiate(2);
@@ -1706,6 +1709,15 @@ ble_sm_test_util_us_bonding_good(int send_enc_req, uint8_t our_addr_type,
     TEST_ASSERT(!conn->bhc_sec_state.encrypted);
     TEST_ASSERT(ble_sm_num_procs() == 1);
     ble_sm_test_util_io_inject_bad(2, BLE_SM_IOACT_NONE);
+
+    if (send_enc_req == 2) {
+        /* Security request while our procedure is in progress is ignored;
+         * the procedure is kept and completes on the encryption change.
+         */
+        ble_sm_test_util_rx_sec_req(2, &sec_req, 0);
+        TEST_ASSERT(ble_sm_num_procs() == 1);
+        TEST_ASSERT(ble_hs_test_util_prev_tx_dequeue() == NULL);
+    }
 
     /* Receive an encryption changed event. */
     ble_sm_test_util_rx_enc_change(2, 0, 1);
@@ -1881,6 +1893,14 @@ ble_sm_test_util_bonding_all(struct ble_sm_test_params *params,
         /* We are master; peer initiates procedure via security request. */
         ble_sm_test_util_us_bonding_good(
             1, our_entity.addr_type, our_entity.rpa, peer_entity.addr_type,
+            peer_entity.id_addr, peer_entity.rpa, peer_entity.ltk,
+            params->authenticated, peer_entity.ediv, peer_entity.rand_num);
+
+        /* We are master; we initiate procedure and peer sends security
+         * request before it completes.
+         */
+        ble_sm_test_util_us_bonding_good(
+            2, our_entity.addr_type, our_entity.rpa, peer_entity.addr_type,
             peer_entity.id_addr, peer_entity.rpa, peer_entity.ltk,
             params->authenticated, peer_entity.ediv, peer_entity.rand_num);
     }
