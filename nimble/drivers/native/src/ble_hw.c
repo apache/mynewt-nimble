@@ -27,6 +27,7 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_opt.h"
 #include "controller/ble_hw.h"
+#include <mbedtls/aes.h>
 
 /* Total number of white list elements supported by nrf52 */
 #define BLE_HW_WHITE_LIST_SIZE      (0)
@@ -134,7 +135,18 @@ ble_hw_whitelist_match(void)
 int
 ble_hw_encrypt_block(struct ble_encryption_block *ecb)
 {
-    return -1;
+    mbedtls_aes_context aes_ctx;
+    int rc;
+
+    mbedtls_aes_init(&aes_ctx);
+    rc = mbedtls_aes_setkey_enc(&aes_ctx, ecb->key, 128);
+    if (rc == 0) {
+        rc = mbedtls_aes_crypt_ecb(&aes_ctx, MBEDTLS_AES_ENCRYPT,
+                                   ecb->plain_text, ecb->cipher_text);
+    }
+    mbedtls_aes_free(&aes_ctx);
+
+    return rc ? -1 : 0;
 }
 
 /**

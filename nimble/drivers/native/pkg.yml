@@ -27,4 +27,5 @@ pkg.keywords:
 
 pkg.apis: ble_driver
 pkg.deps:
+    - "@apache-mynewt-core/crypto/mbedtls"
     - nimble/controller
