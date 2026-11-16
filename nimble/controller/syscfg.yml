@@ -530,7 +530,7 @@ syscfg.defs:
         restrictions:
             - BLE_LL_ISO if 1
             - BLE_LL_CFG_FEAT_LL_PERIODIC_ADV if 1
-        value: 0
+        value: MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
         state: experimental
     BLE_LL_ISO_BROADCASTER_MAX_BIGS:
         description: >
@@ -547,7 +547,7 @@ syscfg.defs:
             Enable support for Isochronous Broadcast Streams Synchronization state.
         restrictions:
             - BLE_LL_ISO if 1
-        value: 0
+        value: MYNEWT_VAL(BLE_ISO_BROADCAST_SINK)
         state: experimental
     BLE_LL_ISO_BROADCAST_SYNC_MAX_BIGS:
         description: >
@@ -728,9 +728,6 @@ syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
     BLE_LL_SCAN_AUX_SEGMENT_CNT: 8
-
-syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
-    BLE_LL_ISO_BROADCASTER: 1
 
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
     BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1
