@@ -43,6 +43,23 @@ syscfg.defs:
         restrictions:
             - 'BLE_LL_ROLE_BROADCASTER if 0'
 
+    BLE_LL_MAX_CONNECTIONS:
+        description: >
+            Maximum number of concurrent connections supported by controller.
+        value: MYNEWT_VAL(BLE_MAX_CONNECTIONS)
+
+    BLE_LL_MAX_ADV_INSTANCES:
+        description: >
+            Maximum number of advertising instances supported by controller,
+            at least 1.
+        value: MYNEWT_VAL(BLE_MAX_ADV_INSTANCES)
+
+    BLE_LL_EXT_ADV_MAX_SIZE:
+        description: >
+            Maximum size of advertising data and scan response data supported
+            by controller for LE Advertising Extensions. Valid range 31-1650.
+        value: MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)
+
     BLE_HW_WHITELIST_ENABLE:
         description: >
             Used to enable hardware white list
@@ -316,9 +333,10 @@ syscfg.defs:
             Advertising Feature.
         value: MYNEWT_VAL(BLE_PERIODIC_ADV)
 
-    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT:
+    BLE_LL_MAX_PERIODIC_SYNCS:
         description: >
-            This option is used to configure number of supported periodic syncs.
+            Maximum number of concurrent periodic syncs supported by
+            controller.
         value: MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)
 
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT:

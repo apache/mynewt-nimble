@@ -730,7 +730,7 @@ ble_ll_adv_rd_sup_adv_sets(uint8_t *rspbuf, uint8_t *rsplen)
 {
     struct ble_hci_le_rd_num_of_adv_sets_rp *rsp = (void *)rspbuf;
 
-    rsp->num_sets = BLE_ADV_INSTANCES;
+    rsp->num_sets = BLE_LL_ADV_INSTANCES;
 
     *rsplen = sizeof(*rsp);
     return BLE_ERR_SUCCESS;
