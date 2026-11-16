@@ -107,14 +107,16 @@ syscfg.defs:
 
     # Configuration items for the number of duplicate advertisers and the
     # number of advertisers from which we have heard a scan response.
-    BLE_LL_NUM_SCAN_DUP_ADVS:
-        description: 'The number of duplicate advertisers stored.'
-        value: '8'
-    BLE_LL_NUM_SCAN_RSP_ADVS:
+    BLE_LL_SCAN_DUP_LIST_SIZE:
+        description: >
+            The number of duplicate advertisers stored, 0 disables duplicate
+            filtering.
+        value: MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
+    BLE_LL_SCAN_RSP_LIST_SIZE:
         description: >
             The number of advertisers from which we have heard a scan
             response. Prevents sending duplicate events to host.
-        value: '8'
+        value: MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)
 
     BLE_LL_WHITELIST_SIZE:
         description: 'Size of the LL whitelist.'
@@ -339,10 +341,10 @@ syscfg.defs:
             controller.
         value: MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)
 
-    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT:
+    BLE_LL_PERIODIC_ADV_LIST_SIZE:
         description: >
-            Size of Periodic Advertiser sync list.
-        value: MYNEWT_VAL(BLE_MAX_PERIODIC_SYNCS)
+            Size of Periodic Advertiser List.
+        value: MYNEWT_VAL(BLE_LL_MAX_PERIODIC_SYNCS)
 
     BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_TRANSFER:
         description: >
@@ -398,11 +400,11 @@ syscfg.defs:
         value: MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_BIGINFO_REPORTS)
         experimental: 1
 
-    BLE_LL_SCAN_AUX_SEGMENT_CNT:
-         description: >
+    BLE_LL_SCAN_AUX_SEGMENT_COUNT:
+        description: >
             Number of auxiliary advertising segments that can be scanned
             concurrently (Core 5.2, Vol 6, Part B, 4.4.2.2.2).
-         value: 0
+        value: 0
 
     BLE_LL_SCAN_ACTIVE_SCAN_NRPA:
         description: >
@@ -745,7 +747,9 @@ syscfg.defs.'BLE_LL_CFG_FEAT_LE_2M_PHY || BLE_LL_CFG_FEAT_LE_CODED_PHY':
 syscfg.vals.BLE_LL_CFG_FEAT_LL_EXT_ADV:
     BLE_LL_CFG_FEAT_LE_CSA2: 1
     BLE_HW_WHITELIST_ENABLE: 0
-    BLE_LL_SCAN_AUX_SEGMENT_CNT: 8
+
+syscfg.vals.'BLE_LL_CFG_FEAT_LL_EXT_ADV && !BLE_LL_SCAN_AUX_SEGMENT_CNT':
+    BLE_LL_SCAN_AUX_SEGMENT_COUNT: 8
 
 syscfg.vals.BLE_LL_ISO_BROADCASTER:
     BLE_LL_CFG_FEAT_LE_ENCRYPTION: 1

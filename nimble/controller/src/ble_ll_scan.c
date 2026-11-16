@@ -57,7 +57,7 @@
  */
 
 /* Dont allow more than 255 of these entries */
-#if MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS) > 255
+#if MYNEWT_VAL(BLE_LL_SCAN_RSP_LIST_SIZE) > 255
     #error "Cannot have more than 255 scan response entries!"
 #endif
 
@@ -99,7 +99,7 @@ struct ble_ll_scan_advertisers
 /* Contains list of advertisers that we have heard scan responses from */
 static uint8_t g_ble_ll_scan_num_rsp_advs;
 struct ble_ll_scan_advertisers
-g_ble_ll_scan_rsp_advs[MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)];
+g_ble_ll_scan_rsp_advs[MYNEWT_VAL(BLE_LL_SCAN_RSP_LIST_SIZE)];
 
 /* Duplicates filtering data */
 #define BLE_LL_SCAN_ENTRY_TYPE_LEGACY(addr_type) \
@@ -124,7 +124,7 @@ struct ble_ll_scan_dup_entry {
 };
 
 static os_membuf_t g_scan_dup_mem[ OS_MEMPOOL_SIZE(
-                                   MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS),
+                                   MYNEWT_VAL(BLE_LL_SCAN_DUP_LIST_SIZE),
                                    sizeof(struct ble_ll_scan_dup_entry)) ];
 static struct os_mempool g_scan_dup_pool;
 static TAILQ_HEAD(ble_ll_scan_dup_list, ble_ll_scan_dup_entry) g_scan_dup_list;
@@ -443,7 +443,7 @@ ble_ll_scan_add_scan_rsp_adv(uint8_t *addr, uint8_t txadd,
 
     /* XXX: for now, if we dont have room, just leave */
     num_advs = g_ble_ll_scan_num_rsp_advs;
-    if (num_advs >= MYNEWT_VAL(BLE_LL_NUM_SCAN_RSP_ADVS)) {
+    if (num_advs >= MYNEWT_VAL(BLE_LL_SCAN_RSP_LIST_SIZE)) {
         return;
     }
 
@@ -2460,7 +2460,7 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
         }
 #endif
 
-#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
+#if MYNEWT_VAL(BLE_LL_SCAN_DUP_LIST_SIZE)
         /* update filter policy */
         scansm->scan_filt_dups = filter_dups;
 #endif
@@ -2479,7 +2479,7 @@ ble_ll_scan_set_enable(uint8_t enable, uint8_t filter_dups, uint16_t period,
      * disabled now
      */
 
-#if MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS)
+#if MYNEWT_VAL(BLE_LL_SCAN_DUP_LIST_SIZE)
     scansm->scan_filt_dups = filter_dups;
 #endif
     scansm->scanp = NULL;
@@ -2830,7 +2830,7 @@ ble_ll_scan_init(void)
     os_error_t err;
 
     err = os_mempool_init(&g_scan_dup_pool,
-                          MYNEWT_VAL(BLE_LL_NUM_SCAN_DUP_ADVS),
+                          MYNEWT_VAL(BLE_LL_SCAN_DUP_LIST_SIZE),
                           sizeof(struct ble_ll_scan_dup_entry),
                           g_scan_dup_mem,
                           "ble_ll_scan_dup_pool");

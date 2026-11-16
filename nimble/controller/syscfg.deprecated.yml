@@ -31,6 +31,22 @@ syscfg.defs:
         description: Use BLE_LL_MAX_PERIODIC_SYNCS instead
         value: 0
         deprecated: 1
+    BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT:
+        description: Use BLE_LL_PERIODIC_ADV_LIST_SIZE instead
+        value: 0
+        deprecated: 1
+    BLE_LL_SCAN_AUX_SEGMENT_CNT:
+        description: Use BLE_LL_SCAN_AUX_SEGMENT_COUNT instead
+        value: 0
+        deprecated: 1
+    BLE_LL_NUM_SCAN_DUP_ADVS:
+        description: Use BLE_LL_SCAN_DUP_LIST_SIZE instead
+        value: 8
+        deprecated: 1
+    BLE_LL_NUM_SCAN_RSP_ADVS:
+        description: Use BLE_LL_SCAN_RSP_LIST_SIZE instead
+        value: 8
+        deprecated: 1
 
 syscfg.vals.BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG:
     BLE_LL_ISO_BROADCAST_SYNC_MAX_BIGS: MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG)
@@ -40,3 +56,9 @@ syscfg.vals.BLE_LL_ISO_BROADCAST_SYNC_MAX_BIS:
 
 syscfg.vals.BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT:
     BLE_LL_MAX_PERIODIC_SYNCS: MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_CNT)
+
+syscfg.vals.BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT:
+    BLE_LL_PERIODIC_ADV_LIST_SIZE: MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_PERIODIC_ADV_SYNC_LIST_CNT)
+
+syscfg.vals.BLE_LL_SCAN_AUX_SEGMENT_CNT:
+    BLE_LL_SCAN_AUX_SEGMENT_COUNT: MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_CNT)
