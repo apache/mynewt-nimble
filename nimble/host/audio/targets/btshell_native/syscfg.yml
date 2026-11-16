@@ -45,7 +45,7 @@ syscfg.vals:
     BLE_EXT_ADV: 1
     BLE_EXT_ADV_MAX_SIZE: 261
 
-    BLE_MULTI_ADV_INSTANCES: 1
+    BLE_MAX_ADV_INSTANCES: 2
 
     # Enable Periodic Advertising
     BLE_PERIODIC_ADV: 1

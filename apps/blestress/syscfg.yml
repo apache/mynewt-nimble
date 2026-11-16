@@ -57,11 +57,8 @@ syscfg.vals:
     # Max advertising data size
     BLE_EXT_ADV_MAX_SIZE: 1650
 
-    # Number of multi-advertising instances. Note that due
-    # to historical reasons total number of advertising
-    # instances is BLE_MULTI_ADV_INSTANCES + 1 as instance
-    # 0 is always available
-    BLE_MULTI_ADV_INSTANCES: 2
+    # Number of advertising instances
+    BLE_MAX_ADV_INSTANCES: 3
 
     # Controller uses msys pool for storing advertising data and scan responses.
     # Since we advertise a lot of data (~4k in total) at the same time we need

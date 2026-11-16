@@ -44,13 +44,10 @@ syscfg.defs:
             Enables the BLE whitelist for controlling who to connect to or
             accept a connection from. (0/1)
         value: 1
-    BLE_MULTI_ADV_INSTANCES:
+    BLE_MAX_ADV_INSTANCES:
         description: >
-            This is the number of multi-advertising instances. This is NOT the
-            total number of advertising instances. The total number of
-            advertising instances is this number plus 1 (assuming the device
-            supports advertising).
-        value: 0
+            Maximum number of advertising instances, at least 1.
+        value: 1
     BLE_EXT_ADV:
         description: >
             This enables extended advertising feature.
@@ -171,3 +168,7 @@ syscfg.vals.BLE_CONTROLLER:
 
 syscfg.vals.'BLE_ISO_BROADCAST_SOURCE || BLE_ISO_BROADCAST_SINK':
     BLE_ISO: 1
+
+# Deprecated settings are kept in separate file to reduce clutter in main file
+$import:
+    - "@apache-mynewt-nimble/nimble/syscfg.deprecated.yml"
