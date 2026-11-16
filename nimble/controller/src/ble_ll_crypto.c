@@ -18,19 +18,88 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <nimble/ble.h>
 #include <controller/ble_ll_crypto.h>
 #include <controller/ble_hw.h>
-#include <mbedtls/cmac.h>
+
+static void
+ble_ll_crypto_encrypt_block(struct ble_encryption_block *ecb)
+{
+    /* Hardware AES may be preempted by radio (e.g. on-the-fly CCM or AAR),
+     * retry until it succeeds.
+     */
+    while (ble_hw_encrypt_block(ecb)) {
+    }
+}
+
+static void
+cmac_subkey(const uint8_t *k_in, uint8_t *k_out)
+{
+    uint8_t msb;
+    int i;
+
+    msb = k_in[0] & 0x80;
+
+    for (i = 0; i < BLE_ENC_BLOCK_SIZE - 1; i++) {
+        k_out[i] = (k_in[i] << 1) | (k_in[i + 1] >> 7);
+    }
+    k_out[BLE_ENC_BLOCK_SIZE - 1] = k_in[BLE_ENC_BLOCK_SIZE - 1] << 1;
+
+    if (msb) {
+        k_out[BLE_ENC_BLOCK_SIZE - 1] ^= 0x87;
+    }
+}
 
 int
 ble_ll_crypto_cmac(const uint8_t *key, const uint8_t *in, int len,
                    uint8_t *out)
 {
-    if (mbedtls_cipher_cmac(mbedtls_cipher_info_from_type(MBEDTLS_CIPHER_AES_128_ECB),
-                            key, 128, in, len, out)) {
-        return -1;
+    struct ble_encryption_block ecb;
+    uint8_t subkey[BLE_ENC_BLOCK_SIZE];
+    uint8_t m;
+    int i;
+
+    memcpy(ecb.key, key, BLE_ENC_BLOCK_SIZE);
+
+    /* Generate_Subkey */
+    memset(ecb.plain_text, 0, BLE_ENC_BLOCK_SIZE);
+    ble_ll_crypto_encrypt_block(&ecb);
+
+    /* Generate K1 */
+    cmac_subkey(ecb.cipher_text, subkey);
+
+    /* Generate K2 or skip if last block should be xor-ed with K1 */
+    if (len == 0 || len % BLE_ENC_BLOCK_SIZE) {
+        cmac_subkey(subkey, subkey);
     }
+
+    /* Blocks 1 .. n-1 */
+    memset(ecb.cipher_text, 0, BLE_ENC_BLOCK_SIZE);
+    while (len > BLE_ENC_BLOCK_SIZE) {
+        for (i = 0; i < BLE_ENC_BLOCK_SIZE; i++) {
+            ecb.plain_text[i] = ecb.cipher_text[i] ^ in[i];
+        }
+        ble_ll_crypto_encrypt_block(&ecb);
+
+        in += BLE_ENC_BLOCK_SIZE;
+        len -= BLE_ENC_BLOCK_SIZE;
+    }
+
+    /* Last block */
+    for (i = 0; i < BLE_ENC_BLOCK_SIZE; i++) {
+        if (i < len) {
+            m = in[i];
+        } else if (i == len) {
+            m = 0x80;
+        } else {
+            m = 0;
+        }
+        ecb.plain_text[i] = ecb.cipher_text[i] ^ m ^ subkey[i];
+    }
+    ble_ll_crypto_encrypt_block(&ecb);
+
+    memcpy(out, ecb.cipher_text, BLE_ENC_BLOCK_SIZE);
 
     return 0;
 }
