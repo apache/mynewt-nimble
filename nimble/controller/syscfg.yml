@@ -532,6 +532,16 @@ syscfg.defs:
             - BLE_LL_CFG_FEAT_LL_PERIODIC_ADV if 1
         value: 0
         state: experimental
+    BLE_LL_ISO_BROADCASTER_MAX_BIGS:
+        description: >
+            Maximum number of concurrent BIGs created by Isochronous
+            Broadcaster.
+        value: MYNEWT_VAL(BLE_ISO_MAX_BIGS)
+    BLE_LL_ISO_BROADCASTER_MAX_BISES:
+        description: >
+            Maximum number of concurrent BISes created by Isochronous
+            Broadcaster, in all BIGs.
+        value: MYNEWT_VAL(BLE_ISO_MAX_BISES)
     BLE_LL_ISO_BROADCAST_SYNC:
         description: >
             Enable support for Isochronous Broadcast Streams Synchronization state.
@@ -539,16 +549,16 @@ syscfg.defs:
             - BLE_LL_ISO if 1
         value: 0
         state: experimental
-    BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG:
+    BLE_LL_ISO_BROADCAST_SYNC_MAX_BIGS:
         description: >
-            Maximum number of concurrent broadcast isochronous groups sync.
-        value: 1
-        experimental: 1
-    BLE_LL_ISO_BROADCAST_SYNC_MAX_BIS:
+            Maximum number of concurrent BIGs synchronized to by Synchronized
+            Receiver.
+        value: MYNEWT_VAL(BLE_ISO_MAX_BIGS)
+    BLE_LL_ISO_BROADCAST_SYNC_MAX_BISES:
         description: >
-            Maximum number of concurrent broadcast isochronous streams per group.
-        value: 2
-        experimental: 1
+            Maximum number of concurrent BISes synchronized to by Synchronized
+            Receiver, in all BIGs.
+        value: MYNEWT_VAL(BLE_ISO_MAX_BISES)
     BLE_LL_ISO_BROADCAST_SYNC_MAX_BN:
         description: >
             Maximum number of bursts that can be received per broadcast isochronous stream event.
@@ -746,3 +756,5 @@ syscfg.restrictions:
 $import:
     # "Here be dragons" settings
     - "@apache-mynewt-nimble/nimble/controller/syscfg.hbd.yml"
+    # Deprecated settings
+    - "@apache-mynewt-nimble/nimble/controller/syscfg.deprecated.yml"

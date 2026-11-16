@@ -41,9 +41,8 @@
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCASTER)
 
-/* XXX make those configurable */
-#define BIG_POOL_SIZE           (10)
-#define BIS_POOL_SIZE           (10)
+#define BIG_POOL_SIZE           (MYNEWT_VAL(BLE_LL_ISO_BROADCASTER_MAX_BIGS))
+#define BIS_POOL_SIZE           (MYNEWT_VAL(BLE_LL_ISO_BROADCASTER_MAX_BISES))
 
 #define BIG_HANDLE_INVALID      (0xff)
 

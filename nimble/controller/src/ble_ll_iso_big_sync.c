@@ -39,10 +39,8 @@
 
 #if MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC)
 
-#define BIG_POOL_SIZE (MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG))
-#define BIS_POOL_SIZE                                                         \
-    (MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIG) *                          \
-     MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIS))
+#define BIG_POOL_SIZE (MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIGS))
+#define BIS_POOL_SIZE (MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BISES))
 
 #define BIG_CONTROL_ACTIVE_CHAN_MAP 1
 #define BIG_CONTROL_ACTIVE_TERM     2
@@ -1608,7 +1606,7 @@ ble_ll_iso_big_sync_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (cmd->num_bis > MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BIS)) {
+    if (cmd->num_bis > MYNEWT_VAL(BLE_LL_ISO_BROADCAST_SYNC_MAX_BISES)) {
         return BLE_ERR_CONN_REJ_RESOURCES;
     }
 

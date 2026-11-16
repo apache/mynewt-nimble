@@ -105,6 +105,22 @@ syscfg.defs:
         value: 0
         restrictions:
             - '(BLE_VERSION >= 52) if 1'
+    BLE_ISO_MAX_BIGS:
+        description: >
+            Maximum number of concurrent BIGs, i.e. broadcast isochronous
+            groups created or synchronized to.
+        value: MYNEWT_VAL(BLE_MAX_ADV_INSTANCES)
+        restrictions:
+            - '!BLE_ISO_BROADCAST_SOURCE if 0'
+            - '!BLE_ISO_BROADCAST_SINK if 0'
+    BLE_ISO_MAX_BISES:
+        description: >
+            Maximum number of concurrent BISes, i.e. broadcast isochronous
+            streams, in all BIGs.
+        value: 4
+        restrictions:
+            - '!BLE_ISO_BROADCAST_SOURCE if 0'
+            - '!BLE_ISO_BROADCAST_SINK if 0'
     BLE_ISO_TEST:
         description: >
             Enables BLE ISO Testing commands

@@ -530,20 +530,6 @@ syscfg.defs:
         description: 'Minimum level for the BLE EATT log.'
         value: 1
 
-    BLE_ISO_MAX_BIGS:
-        description: >
-            Number of available BIGs
-        value: 'MYNEWT_VAL_BLE_MAX_ADV_INSTANCES - 1'
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
-    BLE_ISO_MAX_BISES:
-        description: >
-            Number of supported BISes
-        value: 4
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
