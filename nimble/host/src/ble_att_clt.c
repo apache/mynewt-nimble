@@ -117,7 +117,7 @@ ble_att_clt_rx_mtu(uint16_t conn_handle, uint16_t cid, struct os_mbuf **rxom)
 
     mtu = 0;
 
-#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+#if MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0
     if (cid != BLE_L2CAP_CID_ATT) {
         /*FIXME reject ?*/
         assert(0);

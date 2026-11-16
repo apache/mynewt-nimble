@@ -3570,7 +3570,7 @@ static const struct shell_cmd_help gatt_clear_pending_notif_help = {
 };
 #endif
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 #if MYNEWT_VAL(SHELL_CMD_HELP)
 /*****************************************************************************
  * $l2cap-update                                                             *
@@ -4645,7 +4645,7 @@ static const struct shell_cmd btshell_commands[] = {
         .help = &gatt_clear_pending_notif_help,
 #endif
     },
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     {
         .sc_cmd = "l2cap-update",
         .sc_cmd_func = cmd_l2cap_update,

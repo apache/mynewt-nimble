@@ -27,7 +27,7 @@
 
 #include "syscfg/syscfg.h"
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 
 #include "console/console.h"
 #include "host/ble_gap.h"
@@ -38,9 +38,9 @@
 #include "btp/btp.h"
 
 #define CONTROLLER_INDEX             0
-#define CHANNELS                     MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#define CHANNELS                     MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 #define TESTER_COC_MTU               MYNEWT_VAL(BTTESTER_L2CAP_COC_MTU)
-#define TESTER_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define TESTER_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS))
 
 static os_membuf_t tester_sdu_coc_mem[
     OS_MEMPOOL_SIZE(TESTER_COC_BUF_COUNT, TESTER_COC_MTU)

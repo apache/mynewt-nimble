@@ -112,7 +112,7 @@ ble_att_tx(uint16_t conn_handle, uint16_t cid, struct os_mbuf *txom)
     struct ble_hs_conn *conn;
     int rc;
 
-#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+#if MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0
     if (cid != BLE_L2CAP_CID_ATT) {
         return ble_eatt_tx(conn_handle, cid, txom);
     }

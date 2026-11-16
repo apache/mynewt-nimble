@@ -51,9 +51,9 @@ supported_services(const void *cmd, uint16_t cmd_len,
     tester_set_bit(rp->data, BTP_SERVICE_ID_CORE);
     tester_set_bit(rp->data, BTP_SERVICE_ID_GAP);
     tester_set_bit(rp->data, BTP_SERVICE_ID_GATT);
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     tester_set_bit(rp->data, BTP_SERVICE_ID_L2CAP);
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) */
 #if MYNEWT_VAL(BLE_MESH)
     tester_set_bit(rp->data, BTP_SERVICE_ID_MESH);
 #endif /* MYNEWT_VAL(BLE_MESH) */
@@ -88,11 +88,11 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATT:
         status = tester_init_gatt();
         break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     case BTP_SERVICE_ID_L2CAP:
         status = tester_init_l2cap();
         break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) */
 #if MYNEWT_VAL(BLE_MESH)
     case BTP_SERVICE_ID_MESH:
         status = tester_init_mesh();
@@ -147,11 +147,11 @@ unregister_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATT:
         status = tester_unregister_gatt();
         break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     case BTP_SERVICE_ID_L2CAP:
         status = tester_unregister_l2cap();
         break;
-#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) */
+#endif /* MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) */
 #if MYNEWT_VAL(BLE_MESH)
     case BTP_SERVICE_ID_MESH:
         status = tester_unregister_mesh();

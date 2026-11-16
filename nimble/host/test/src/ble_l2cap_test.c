@@ -30,7 +30,7 @@
 #define BLE_L2CAP_TEST_CID           (99)
 #define BLE_L2CAP_TEST_COC_MTU       (256)
 /* We use same pool for incoming and outgoing sdu */
-#define BLE_L2CAP_TEST_COC_BUF_COUNT (6 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define BLE_L2CAP_TEST_COC_BUF_COUNT (6 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS))
 #define BLE_L2CAP_TEST_SIG_TIMEOUT_MS (30000)
 
 static uint16_t ble_l2cap_test_update_conn_handle;
@@ -2208,7 +2208,7 @@ TEST_CASE_SELF(ble_l2cap_test_case_sig_le_credits_fixed_cid)
 TEST_CASE_SELF(ble_l2cap_test_case_sig_coc_conn_multi_no_chan_mem)
 {
     struct os_mbuf *sdu_rx[2];
-    void *blocks[MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) + MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)];
+    void *blocks[MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) + MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)];
     struct test_data t;
     int num_sdu_free;
     int num_blocks;

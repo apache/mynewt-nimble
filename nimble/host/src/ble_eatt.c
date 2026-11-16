@@ -21,7 +21,7 @@
 #define BLE_NPL_LOG_MODULE BLE_EATT_LOG
 #include <nimble/nimble_npl_log.h>
 
-#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+#if MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0
 
 #include "os/mynewt.h"
 #include "mem/mem.h"
@@ -60,9 +60,9 @@ static ble_eatt_att_rx_fn ble_eatt_att_rx_cb;
     (OS_ALIGN(BLE_EATT_DATABUF_SIZE, 4))
 
 #define BLE_EATT_MEMPOOL_SIZE    \
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_EATT_CHAN_NUM) + 1, BLE_EATT_MEMBLOCK_SIZE)
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_EATT_MAX_CHANS) + 1, BLE_EATT_MEMBLOCK_SIZE)
 static os_membuf_t ble_eatt_conn_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_EATT_CHAN_NUM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_EATT_MAX_CHANS),
     sizeof(struct ble_eatt))
 ];
 static struct os_mempool ble_eatt_conn_pool;
@@ -575,12 +575,12 @@ ble_eatt_init(ble_eatt_att_rx_fn att_rx_cb)
     rc = mem_init_mbuf_pool(ble_eatt_sdu_coc_mem,
                             &ble_eatt_sdu_mbuf_mempool,
                             &ble_eatt_sdu_os_mbuf_pool,
-                            MYNEWT_VAL(BLE_EATT_CHAN_NUM) + 1,
+                            MYNEWT_VAL(BLE_EATT_MAX_CHANS) + 1,
                             BLE_EATT_MEMBLOCK_SIZE,
                             "ble_eatt_sdu");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);
 
-    rc = os_mempool_init(&ble_eatt_conn_pool, MYNEWT_VAL(BLE_EATT_CHAN_NUM),
+    rc = os_mempool_init(&ble_eatt_conn_pool, MYNEWT_VAL(BLE_EATT_MAX_CHANS),
                          sizeof (struct ble_eatt),
                          ble_eatt_conn_mem, "ble_eatt_conn_pool");
     BLE_HS_DBG_ASSERT_EVAL(rc == 0);

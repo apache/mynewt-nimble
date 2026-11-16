@@ -112,7 +112,7 @@ static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_req_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_update_rsp_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_rx_reject;
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_req_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_coc_rsp_rx;
 static ble_l2cap_sig_rx_fn ble_l2cap_sig_disc_rsp_rx;
@@ -659,7 +659,7 @@ ble_l2cap_sig_update(uint16_t conn_handle, struct ble_l2cap_sig_update_params *p
  * $connect                                                                  *
  *****************************************************************************/
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
 
 static int
 ble_l2cap_sig_ble_hs_err2coc_err(uint16_t ble_hs_err)
@@ -1939,7 +1939,7 @@ ble_l2cap_sig_rx_reject(uint16_t conn_handle,
    }
 
    switch (proc->op) {
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
    case BLE_L2CAP_SIG_PROC_OP_CONNECT:
        ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_EREJECT);
        break;
@@ -2086,7 +2086,7 @@ ble_l2cap_sig_conn_broken(uint16_t conn_handle, int reason)
         ble_l2cap_sig_proc_free(proc);
     }
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
     while ((proc = ble_l2cap_sig_proc_extract_any(
                 conn_handle, BLE_L2CAP_SIG_PROC_OP_CONNECT)) != NULL) {
         ble_l2cap_sig_coc_connect_cb(proc, reason);
@@ -2135,7 +2135,7 @@ ble_l2cap_sig_timer(void)
         case BLE_L2CAP_SIG_PROC_OP_UPDATE:
             ble_l2cap_sig_update_call_cb(proc, BLE_HS_ETIMEOUT);
             break;
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
         case BLE_L2CAP_SIG_PROC_OP_CONNECT:
             ble_l2cap_sig_coc_connect_cb(proc, BLE_HS_ETIMEOUT);
             break;

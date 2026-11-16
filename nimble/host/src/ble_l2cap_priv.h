@@ -78,7 +78,7 @@ struct ble_l2cap_chan {
 
     ble_l2cap_rx_fn *rx_fn;
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
     uint16_t psm;
     struct ble_l2cap_coc_endpoint coc_rx;
     struct ble_l2cap_coc_endpoint coc_tx;

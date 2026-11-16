@@ -66,7 +66,7 @@ syscfg.vals:
     MSYS_1_BLOCK_COUNT: 50
 
     #
-    BLE_L2CAP_COC_MAX_NUM: 2
+    BLE_L2CAP_COC_MAX_CHANS: 2
 
     # L2CAP COC SDU buffers in RX endpoint
     BLE_L2CAP_COC_SDU_BUFF_COUNT: 1

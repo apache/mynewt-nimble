@@ -72,10 +72,10 @@
 #define BTSHELL_MAX_DSCS               1
 #endif
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 #define BTSHELL_COC_MTU               (256)
 /* We use same pool for incoming and outgoing sdu */
-#define BTSHELL_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
+#define BTSHELL_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS))
 
 #define INT_TO_PTR(x)     (void *)((intptr_t)(x))
 #define PTR_TO_INT(x)     (int) ((intptr_t)(x))
@@ -101,9 +101,9 @@ static os_membuf_t btshell_dsc_mem[
 ];
 static struct os_mempool btshell_dsc_pool;
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 static os_membuf_t btshell_coc_conn_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
     sizeof(struct btshell_l2cap_coc))
 ];
 static struct os_mempool btshell_coc_conn_pool;
@@ -2335,7 +2335,7 @@ btshell_on_sync(void)
     console_printf("Host and controller synced\n");
 }
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
 
 static int
 btshell_l2cap_coc_add(uint16_t conn_handle, struct ble_l2cap_chan *chan)
@@ -2549,7 +2549,7 @@ btshell_l2cap_event(struct ble_l2cap_event *event, void *arg)
 int
 btshell_l2cap_create_srv(uint16_t psm, uint16_t mtu, int accept_response)
 {
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) == 0
     console_printf("BLE L2CAP LE COC not supported.");
     console_printf(" Configure nimble host to enable it\n");
     return 0;
@@ -2567,7 +2567,7 @@ btshell_l2cap_create_srv(uint16_t psm, uint16_t mtu, int accept_response)
 int
 btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu, uint8_t num)
 {
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) == 0
     console_printf("BLE L2CAP LE COC not supported.");
     console_printf(" Configure nimble host to enable it\n");
     return 0;
@@ -2600,7 +2600,7 @@ btshell_l2cap_connect(uint16_t conn_handle, uint16_t psm, uint16_t mtu, uint8_t 
 int
 btshell_l2cap_disconnect(uint16_t conn_handle, uint16_t idx)
 {
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) == 0
     console_printf("BLE L2CAP LE COC not supported.");
     console_printf(" Configure nimble host to enable it\n");
     return 0;
@@ -2673,7 +2673,7 @@ btshell_l2cap_reconfig(uint16_t conn_handle, uint16_t mtu,
 int
 btshell_l2cap_send(uint16_t conn_handle, uint16_t idx, uint16_t bytes)
 {
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) == 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) == 0
     console_printf("BLE L2CAP LE COC not supported.");
     console_printf(" Configure nimble host to enable it\n");
     return 0;
@@ -3075,7 +3075,7 @@ mynewt_main(int argc, char **argv)
                          "btshell_dsc_pool");
     assert(rc == 0);
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
     /* For testing we want to support all the available channels */
     rc = os_mempool_init(&sdu_coc_mbuf_mempool, BTSHELL_COC_BUF_COUNT,
                          BTSHELL_COC_MTU, btshell_sdu_coc_mem,
@@ -3087,7 +3087,7 @@ mynewt_main(int argc, char **argv)
     assert(rc == 0);
 
     rc = os_mempool_init(&btshell_coc_conn_pool,
-                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
                          sizeof (struct btshell_l2cap_coc), btshell_coc_conn_mem,
                          "btshell_coc_conn_pool");
     assert(rc == 0);
