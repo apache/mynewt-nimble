@@ -2125,7 +2125,7 @@ ble_ll_ctrl_rx_reject_ind(struct ble_ll_conn_sm *connsm, uint8_t *dptr,
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     case BLE_LL_CTRL_PROC_SUBRATE_REQ:
         ble_ll_hci_ev_subrate_change(connsm, ble_error);
-        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_UPDATE);
+        ble_ll_ctrl_proc_stop(connsm, BLE_LL_CTRL_PROC_SUBRATE_REQ);
         break;
 #endif
 
