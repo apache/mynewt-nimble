@@ -188,12 +188,12 @@ disc_prim_svcs_cb(uint16_t conn_handle,
                   const struct ble_gatt_error *error,
                   const struct ble_gatt_svc *gatt_svc, void *arg)
 {
-    struct btp_gattc_disc_prim_svcs_rp *rp;
+    struct btp_gattc_disc_prim_svcs_rp *rp = NULL;
     struct ble_gap_conn_desc conn;
     struct btp_gatt_service *service;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
-    struct os_mbuf *buf = os_msys_get(0, 0);
+    uint16_t len;
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = 0;
     int rc = 0;
@@ -213,7 +213,35 @@ disc_prim_svcs_cb(uint16_t conn_handle,
         goto free;
     }
 
-    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (error->status == 0) {
+        uuid = &gatt_svc->uuid;
+        uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+
+        service = gatt_buf_reserve(sizeof(*service) + uuid_length);
+        if (!service) {
+            discover_destroy();
+            rc = BLE_HS_ENOMEM;
+            goto free;
+        }
+
+        service->start_handle = htole16(gatt_svc->start_handle);
+        service->end_handle = htole16(gatt_svc->end_handle);
+        service->uuid_length = uuid_length;
+
+        if (uuid->u.type == BLE_UUID_TYPE_16) {
+            uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
+            memcpy(service->uuid, &u16, uuid_length);
+        } else {
+            memcpy(service->uuid, BLE_UUID128(uuid)->value,
+                   uuid_length);
+        }
+
+        gatt_buf.cnt++;
+        goto free;
+    }
+
+    len = sizeof(*rp) + (error->status == BLE_HS_EDONE ? gatt_buf.len : 0);
+    rp = malloc(len);
     if (!rp) {
         rc = BLE_HS_ENOMEM;
         goto free;
@@ -225,7 +253,7 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->services_count = 0;
         tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+                     rp, sizeof(*rp));
         discover_destroy();
         goto free;
     }
@@ -233,39 +261,17 @@ disc_prim_svcs_cb(uint16_t conn_handle,
     if (error->status == BLE_HS_EDONE) {
         rp->status = 0;
         rp->services_count = gatt_buf.cnt;
-        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
+        if (gatt_buf.len > 0) {
+            memcpy(rp->data, gatt_buf.buf, gatt_buf.len);
+        }
         tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+                     rp, len);
         discover_destroy();
         goto free;
     }
-
-    uuid = &gatt_svc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
-
-    service = gatt_buf_reserve(sizeof(*service) + uuid_length);
-    if (!service) {
-        discover_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
-    }
-
-    service->start_handle = htole16(gatt_svc->start_handle);
-    service->end_handle = htole16(gatt_svc->end_handle);
-    service->uuid_length = uuid_length;
-
-    if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
-        memcpy(service->uuid, &u16, uuid_length);
-    } else {
-        memcpy(service->uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
-    }
-
-    gatt_buf.cnt++;
 
 free:
-    os_mbuf_free_chain(buf);
+    free(rp);
     return rc;
 }
 
@@ -328,13 +334,13 @@ find_included_cb(uint16_t conn_handle,
                  const struct ble_gatt_error *error,
                  const struct ble_gatt_svc *gatt_svc, void *arg)
 {
-    struct btp_gattc_find_included_rp *rp;
+    struct btp_gattc_find_included_rp *rp = NULL;
     struct btp_gatt_included *included;
     const ble_uuid_any_t *uuid;
     int service_handle = (int) arg;
     uint8_t uuid_length;
     uint8_t err = 0;
-    struct os_mbuf *buf = os_msys_get(0, 0);
+    uint16_t len;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -354,7 +360,37 @@ find_included_cb(uint16_t conn_handle,
         goto free;
     }
 
-    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (error->status == 0) {
+        uuid = &gatt_svc->uuid;
+        uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+
+        included = gatt_buf_reserve(sizeof(*included) + uuid_length);
+        if (!included) {
+            discover_destroy();
+            rc = BLE_HS_ENOMEM;
+            goto free;
+        }
+
+        included->included_handle = htole16(service_handle + 1 +
+                                                    gatt_buf.cnt);
+        included->service.start_handle = htole16(gatt_svc->start_handle);
+        included->service.end_handle = htole16(gatt_svc->end_handle);
+        included->service.uuid_length = uuid_length;
+
+        if (uuid->u.type == BLE_UUID_TYPE_16) {
+            uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
+            memcpy(included->service.uuid, &u16, uuid_length);
+        } else {
+            memcpy(included->service.uuid, BLE_UUID128(uuid)->value,
+                   uuid_length);
+        }
+
+        gatt_buf.cnt++;
+        goto free;
+    }
+
+    len = sizeof(*rp) + (error->status == BLE_HS_EDONE ? gatt_buf.len : 0);
+    rp = malloc(len);
     if (!rp) {
         rc = BLE_HS_ENOMEM;
         goto free;
@@ -368,7 +404,7 @@ find_included_cb(uint16_t conn_handle,
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->services_count = 0;
         tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
-                     buf->om_data, buf->om_len);
+                     rp, sizeof(*rp));
         discover_destroy();
         goto free;
     }
@@ -376,41 +412,17 @@ find_included_cb(uint16_t conn_handle,
     if (error->status == BLE_HS_EDONE) {
         rp->status = 0;
         rp->services_count = gatt_buf.cnt;
-        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
+        if (gatt_buf.len > 0) {
+            memcpy(rp->included, gatt_buf.buf, gatt_buf.len);
+        }
         tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_FIND_INCLUDED_RP,
-                     buf->om_data, buf->om_len);
+                     rp, len);
         discover_destroy();
         goto free;
     }
-
-    uuid = &gatt_svc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
-
-    included = gatt_buf_reserve(sizeof(*included) + uuid_length);
-    if (!included) {
-        discover_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
-    }
-
-    included->included_handle = htole16(service_handle + 1 +
-                                                gatt_buf.cnt);
-    included->service.start_handle = htole16(gatt_svc->start_handle);
-    included->service.end_handle = htole16(gatt_svc->end_handle);
-    included->service.uuid_length = uuid_length;
-
-    if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
-        memcpy(included->service.uuid, &u16, uuid_length);
-    } else {
-        memcpy(included->service.uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
-    }
-
-    gatt_buf.cnt++;
 
 free:
-    os_mbuf_free_chain(buf);
+    free(rp);
     return rc;
 }
 
@@ -450,13 +462,13 @@ disc_chrc_cb(uint16_t conn_handle,
              const struct ble_gatt_error *error,
              const struct ble_gatt_chr *gatt_chr, void *arg)
 {
-    struct btp_gattc_disc_chrc_rp  *rp;
+    struct btp_gattc_disc_chrc_rp  *rp = NULL;
     struct btp_gatt_characteristic *chrc;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
     uint8_t opcode = (uint8_t) (int) arg;
     uint8_t err = 0;
-    struct os_mbuf *buf = os_msys_get(0, 0);
+    uint16_t len;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -475,7 +487,36 @@ disc_chrc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (error->status == 0) {
+        uuid = &gatt_chr->uuid;
+        uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+
+        chrc = gatt_buf_reserve(sizeof(*chrc) + uuid_length);
+        if (!chrc) {
+            discover_destroy();
+            rc = BLE_HS_ENOMEM;
+            goto free;
+        }
+
+        chrc->characteristic_handle = htole16(gatt_chr->def_handle);
+        chrc->properties = gatt_chr->properties;
+        chrc->value_handle = htole16(gatt_chr->val_handle);
+        chrc->uuid_length = uuid_length;
+
+        if (uuid->u.type == BLE_UUID_TYPE_16) {
+            uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
+            memcpy(chrc->uuid, &u16, uuid_length);
+        } else {
+            memcpy(chrc->uuid, BLE_UUID128(uuid)->value,
+                   uuid_length);
+        }
+
+        gatt_buf.cnt++;
+        goto free;
+    }
+
+    len = sizeof(*rp) + (error->status == BLE_HS_EDONE ? gatt_buf.len : 0);
+    rp = malloc(len);
     if (!rp) {
         rc = BLE_HS_ENOMEM;
         goto free;
@@ -493,7 +534,7 @@ disc_chrc_cb(uint16_t conn_handle,
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->characteristics_count = 0;
         tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+                     rp, sizeof(*rp));
         discover_destroy();
         goto free;
     }
@@ -501,39 +542,16 @@ disc_chrc_cb(uint16_t conn_handle,
     if (error->status == BLE_HS_EDONE) {
         rp->status = 0;
         rp->characteristics_count = gatt_buf.cnt;
-        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
+        if (gatt_buf.len > 0) {
+            memcpy(rp->characteristics, gatt_buf.buf, gatt_buf.len);
+        }
         tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+                     rp, len);
         discover_destroy();
         goto free;
     }
-
-    uuid = &gatt_chr->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
-
-    chrc = gatt_buf_reserve(sizeof(*chrc) + uuid_length);
-    if (!chrc) {
-        discover_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
-    }
-
-    chrc->characteristic_handle = htole16(gatt_chr->def_handle);
-    chrc->properties = gatt_chr->properties;
-    chrc->value_handle = htole16(gatt_chr->val_handle);
-    chrc->uuid_length = uuid_length;
-
-    if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
-        memcpy(chrc->uuid, &u16, uuid_length);
-    } else {
-        memcpy(chrc->uuid, BLE_UUID128(uuid)->value,
-               uuid_length);
-    }
-
-    gatt_buf.cnt++;
 free:
-    os_mbuf_free_chain(buf);
+    free(rp);
     return rc;
 }
 
@@ -612,12 +630,12 @@ disc_all_desc_cb(uint16_t conn_handle,
                  const struct ble_gatt_dsc *gatt_dsc,
                  void *arg)
 {
-    struct btp_gattc_disc_all_desc_rp *rp;
+    struct btp_gattc_disc_all_desc_rp *rp = NULL;
     struct btp_gatt_descriptor *dsc;
     const ble_uuid_any_t *uuid;
     uint8_t uuid_length;
     uint8_t err = 0;
-    struct os_mbuf *buf = os_msys_get(0, 0);
+    uint16_t len;
     struct ble_gap_conn_desc conn;
     int rc = 0;
 
@@ -637,7 +655,33 @@ disc_all_desc_cb(uint16_t conn_handle,
         goto free;
     }
 
-    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (error->status == 0) {
+        uuid = &gatt_dsc->uuid;
+        uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
+
+        dsc = gatt_buf_reserve(sizeof(*dsc) + uuid_length);
+        if (!dsc) {
+            discover_destroy();
+            rc = BLE_HS_ENOMEM;
+            goto free;
+        }
+
+        dsc->descriptor_handle = htole16(gatt_dsc->handle);
+        dsc->uuid_length = uuid_length;
+
+        if (uuid->u.type == BLE_UUID_TYPE_16) {
+            uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
+            memcpy(dsc->uuid, &u16, uuid_length);
+        } else {
+            memcpy(dsc->uuid, BLE_UUID128(uuid)->value, uuid_length);
+        }
+
+        gatt_buf.cnt++;
+        goto free;
+    }
+
+    len = sizeof(*rp) + (error->status == BLE_HS_EDONE ? gatt_buf.len : 0);
+    rp = malloc(len);
     if (!rp) {
         rc = BLE_HS_ENOMEM;
         goto free;
@@ -650,7 +694,7 @@ disc_all_desc_cb(uint16_t conn_handle,
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->descriptors_count = 0;
         tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
-                     buf->om_data, buf->om_len);
+                     rp, sizeof(*rp));
         discover_destroy();
         goto free;
     }
@@ -658,37 +702,17 @@ disc_all_desc_cb(uint16_t conn_handle,
     if (error->status == BLE_HS_EDONE) {
         rp->status = 0;
         rp->descriptors_count = gatt_buf.cnt;
-        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
+        if (gatt_buf.len > 0) {
+            memcpy(rp->descriptors, gatt_buf.buf, gatt_buf.len);
+        }
         tester_event(BTP_SERVICE_ID_GATTC, BTP_GATTC_DISC_ALL_DESC_RP,
-                     buf->om_data, buf->om_len);
+                     rp, len);
         discover_destroy();
         goto free;
     }
-
-    uuid = &gatt_dsc->uuid;
-    uuid_length = (uint8_t) (uuid->u.type == BLE_UUID_TYPE_16 ? 2 : 16);
-
-    dsc = gatt_buf_reserve(sizeof(*dsc) + uuid_length);
-    if (!dsc) {
-        discover_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
-    }
-
-    dsc->descriptor_handle = htole16(gatt_dsc->handle);
-    dsc->uuid_length = uuid_length;
-
-    if (uuid->u.type == BLE_UUID_TYPE_16) {
-        uint16_t u16 = htole16(BLE_UUID16(uuid)->value);
-        memcpy(dsc->uuid, &u16, uuid_length);
-    } else {
-        memcpy(dsc->uuid, BLE_UUID128(uuid)->value, uuid_length);
-    }
-
-    gatt_buf.cnt++;
 
 free:
-    os_mbuf_free_chain(buf);
+    free(rp);
     return rc;
 }
 
