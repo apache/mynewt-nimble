@@ -183,11 +183,11 @@ ble_svc_gatt_init(void)
     rc = ble_gatts_add_svcs(ble_svc_gatt_defs);
     SYSINIT_PANIC_ASSERT(rc == 0);
 
-    if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
+    if (MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0) {
         ble_svc_gatt_local_srv_sup_feat |= (1 << BLE_SVC_GATT_SRV_SUP_FEAT_EATT_BIT);
     }
 
-    if (MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0) {
+    if (MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0) {
         ble_svc_gatt_local_cl_sup_feat |= (1 << BLE_SVC_GATT_CLI_SUP_FEAT_EATT_BIT);
     }
 

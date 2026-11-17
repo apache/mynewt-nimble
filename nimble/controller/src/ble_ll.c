@@ -2178,7 +2178,7 @@ ble_ll_is_busy(unsigned int flags)
         }
 
         /* check if all connection objects are free */
-        if (i < MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
+        if (i < MYNEWT_VAL(BLE_LL_MAX_CONNECTIONS)) {
             return 1;
         }
     }

@@ -31,7 +31,7 @@ typedef int (* ble_eatt_att_rx_fn)(uint16_t conn_handle, uint16_t cid, struct os
 #define BLE_GATT_OP_SERVER 0xF1
 #define BLE_GATT_OP_DUMMY  0xF2
 
-#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+#if MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0
 void ble_eatt_init(ble_eatt_att_rx_fn att_rx_fn);
 uint16_t ble_eatt_get_available_chan_cid(uint16_t conn_handle, uint8_t op);
 void ble_eatt_release_chan(uint16_t conn_handle, uint8_t op);

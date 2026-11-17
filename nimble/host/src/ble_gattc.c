@@ -740,7 +740,7 @@ ble_gattc_proc_free(struct ble_gattc_proc *proc)
             break;
         }
 
-#if MYNEWT_VAL(BLE_EATT_CHAN_NUM) > 0
+#if MYNEWT_VAL(BLE_EATT_MAX_CHANS) > 0
         if (proc->cid != BLE_L2CAP_CID_ATT) {
             ble_eatt_release_chan(proc->conn_handle, proc->op);
         }

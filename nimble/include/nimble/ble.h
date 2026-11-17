@@ -35,7 +35,11 @@ extern "C" {
 #endif
 
 /** The number of advertising instances */
-#define BLE_ADV_INSTANCES    (MYNEWT_VAL(BLE_MULTI_ADV_INSTANCES) + 1)
+#define BLE_ADV_INSTANCES    (MYNEWT_VAL(BLE_MAX_ADV_INSTANCES))
+
+#if BLE_ADV_INSTANCES < 1
+#error "BLE_MAX_ADV_INSTANCES must be at least 1"
+#endif
 
 /** BLE encryption block definitions */
 #define BLE_ENC_BLOCK_SIZE       (16)

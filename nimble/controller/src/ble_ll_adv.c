@@ -239,7 +239,7 @@ struct ble_ll_adv_sm
     ((_advsm)->periodic_adv_data ? OS_MBUF_PKTLEN((_advsm)->periodic_adv_data) : 0)
 
 /* The advertising state machine global object */
-struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_ADV_INSTANCES];
+struct ble_ll_adv_sm g_ble_ll_adv_sm[BLE_LL_ADV_INSTANCES];
 struct ble_ll_adv_sm *g_ble_ll_cur_adv_sm;
 
 static void ble_ll_adv_drop_event(struct ble_ll_adv_sm *advsm, bool preempted);
@@ -409,7 +409,7 @@ ble_ll_adv_rpa_timeout(void)
     struct ble_ll_adv_sm *advsm;
     int i;
 
-    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
         advsm = &g_ble_ll_adv_sm[i];
 
         if (advsm->adv_enabled &&
@@ -3833,7 +3833,7 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    if (cmd->num_sets > BLE_ADV_INSTANCES) {
+    if (cmd->num_sets > BLE_LL_ADV_INSTANCES) {
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
@@ -3843,7 +3843,7 @@ ble_ll_adv_ext_set_enable(const uint8_t *cmdbuf, uint8_t len)
         }
 
         /* disable all instances */
-        for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+        for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
             ble_ll_adv_set_enable(i, 0, 0, 0);
         }
 
@@ -3977,7 +3977,7 @@ ble_ll_adv_clear_all(void)
 {
     int i;
 
-    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
         if (g_ble_ll_adv_sm[i].adv_enabled) {
             return BLE_ERR_CMD_DISALLOWED;
         }
@@ -5299,7 +5299,7 @@ ble_ll_adv_can_chg_whitelist(void)
     int i;
 
     rc = 1;
-    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
         advsm = &g_ble_ll_adv_sm[i];
         if (advsm->adv_enabled &&
             (advsm->adv_filter_policy != BLE_HCI_ADV_FILT_NONE)) {
@@ -5408,7 +5408,7 @@ ble_ll_adv_reset(void)
     int i;
     struct ble_ll_adv_sm *advsm;
 
-    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
         advsm = &g_ble_ll_adv_sm[i];
 
         /* Stop advertising state machine */
@@ -5438,7 +5438,7 @@ ble_ll_adv_enabled(void)
 {
     int i;
 
-    for (i = 0; i < BLE_ADV_INSTANCES; i++) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; i++) {
         if (g_ble_ll_adv_sm[i].adv_enabled) {
             return 1;
         }
@@ -5567,7 +5567,7 @@ ble_ll_adv_init(void)
     int i;
 
     /* Set default advertising parameters */
-    for (i = 0; i < BLE_ADV_INSTANCES; ++i) {
+    for (i = 0; i < BLE_LL_ADV_INSTANCES; ++i) {
         ble_ll_adv_sm_init(&g_ble_ll_adv_sm[i]);
     }
 }

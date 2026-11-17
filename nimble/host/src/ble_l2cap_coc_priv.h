@@ -56,7 +56,7 @@ struct ble_l2cap_coc_srv {
     void *cb_arg;
 };
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
 int ble_l2cap_coc_init(void);
 int ble_l2cap_coc_create_server_nolock(uint16_t psm, uint16_t mtu,
                                        ble_l2cap_event_fn *cb, void *cb_arg);

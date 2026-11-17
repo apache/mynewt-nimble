@@ -29,7 +29,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0 && NIMBLE_BLE_CONNECT
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0 && NIMBLE_BLE_CONNECT
 
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -46,7 +46,7 @@ STAILQ_HEAD(ble_l2cap_coc_srv_list, ble_l2cap_coc_srv);
 static struct ble_l2cap_coc_srv_list ble_l2cap_coc_srvs;
 
 static os_membuf_t ble_l2cap_coc_srv_mem[
-    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+    OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
                     sizeof(struct ble_l2cap_coc_srv))
 ];
 
@@ -773,7 +773,7 @@ ble_l2cap_coc_init(void)
     SLIST_INIT(&ble_l2cap_coc_disconnected_chans);
 
     return os_mempool_init(&ble_l2cap_coc_srv_pool,
-                           MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                           MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
                            sizeof(struct ble_l2cap_coc_srv),
                            ble_l2cap_coc_srv_mem,
                            "ble_l2cap_coc_srv_pool");

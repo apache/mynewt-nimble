@@ -39,12 +39,12 @@ typedef uint8_t ble_hs_conn_flags_t;
 #define BLE_HS_CONN_F_TX_FRAG       0x04 /* Cur ACL packet partially txed. */
 #define BLE_HS_CONN_F_TERMINATED    0x08
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
 #define BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN_REM \
-                      ((MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) % (8 * sizeof(uint32_t))) ? 1 : 0)
+                      ((MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) % (8 * sizeof(uint32_t))) ? 1 : 0)
 
 #define BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN  \
-                      (MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) / (8 * sizeof(uint32_t)) + \
+                      (MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) / (8 * sizeof(uint32_t)) + \
                        BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN_REM)
 #endif
 
@@ -81,7 +81,7 @@ struct ble_hs_conn {
     ble_npl_time_t rx_frag_tmo;
 #endif
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     uint32_t l2cap_coc_cid_mask[BLE_HS_CONN_L2CAP_COC_CID_MASK_LEN];
 #endif
 

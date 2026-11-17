@@ -30,8 +30,8 @@ syscfg.defs:
     BLE_HS_EXT_ADV_LEGACY_INSTANCE:
         description: >
             Advertising instance that is used when extended advertising
-            support is enabled but legacy GAP API is used.
-        range: 0..BLE_MULTI_ADV_INSTANCES
+            support is enabled but legacy GAP API is used. It must be lower
+            than BLE_MAX_ADV_INSTANCES.
         value: 0
 
     # Debug settings.
@@ -74,11 +74,11 @@ syscfg.defs:
             passes since the previous fragment was received, the connection is
             terminated.  A value of 0 means no timeout.
         value: 30000
-    BLE_L2CAP_COC_MAX_NUM:
+    BLE_L2CAP_COC_MAX_CHANS:
         description: >
-            Defines maximum number of LE Connection Oriented Channels channels.
-            When set to (0), LE COC is not compiled in.
-        value: 0
+            Maximum number of LE Connection Oriented Channels. When set to 0,
+            LE COC is not compiled in.
+        value: MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
     BLE_L2CAP_COC_MPS:
         description: >
             Defines the MPS of L2CAP COC module. This is actually NimBLE's internal
@@ -98,7 +98,7 @@ syscfg.defs:
             Enables LE Enhanced CoC mode.
         value: 0
         restrictions:
-            - '(BLE_L2CAP_COC_MAX_NUM > 0) && (BLE_VERSION >= 52) if 1'
+            - '(BLE_L2CAP_COC_MAX_CHANS > 0) && (BLE_VERSION >= 52) if 1'
 
     # Security manager settings.
     BLE_SM_LEGACY:
@@ -323,15 +323,15 @@ syscfg.defs:
         value: 1000
 
     # Enhanced ATT bearer options
-    BLE_EATT_CHAN_NUM:
+    BLE_EATT_MAX_CHANS:
         description: >
-            Maximum number of supported EATT channels (in total). If set to 0
-            EATT support it disabled.
-        value: 0
+            Maximum number of EATT channels, in all connections. When set to 0,
+            EATT is disabled.
+        value: MYNEWT_VAL(BLE_EATT_CHAN_NUM)
         restrictions:
             - BLE_GATT_NOTIFY_MULTIPLE
             - BLE_L2CAP_ENHANCED_COC
-            - 'BLE_L2CAP_COC_MAX_NUM >= BLE_EATT_CHAN_NUM'
+            - 'BLE_L2CAP_COC_MAX_CHANS >= BLE_EATT_MAX_CHANS'
     BLE_EATT_MTU:
         description: >
             MTU used for EATT channels.
@@ -530,20 +530,6 @@ syscfg.defs:
         description: 'Minimum level for the BLE EATT log.'
         value: 1
 
-    BLE_ISO_MAX_BIGS:
-        description: >
-            Number of available BIGs
-        value: 'MYNEWT_VAL_BLE_MULTI_ADV_INSTANCES'
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
-    BLE_ISO_MAX_BISES:
-        description: >
-            Number of supported BISes
-        value: 4
-        restrictions:
-            - 'BLE_ISO_BROADCAST_SOURCE if 0'
-
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
@@ -561,3 +547,7 @@ syscfg.vals.BLE_SM_SC:
 
 syscfg.restrictions:
     - BLE_TRANSPORT_HS == "native"
+
+# Deprecated settings are kept in separate file to reduce clutter in main file
+$import:
+    - "@apache-mynewt-nimble/nimble/host/syscfg.deprecated.yml"

@@ -57,7 +57,7 @@ extern "C" {
 #define BLE_SCAN_LEGACY_MAX_PKT_LEN            (37)
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_EXT_ADV)
-#define BLE_SCAN_RSP_DATA_MAX_LEN       MYNEWT_VAL(BLE_EXT_ADV_MAX_SIZE)
+#define BLE_SCAN_RSP_DATA_MAX_LEN       MYNEWT_VAL(BLE_LL_EXT_ADV_MAX_SIZE)
 
 /* For Bluetooth 5.0 we need state machine for two PHYs*/
 #define BLE_LL_SCAN_PHY_NUMBER          (2)

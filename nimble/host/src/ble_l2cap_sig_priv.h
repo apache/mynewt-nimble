@@ -126,7 +126,7 @@ int ble_l2cap_sig_tx(uint16_t conn_handle, struct os_mbuf *txom);
 int ble_l2cap_sig_tx_nolock(uint16_t conn_handle, struct os_mbuf *txom);
 void *ble_l2cap_sig_cmd_get(uint8_t opcode, uint8_t id, uint16_t len,
                             struct os_mbuf **txom);
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM) != 0
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS) != 0
 int ble_l2cap_sig_connect_nolock(uint16_t conn_handle, uint16_t psm,
                                  uint16_t mtu, struct os_mbuf *sdu_rx,
                                  ble_l2cap_event_fn *cb, void *cb_arg);

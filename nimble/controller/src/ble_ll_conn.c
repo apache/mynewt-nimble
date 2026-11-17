@@ -142,7 +142,7 @@ struct ble_ll_empty_pdu
 };
 
 /* We cannot have more than 254 connections given our current implementation */
-#if (MYNEWT_VAL(BLE_MAX_CONNECTIONS) >= 255)
+#if (MYNEWT_VAL(BLE_LL_MAX_CONNECTIONS) >= 255)
     #error "Maximum # of connections is 254"
 #endif
 
@@ -164,7 +164,7 @@ struct ble_ll_conn_create_sm g_ble_ll_conn_create_sm;
 struct ble_ll_conn_sm *g_ble_ll_conn_cur_sm;
 
 /* Connection state machine array */
-struct ble_ll_conn_sm g_ble_ll_conn_sm[MYNEWT_VAL(BLE_MAX_CONNECTIONS)];
+struct ble_ll_conn_sm g_ble_ll_conn_sm[MYNEWT_VAL(BLE_LL_MAX_CONNECTIONS)];
 
 /* List of active connections */
 struct ble_ll_conn_active_list g_ble_ll_conn_active_list;
@@ -752,7 +752,7 @@ ble_ll_conn_find_by_handle(uint16_t handle)
     struct ble_ll_conn_sm *connsm;
 
     connsm = NULL;
-    if ((handle != 0) && (handle <= MYNEWT_VAL(BLE_MAX_CONNECTIONS))) {
+    if ((handle != 0) && (handle <= MYNEWT_VAL(BLE_LL_MAX_CONNECTIONS))) {
         connsm = &g_ble_ll_conn_sm[handle - 1];
         if (connsm->conn_state == BLE_LL_CONN_STATE_IDLE) {
             connsm = NULL;
@@ -4679,7 +4679,7 @@ ble_ll_conn_module_init(void)
      * the specification allows a handle of zero; we just avoid using it.
      */
     connsm = &g_ble_ll_conn_sm[0];
-    for (i = 0; i < MYNEWT_VAL(BLE_MAX_CONNECTIONS); ++i) {
+    for (i = 0; i < MYNEWT_VAL(BLE_LL_MAX_CONNECTIONS); ++i) {
 
         memset(connsm, 0, sizeof(struct ble_ll_conn_sm));
         connsm->conn_handle = i + 1;

@@ -91,7 +91,7 @@ struct ble_ll_scan_aux_data {
 };
 
 #define AUX_MEMPOOL_SIZE    (OS_MEMPOOL_SIZE( \
-                                MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_CNT), \
+                                MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_COUNT), \
                                 sizeof(struct ble_ll_scan_aux_data)))
 
 static os_membuf_t aux_data_mem[AUX_MEMPOOL_SIZE];
@@ -1879,7 +1879,7 @@ ble_ll_scan_aux_init(void)
     aux_data_current = NULL;
 
     err = os_mempool_init(&aux_data_pool,
-                          MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_CNT),
+                          MYNEWT_VAL(BLE_LL_SCAN_AUX_SEGMENT_COUNT),
                           sizeof(struct ble_ll_scan_aux_data),
                           aux_data_mem, "ble_ll_scan_aux_data_pool");
     BLE_LL_ASSERT(err == 0);

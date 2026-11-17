@@ -44,6 +44,10 @@
 #undef SET_BIT
 #define SET_BIT(t, n)  (t |= 1UL << (n))
 
+#if MYNEWT_VAL(BLE_HS_EXT_ADV_LEGACY_INSTANCE) >= BLE_ADV_INSTANCES
+#error "BLE_HS_EXT_ADV_LEGACY_INSTANCE must be lower than BLE_MAX_ADV_INSTANCES"
+#endif
+
 /**
  * GAP - Generic Access Profile.
  *

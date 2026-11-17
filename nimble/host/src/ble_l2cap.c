@@ -35,7 +35,7 @@ struct os_mempool ble_l2cap_chan_pool;
 
 static os_membuf_t ble_l2cap_chan_mem[
     OS_MEMPOOL_SIZE(MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
-                    MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                    MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
                     sizeof (struct ble_l2cap_chan))
 ];
 
@@ -201,7 +201,7 @@ ble_l2cap_get_chan_info(struct ble_l2cap_chan *chan, struct ble_l2cap_chan_info 
     chan_info->our_l2cap_mtu = chan->my_mtu;
     chan_info->peer_l2cap_mtu = chan->peer_mtu;
 
-#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM)
+#if MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS)
     chan_info->psm = chan->psm;
     chan_info->our_coc_mtu = chan->coc_rx.mtu;
     chan_info->peer_coc_mtu = chan->coc_tx.mtu;
@@ -530,7 +530,7 @@ ble_l2cap_init(void)
 
     rc = os_mempool_init(&ble_l2cap_chan_pool,
                          MYNEWT_VAL(BLE_L2CAP_MAX_CHANS) +
-                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM),
+                         MYNEWT_VAL(BLE_L2CAP_COC_MAX_CHANS),
                          sizeof (struct ble_l2cap_chan),
                          ble_l2cap_chan_mem, "ble_l2cap_chan_pool");
     if (rc != 0) {
