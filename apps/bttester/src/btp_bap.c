@@ -40,8 +40,6 @@
 #include "audio/ble_audio.h"
 #include "host/ble_iso.h"
 
-#define BROADCAST_ADV_INSTANCE                 1
-
 static struct ble_audio_big_subgroup big_subgroup;
 
 static struct broadcast_sink {
@@ -237,7 +235,7 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
         .primary_phy = BLE_HCI_LE_PHY_1M,
         .secondary_phy = BLE_HCI_LE_PHY_2M,
         .own_addr_type = id_addr_type,
-        .sid = BROADCAST_ADV_INSTANCE,
+        .sid = BTTESTER_PER_ADV_INSTANCE,
     };
 
     struct ble_broadcast_create_params create_params = {
@@ -245,7 +243,7 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
         .extended_params = &extended_params,
         .periodic_params = &periodic_params,
         .name = MYNEWT_VAL(BROADCASTER_BROADCAST_NAME),
-        .adv_instance = BROADCAST_ADV_INSTANCE,
+        .adv_instance = BTTESTER_PER_ADV_INSTANCE,
         .big_params = &big_params,
         .svc_data = NULL,
         .svc_data_len = 0,
@@ -268,7 +266,7 @@ broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
 {
     int rc;
 
-    rc = ble_audio_broadcast_destroy(BROADCAST_ADV_INSTANCE);
+    rc = ble_audio_broadcast_destroy(BTTESTER_PER_ADV_INSTANCE);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -282,7 +280,7 @@ broadcast_adv_start(const void *cmd, uint16_t cmd_len, void *rsp,
 {
     int rc;
 
-    rc = ble_audio_broadcast_start(BROADCAST_ADV_INSTANCE, iso_event, NULL);
+    rc = ble_audio_broadcast_start(BTTESTER_PER_ADV_INSTANCE, iso_event, NULL);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
@@ -296,7 +294,7 @@ broadcast_adv_stop(const void *cmd, uint16_t cmd_len, void *rsp,
 {
     int rc;
 
-    rc = ble_audio_broadcast_stop(BROADCAST_ADV_INSTANCE);
+    rc = ble_audio_broadcast_stop(BTTESTER_PER_ADV_INSTANCE);
     if (rc) {
         return BTP_STATUS_FAILED;
     }
