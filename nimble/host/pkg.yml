@@ -41,6 +41,9 @@ pkg.deps.BLE_SM_LEGACY:
 pkg.deps.BLE_SM_SC:
     - "@apache-mynewt-core/crypto/mbedtls"
 
+pkg.deps.BLE_GATT_CACHING:
+    - "@apache-mynewt-core/crypto/mbedtls"
+
 pkg.deps.BLE_MESH:
     - nimble/host/mesh
 
