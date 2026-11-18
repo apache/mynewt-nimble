@@ -52,7 +52,7 @@ static struct broadcast_sink {
 
 static uint8_t sink_num = 0;
 static uint8_t id_addr_type;
-static uint8_t audio_data[155];
+static uint8_t audio_data[2 * 155];
 static uint16_t max_sdu;
 static uint32_t sdu_interval;
 
@@ -70,31 +70,32 @@ static os_membuf_t codec_spec_mem[
 static struct os_mempool codec_spec_pool;
 
 static uint16_t bis_handles[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
+static uint8_t num_bis;
 /* The timer callout */
 static struct os_callout audio_broadcast_callout;
 
 struct ble_iso_big_params big_params;
 
-static int audio_data_offset;
+struct lc3_cfg {
+    uint8_t sampling_freq;
+    uint8_t frame_duration;
+    uint32_t chan_alloc;
+    uint16_t octets_per_frame;
+    uint8_t frames_per_sdu;
+};
 
 static void
 audio_broadcast_event_cb(struct os_event *ev)
 {
-    assert(ev != NULL);
     uint32_t ev_start_time = os_cputime_ticks_to_usecs(os_cputime_get32());
+    uint16_t len = min(max_sdu, sizeof(audio_data));
+    int i;
 
-    if (audio_data_offset + 2 * max_sdu >= sizeof(audio_data)) {
-        audio_data_offset = 0;
+    assert(ev != NULL);
+
+    for (i = 0; i < num_bis; i++) {
+        ble_iso_tx(bis_handles[i], audio_data, len);
     }
-
-    uint8_t lr_payload[max_sdu * 2];
-    memcpy(lr_payload, audio_data + audio_data_offset, max_sdu);
-    memcpy(lr_payload + max_sdu, audio_data + audio_data_offset,
-           max_sdu);
-    ble_iso_tx(bis_handles[0], (void *)(lr_payload),
-               max_sdu * 2);
-
-    audio_data_offset += max_sdu;
 
     /** Use cputime to time BROADCAST_SDU_INTVL, as these ticks are more
      *  accurate than os_time ones. This assures that we do not push
@@ -117,11 +118,8 @@ iso_event(struct ble_iso_event *event, void *arg)
     switch (event->type) {
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
         console_printf("%s: BIG created\n", __func__);
-        if (event->big_created.desc.num_bis >
-            MYNEWT_VAL(BROADCASTER_CHAN_NUM)) {
-            return BLE_HS_EINVAL;
-        }
-        for (i = 0; i < MYNEWT_VAL(BROADCASTER_CHAN_NUM); i++) {
+        num_bis = min(event->big_created.desc.num_bis, ARRAY_SIZE(bis_handles));
+        for (i = 0; i < num_bis; i++) {
             bis_handles[i] = event->big_created.desc.conn_handle[i];
         }
         return 0;
@@ -146,44 +144,165 @@ supported_commands(const void *cmd, uint16_t cmd_len,
 }
 
 static int
+lc3_cfg_parse(const uint8_t *ltvs, uint8_t len, struct lc3_cfg *cfg)
+{
+    uint8_t ltv_len;
+
+    memset(cfg, 0, sizeof(*cfg));
+
+    while (len >= 2) {
+        ltv_len = ltvs[0];
+        if (ltv_len == 0 || ltv_len + 1 > len) {
+            return BLE_HS_EINVAL;
+        }
+
+        switch (ltvs[1]) {
+        case BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE:
+            cfg->sampling_freq = ltvs[2];
+            break;
+        case BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE:
+            cfg->frame_duration = ltvs[2];
+            break;
+        case BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE:
+            if (ltv_len < 5) {
+                return BLE_HS_EINVAL;
+            }
+            cfg->chan_alloc = get_le32(&ltvs[2]);
+            break;
+        case BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE:
+            if (ltv_len < 3) {
+                return BLE_HS_EINVAL;
+            }
+            cfg->octets_per_frame = get_le16(&ltvs[2]);
+            break;
+        case BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE:
+            cfg->frames_per_sdu = ltvs[2];
+            break;
+        default:
+            break;
+        }
+
+        len -= ltv_len + 1;
+        ltvs += ltv_len + 1;
+    }
+
+    return 0;
+}
+
+static uint8_t
+bis_codec_config_build(const struct lc3_cfg *cfg, uint32_t chan_alloc,
+                       uint8_t *buf)
+{
+    uint8_t len = 0;
+
+    buf[len++] = 2;
+    buf[len++] = BLE_AUDIO_CODEC_CONF_SAMPLING_FREQ_TYPE;
+    buf[len++] = cfg->sampling_freq;
+
+    buf[len++] = 2;
+    buf[len++] = BLE_AUDIO_CODEC_CONF_FRAME_DURATION_TYPE;
+    buf[len++] = cfg->frame_duration;
+
+    if (chan_alloc) {
+        buf[len++] = 5;
+        buf[len++] = BLE_AUDIO_CODEC_CONF_AUDIO_CHANNEL_ALLOCATION_TYPE;
+        put_le32(&buf[len], chan_alloc);
+        len += 4;
+    }
+
+    buf[len++] = 3;
+    buf[len++] = BLE_AUDIO_CODEC_CONF_OCTETS_PER_CODEC_FRAME_TYPE;
+    put_le16(&buf[len], cfg->octets_per_frame);
+    len += 2;
+
+    if (cfg->frames_per_sdu) {
+        buf[len++] = 2;
+        buf[len++] = BLE_AUDIO_CODEC_CONF_FRAME_BLOCKS_PER_SDU_TYPE;
+        buf[len++] = cfg->frames_per_sdu;
+    }
+
+    return len;
+}
+
+static void
+base_reset(void)
+{
+    struct ble_audio_bis *bis;
+
+    while ((bis = STAILQ_FIRST(&big_subgroup.bises)) != NULL) {
+        STAILQ_REMOVE_HEAD(&big_subgroup.bises, next);
+        os_memblock_put(&codec_spec_pool, bis->codec_spec_config);
+        os_memblock_put(&bis_pool, bis);
+    }
+
+    memset(&big_subgroup, 0, sizeof(big_subgroup));
+    STAILQ_INIT(&big_subgroup.bises);
+
+    STAILQ_INIT(&tester_base.subs);
+    tester_base.num_subgroups = 0;
+}
+
+static int
 base_create(const struct bap_broadcast_source_setup_cmd *cmd)
 {
     struct ble_audio_bis *bis;
-    uint8_t sampling_freq = cmd->cc_ltvs[2];
-    uint8_t frame_duration = cmd->cc_ltvs[5];
-    uint16_t chan_loc = BLE_AUDIO_LOCATION_FRONT_LEFT |
-                        BLE_AUDIO_LOCATION_FRONT_RIGHT;
+    struct lc3_cfg cfg;
+    uint32_t remaining_alloc;
+    uint32_t chan_alloc;
+    uint8_t streams = cmd->streams_per_subgroup;
+    uint8_t i;
+    int rc;
 
-    uint8_t codec_spec_config[] =
-        BLE_AUDIO_BUILD_CODEC_CONFIG(sampling_freq, frame_duration, chan_loc,
-                                     max_sdu, );
-
-    tester_base.broadcast_id = sampling_freq;
-    tester_base.presentation_delay = sampling_freq * 10000;
-
-    big_subgroup.bis_cnt = 1;
-
-    /** LC3 */
-    big_subgroup.codec_id.format = 0x06;
-
-    big_subgroup.codec_spec_config_len = 0;
-
-    bis = os_memblock_get(&bis_pool);
-    if (!bis) {
-        return BLE_HS_ENOMEM;
+    if (cmd->subgroups != 1 || streams == 0 ||
+        streams > MYNEWT_VAL(BLE_ISO_MAX_BISES)) {
+        return BLE_HS_EINVAL;
     }
 
-    bis->codec_spec_config = os_memblock_get(&codec_spec_pool);
-    memcpy(bis->codec_spec_config,
-           codec_spec_config,
-           sizeof(codec_spec_config));
-    bis->codec_spec_config_len = sizeof(codec_spec_config);
-    bis->idx = 1;
+    rc = lc3_cfg_parse(cmd->cc_ltvs, cmd->cc_ltvs_len, &cfg);
+    if (rc) {
+        return rc;
+    }
 
-    STAILQ_INSERT_HEAD(&big_subgroup.bises, bis, next);
+    base_reset();
+
+    tester_base.presentation_delay = get_le24(cmd->presentation_delay);
+
+    big_subgroup.codec_id.format = 0x06;
+    big_subgroup.codec_spec_config_len = 0;
+
+    remaining_alloc = cfg.chan_alloc;
+
+    for (i = 0; i < streams; i++) {
+        if (streams == 1) {
+            chan_alloc = cfg.chan_alloc;
+        } else {
+            chan_alloc = remaining_alloc & -remaining_alloc;
+            remaining_alloc &= ~chan_alloc;
+        }
+
+        bis = os_memblock_get(&bis_pool);
+        if (!bis) {
+            base_reset();
+            return BLE_HS_ENOMEM;
+        }
+
+        bis->codec_spec_config = os_memblock_get(&codec_spec_pool);
+        if (!bis->codec_spec_config) {
+            os_memblock_put(&bis_pool, bis);
+            base_reset();
+            return BLE_HS_ENOMEM;
+        }
+
+        bis->codec_spec_config_len =
+            bis_codec_config_build(&cfg, chan_alloc, bis->codec_spec_config);
+        bis->idx = i + 1;
+
+        STAILQ_INSERT_TAIL(&big_subgroup.bises, bis, next);
+        big_subgroup.bis_cnt++;
+    }
+
     STAILQ_INSERT_HEAD(&tester_base.subs, &big_subgroup, next);
-
-    tester_base.num_subgroups++;
+    tester_base.num_subgroups = 1;
 
     return 0;
 }
@@ -191,14 +310,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
 static int
 broadcast_destroy_fn(struct ble_audio_base *base, void *args)
 {
-    struct ble_audio_bis *bis;
-
-    STAILQ_FOREACH(bis, &big_subgroup.bises, next) {
-        os_memblock_put(&codec_spec_pool, bis->codec_spec_config);
-        os_memblock_put(&bis_pool, bis);
-    }
-
-    memset(&big_subgroup, 0, sizeof(big_subgroup));
+    base_reset();
 
     return 0;
 }
@@ -210,14 +322,18 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
     int rc;
 
     const struct bap_broadcast_source_setup_cmd *source_config = cmd;
-    max_sdu = source_config->max_sdu;
+
+    max_sdu = le16toh(source_config->max_sdu);
     sdu_interval = get_le24(source_config->sdu_interval);
 
-    base_create(source_config);
+    rc = base_create(source_config);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
 
     big_params.sdu_interval = sdu_interval;
     big_params.max_sdu = max_sdu;
-    big_params.max_transport_latency = 8;
+    big_params.max_transport_latency = le16toh(source_config->max_transport_lat);
     big_params.rtn = source_config->rtn;
     big_params.phy = BLE_HCI_LE_PHY_2M;
     big_params.packing = 0;
@@ -307,6 +423,8 @@ broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
                          uint16_t *rsp_len)
 {
     int rc;
+
+    os_callout_stop(&audio_broadcast_callout);
 
     rc = ble_audio_broadcast_destroy(BROADCAST_ADV_INSTANCE);
     if (rc) {
@@ -663,7 +781,7 @@ tester_init_bap(void)
     rc = ble_hs_id_infer_auto(0, &id_addr_type);
     assert(rc == 0);
 
-    memset(audio_data, 36, sizeof(char)*155);
+    memset(audio_data, 36, sizeof(audio_data));
 
     os_callout_init(&audio_broadcast_callout, os_eventq_dflt_get(),
                     audio_broadcast_event_cb, NULL);
