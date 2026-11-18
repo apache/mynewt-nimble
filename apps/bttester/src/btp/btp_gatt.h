@@ -311,7 +311,7 @@ struct btp_gatt_get_attribute_value_rp {
 struct btp_gatt_change_database_cmd {
     uint16_t start_handle;
     uint16_t end_handle;
-    uint8_t visibility;
+    uint8_t operation;
 } __packed;
 
 #define BTP_GATT_NOTIFY_MULTIPLE        0x21
