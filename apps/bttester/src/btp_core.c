@@ -111,6 +111,11 @@ register_service(const void *cmd, uint16_t cmd_len,
     case BTP_SERVICE_ID_GATTC:
         status = tester_init_gatt_cl();
         break;
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    case BTP_SERVICE_ID_RAP:
+        status = tester_init_rap();
+        break;
+#endif /* MYNEWT_VAL (BLE_CHANNEL_SOUNDING) */
     default:
         status = BTP_STATUS_FAILED;
         break;
@@ -170,6 +175,11 @@ unregister_service(const void *cmd, uint16_t cmd_len,
         status = tester_unregister_pacs();
         break;
 #endif /* MYNEWT_VAL (BLE_AUDIO) */
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    case BTP_SERVICE_ID_RAP:
+        status = tester_unregister_rap();
+        break;
+#endif /* MYNEWT_VAL (BLE_CHANNEL_SOUNDING) */
     default:
         status = BTP_STATUS_FAILED;
         break;
