@@ -1,0 +1,85 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: BabbleSim
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  targets:
+    name: Build BabbleSim targets
+    runs-on: ubuntu-latest
+    env:
+      BSIM_OUT_PATH: ${{ github.workspace }}/babblesim
+      BSIM_COMPONENTS_PATH: ${{ github.workspace }}/babblesim/components
+      NRFX_BASE: ${{ github.workspace }}/nrfx
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: 'stable'
+          cache: false
+      - name: Install Dependencies
+        shell: bash
+        run: |
+             sudo apt-get update
+             sudo apt-get install -y gcc-multilib
+      - name: Install newt
+        shell: bash
+        run: |
+             go version
+             go install mynewt.apache.org/newt/newt@latest
+      - name: Install BabbleSim
+        shell: bash
+        run: |
+             mkdir -p ~/bin
+             curl -sSfL https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+             chmod a+x ~/bin/repo
+             mkdir -p ${BSIM_OUT_PATH}
+             cd ${BSIM_OUT_PATH}
+             ~/bin/repo init -u https://github.com/BabbleSim/manifest.git -m everything.xml -b master
+             ~/bin/repo sync -c -j$(nproc)
+             # Legacy nRF52 HW models (newer ext_nRF_hw_models require native simulator)
+             git clone --depth 1 https://github.com/BabbleSim/ext_NRF52_hw_models.git components/ext_NRF52_hw_models
+             # Legacy HW models require nrfx 3.x
+             git clone --depth 1 -b v3.1.0 https://github.com/NordicSemiconductor/nrfx.git ${NRFX_BASE}
+             make everything -j$(nproc)
+      - name: Setup project
+        shell: bash
+        run: |
+             newt new build
+             cp -f .github/project.yml build/project.yml
+             cd build
+             newt upgrade --shallow=1
+             rm -rf targets
+             rm -rf repos/apache-mynewt-nimble
+             git clone .. repos/apache-mynewt-nimble
+      - name: Build targets
+        shell: bash
+        run: |
+             cd build
+             ls repos/apache-mynewt-nimble/babblesim/targets | xargs -n1 sh -c 'echo "Testing $0"; newt build -q @apache-mynewt-nimble/babblesim/targets/$0'
