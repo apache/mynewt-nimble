@@ -122,6 +122,15 @@ Several other projects provide support for using NimBLE either by [NPL port](htt
 
  If you publish a NimBLE port, please let us know to include it here!
 
+## Integration testing
+
+[BSWorld](https://github.com/XiaoMi/bsworld) runs NimBLE Host applications
+without hardware, against simulated Controllers, with deterministic radio
+simulation and HCI and over-the-air traces. It supports the
+[NuttX port](https://github.com/apache/nuttx-apps/tree/master/wireless/bluetooth/nimble)
+(`blecent` and `bleprph` on the NuttX simulator) and the
+[Linux port](https://github.com/apache/mynewt-nimble/tree/master/porting/examples/linux).
+
 # Getting Help
 
 If you are having trouble using or contributing to Apache Mynewt NimBLE, or just
