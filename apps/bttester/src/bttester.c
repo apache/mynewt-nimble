@@ -62,6 +62,10 @@ static struct {
     uint8_t num;
 } service_handler[BTP_SERVICE_ID_MAX + 1];
 
+static struct {
+    uint8_t bitmap[BTP_EVENT_BITMAP_MAX_LEN];
+    uint8_t len;
+} service_events[BTP_SERVICE_ID_MAX + 1];
 
 void
 tester_mbuf_reset(struct os_mbuf *buf)
@@ -87,6 +91,29 @@ tester_register_command_handlers(uint8_t service,
 
     service_handler[service].handlers = handlers;
     service_handler[service].num = num;
+}
+
+void
+tester_register_supported_events(uint8_t service, const uint8_t *events,
+                                 size_t num)
+{
+    uint8_t bit;
+    size_t i;
+
+    assert(service <= BTP_SERVICE_ID_MAX);
+
+    memset(&service_events[service], 0, sizeof(service_events[service]));
+
+    for (i = 0; i < num; i++) {
+        assert(events[i] >= BTP_EVENT_OPCODE_BASE);
+
+        bit = events[i] - BTP_EVENT_OPCODE_BASE;
+        tester_set_bit(service_events[service].bitmap, bit);
+
+        if (bit / 8 + 1 > service_events[service].len) {
+            service_events[service].len = bit / 8 + 1;
+        }
+    }
 }
 
 const char *
@@ -394,4 +421,14 @@ tester_supported_commands(uint8_t service, uint8_t *cmds)
     }
 
     return (opcode_max / 8) + 1;
+}
+
+uint16_t
+tester_supported_events(uint8_t service, uint8_t *events)
+{
+    assert(service <= BTP_SERVICE_ID_MAX);
+
+    memcpy(events, service_events[service].bitmap, service_events[service].len);
+
+    return service_events[service].len;
 }
