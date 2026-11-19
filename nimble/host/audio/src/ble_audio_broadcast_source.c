@@ -387,8 +387,8 @@ ble_audio_broadcast_destroy(uint8_t adv_instance)
         return rc;
     }
 
-    os_memblock_put(&ble_audio_broadcast_pool, broadcast);
     SLIST_REMOVE(&ble_audio_broadcasts, broadcast, ble_audio_broadcast, next);
+    os_memblock_put(&ble_audio_broadcast_pool, broadcast);
 
     return 0;
 }
