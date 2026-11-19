@@ -159,7 +159,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
                                      max_sdu, );
 
     tester_base.broadcast_id = sampling_freq;
-    tester_base.presentation_delay = sampling_freq * 10000;
+    tester_base.presentation_delay = get_le24(cmd->presentation_delay);
 
     big_subgroup.bis_cnt = MYNEWT_VAL(BLE_ISO_MAX_BISES);
 
@@ -210,14 +210,18 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
     int rc;
 
     const struct bap_broadcast_source_setup_cmd *source_config = cmd;
-    max_sdu = source_config->max_sdu;
+
+    max_sdu = le16toh(source_config->max_sdu);
     sdu_interval = get_le24(source_config->sdu_interval);
 
-    base_create(source_config);
+    rc = base_create(source_config);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
 
     big_params.sdu_interval = sdu_interval;
     big_params.max_sdu = max_sdu;
-    big_params.max_transport_latency = 8;
+    big_params.max_transport_latency = le16toh(source_config->max_transport_lat);
     big_params.rtn = source_config->rtn;
     big_params.phy = BLE_HCI_LE_PHY_2M;
     big_params.packing = 0;
