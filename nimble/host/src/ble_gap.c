@@ -6923,6 +6923,23 @@ ble_gap_pairing_complete_event(uint16_t conn_handle, int status)
 #endif
 }
 
+void
+ble_gap_eatt_event(uint16_t conn_handle, int status, uint8_t chan_num)
+{
+#if NIMBLE_BLE_CONNECT
+    struct ble_gap_event event;
+
+    memset(&event, 0, sizeof event);
+    event.type = BLE_GAP_EVENT_EATT;
+    event.eatt.conn_handle = conn_handle;
+    event.eatt.status = status;
+    event.eatt.chan_num = chan_num;
+
+    ble_gap_event_listener_call(&event);
+    ble_gap_call_conn_event_cb(&event, conn_handle);
+#endif
+}
+
 /*****************************************************************************
  * $rssi                                                                     *
  *****************************************************************************/

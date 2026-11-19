@@ -51,6 +51,8 @@ struct ble_eatt {
 #define BLE_EATT_F_OUTGOING  0x01
 /* Peer's request was rejected while ours was pending */
 #define BLE_EATT_F_COLLISION 0x02
+/* Another channel of the same request got connected */
+#define BLE_EATT_F_OPENED    0x04
 
 /* Request to open EATT channels on a connection. Requests are handled in the
  * host task, which owns the list of EATT channels.
@@ -170,6 +172,44 @@ ble_eatt_count(uint16_t conn_handle)
     }
 
     return count;
+}
+
+static uint8_t
+ble_eatt_count_connected(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+    uint8_t count;
+
+    count = 0;
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if ((eatt->conn_handle == conn_handle) && eatt->chan) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+/* Not reported for a connection being terminated: its channels are failed
+ * or freed before BLE_GAP_EVENT_DISCONNECT, which tells the application the
+ * bearers are gone.
+ */
+static void
+ble_eatt_report(uint16_t conn_handle, int status)
+{
+    struct ble_hs_conn *conn;
+    bool terminated;
+
+    ble_hs_lock();
+    conn = ble_hs_conn_find(conn_handle);
+    terminated = !conn || (conn->bhc_flags & BLE_HS_CONN_F_TERMINATED);
+    ble_hs_unlock();
+
+    if (terminated) {
+        return;
+    }
+
+    ble_gap_eatt_event(conn_handle, status, ble_eatt_count_connected(conn_handle));
 }
 
 static struct ble_eatt *
@@ -360,14 +400,14 @@ ble_eatt_conn_req_cancel(uint16_t conn_handle)
  * and the Peripheral shall wait at least 100 ms, or
  * 2 * (connPeripheralLatency + 1) * connInterval if that is longer.
  */
-static void
+static int
 ble_eatt_retry(uint16_t conn_handle, uint8_t chan_num)
 {
     struct ble_gap_conn_desc desc;
     uint32_t delay_ms;
 
     if (ble_gap_conn_find(conn_handle, &desc)) {
-        return;
+        return BLE_HS_ENOTCONN;
     }
 
     if (desc.role == BLE_GAP_ROLE_MASTER) {
@@ -383,7 +423,22 @@ ble_eatt_retry(uint16_t conn_handle, uint8_t chan_num)
     BLE_EATT_LOG_DEBUG("eatt: collision, retrying in %u ms (conn_handle=0x%04x)\n",
                        (unsigned)delay_ms, conn_handle);
 
-    ble_eatt_conn_req_post(conn_handle, chan_num, false, delay_ms);
+    return ble_eatt_conn_req_post(conn_handle, chan_num, false, delay_ms);
+}
+
+/* Marks the other channels of a request, so that whichever is resolved last
+ * knows the request opened something.
+ */
+static void
+ble_eatt_mark_opened(uint16_t conn_handle)
+{
+    struct ble_eatt *eatt;
+
+    SLIST_FOREACH(eatt, &g_ble_eatt_list, next) {
+        if ((eatt->conn_handle == conn_handle) && (eatt->flags & BLE_EATT_F_OUTGOING)) {
+            eatt->flags |= BLE_EATT_F_OPENED;
+        }
+    }
 }
 
 /* Called when a peer's request is rejected for lack of resources */
@@ -404,8 +459,11 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
 {
     struct ble_eatt *eatt = arg;
     struct ble_gap_conn_desc desc;
+    uint16_t conn_handle;
     uint8_t chan_num;
     uint8_t opcode;
+    bool outgoing;
+    bool opened;
     bool retry;
     int rc;
 
@@ -425,22 +483,42 @@ ble_eatt_l2cap_event_fn(struct ble_l2cap_event *event, void *arg)
                 return 0;
             }
         }
+        conn_handle = event->connect.conn_handle;
+        outgoing = eatt->flags & BLE_EATT_F_OUTGOING;
         if (event->connect.status) {
             retry = (eatt->flags & BLE_EATT_F_COLLISION) &&
                     (event->connect.status ==
                      BLE_HS_L2C_ERR(BLE_L2CAP_COC_ERR_NO_RESOURCES));
+            opened = eatt->flags & BLE_EATT_F_OPENED;
             chan_num = eatt->chan_num;
             ble_eatt_free(eatt);
 
-            /* Retry once all channels of the request are resolved */
-            if (retry && !ble_eatt_find_pending(event->connect.conn_handle)) {
-                ble_eatt_retry(event->connect.conn_handle, chan_num);
+            /* Retry or report once all channels of the request are
+             * resolved; a retry reports when it is done.
+             */
+            if (!outgoing || ble_eatt_find_pending(conn_handle)) {
+                return 0;
             }
+            if (retry) {
+                rc = ble_eatt_retry(conn_handle, chan_num);
+                if (rc == 0) {
+                    return 0;
+                }
+            }
+            ble_eatt_report(conn_handle, opened ? 0 : event->connect.status);
             return 0;
         }
         eatt->flags = 0;
         eatt->chan = event->connect.chan;
         eatt->chan->cb_arg = eatt;
+
+        if (outgoing) {
+            ble_eatt_mark_opened(conn_handle);
+            if (ble_eatt_find_pending(conn_handle)) {
+                break;
+            }
+        }
+        ble_eatt_report(conn_handle, 0);
         break;
     case BLE_L2CAP_EVENT_COC_DISCONNECTED:
         BLE_EATT_LOG_DEBUG("eatt: Disconnected \n");
@@ -588,6 +666,8 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
         chan_num = BLE_EATT_CHAN_PER_CONN_MAX;
     }
     if (cur >= chan_num) {
+        /* Nothing to open, but let the application know where it stands */
+        ble_eatt_report(conn_handle, 0);
         return;
     }
     num = chan_num - cur;
@@ -612,6 +692,7 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
     /* Open as many channels as there are resources for */
     num = i;
     if (num == 0) {
+        ble_eatt_report(conn_handle, BLE_HS_ENOMEM);
         return;
     }
 
@@ -631,6 +712,7 @@ ble_eatt_setup_cb(struct ble_npl_event *ev)
             os_mbuf_free_chain(om[i]);
             ble_eatt_free(eatt[i]);
         }
+        ble_eatt_report(conn_handle, rc);
     }
 }
 

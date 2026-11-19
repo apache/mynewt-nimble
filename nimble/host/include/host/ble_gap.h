@@ -261,6 +261,9 @@ struct hci_conn_update;
 /** GAP event: Pairing request received from peer */
 #define BLE_GAP_EVENT_PAIRING_REQUEST       31
 
+/** GAP event: EATT bearers set up */
+#define BLE_GAP_EVENT_EATT                  32
+
 /** @} */
 
 /**
@@ -1025,6 +1028,38 @@ struct ble_gap_event {
             /** The handle of the relevant connection. */
             uint16_t conn_handle;
         } pairing_request;
+
+        /**
+         * Represents the end of an attempt to open EATT bearers, or a
+         * bearer opened by the peer. Reported after all channels requested
+         * locally on the connection are connected or refused. Requests
+         * that overlap on one connection (e.g. BLE_EATT_AUTO_CONNECT and
+         * ble_eatt_connect()) are reported with a single event. Not
+         * reported if the connection is terminated in the meantime.
+         *
+         * Valid for the following event types:
+         *     o BLE_GAP_EVENT_EATT
+         */
+        struct {
+            /**
+             * The result of the last attempt (a request is retried after
+             * an L2CAP collision):
+             *     o 0: The last attempt opened at least one bearer, or the
+             *          connection already had as many as requested.
+             *     o Non-zero: The last attempt opened no bearer, e.g.
+             *          BLE_HS_ENOMEM or BLE_HS_L2C_ERR() of the peer's
+             *          refusal. Bearers opened by an earlier attempt stay
+             *          open.
+             * chan_num is the number of bearers in both cases.
+             */
+            int status;
+
+            /** The handle of the relevant connection. */
+            uint16_t conn_handle;
+
+            /** Number of EATT bearers now established on the connection. */
+            uint8_t chan_num;
+        } eatt;
 
         /**
          * Represents a change of PHY. This is issue after successful

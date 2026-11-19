@@ -358,7 +358,8 @@ int ble_att_set_preferred_mtu(uint16_t mtu);
 /**
  * Opens additional EATT channels on a connection. Channels are opened
  * asynchronously in the host task, never more than BLE_EATT_CHAN_PER_CONN on
- * the connection in total; fewer are opened if resources run out.
+ * the connection in total; fewer are opened if resources run out. The
+ * outcome is reported with a BLE_GAP_EVENT_EATT event.
  *
  * @param conn_handle           The connection to open the channels on. It
  *                                  must be encrypted.
