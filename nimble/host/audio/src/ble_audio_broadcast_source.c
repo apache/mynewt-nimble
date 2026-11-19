@@ -144,8 +144,14 @@ ble_audio_broadcast_create(const struct ble_broadcast_create_params *params,
     params->base->broadcast_id = get_le24(broadcast_id);
 
     broadcast = os_memblock_get(&ble_audio_broadcast_pool);
+    if (broadcast == NULL) {
+        return BLE_HS_ENOMEM;
+    }
+
+    memset(broadcast, 0, sizeof(*broadcast));
 
     broadcast->adv_instance = params->adv_instance;
+    broadcast->big_handle = BLE_HCI_ISO_BIG_HANDLE_INVALID;
     broadcast->base = params->base;
     broadcast->big_params = params->big_params;
     broadcast->destroy_cb = destroy_cb;
@@ -347,7 +353,23 @@ ble_audio_broadcast_start(uint8_t adv_instance,
 int
 ble_audio_broadcast_stop(uint8_t adv_instance)
 {
+    struct ble_audio_broadcast *broadcast;
     int rc;
+
+    broadcast = ble_audio_broadcast_find(adv_instance);
+    if (!broadcast) {
+        return BLE_HS_ENOENT;
+    }
+
+    if (broadcast->big_handle != BLE_HCI_ISO_BIG_HANDLE_INVALID) {
+        rc = ble_iso_terminate_big(broadcast->big_handle);
+        if (rc && rc != BLE_HS_ENOENT) {
+            BLE_HS_LOG_ERROR("Failed to terminate BIG (rc=%d)\n", rc);
+            return rc;
+        }
+
+        broadcast->big_handle = BLE_HCI_ISO_BIG_HANDLE_INVALID;
+    }
 
     rc = ble_gap_ext_adv_stop(adv_instance);
     if (rc) {
@@ -375,15 +397,16 @@ ble_audio_broadcast_destroy(uint8_t adv_instance)
         return BLE_HS_ENOENT;
     }
 
+    if (broadcast->big_handle != BLE_HCI_ISO_BIG_HANDLE_INVALID) {
+        rc = ble_audio_broadcast_stop(adv_instance);
+        if (rc) {
+            return rc;
+        }
+    }
+
     rc = ble_gap_ext_adv_remove(adv_instance);
     if (rc) {
         BLE_HS_LOG_ERROR("Failed to remove extended advertising\n");
-        return rc;
-    }
-
-    rc = ble_iso_terminate_big(broadcast->big_handle);
-    if (rc) {
-        BLE_HS_LOG_ERROR("Failed to terminate BIG\n");
         return rc;
     }
 
