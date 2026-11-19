@@ -71,6 +71,7 @@ static struct os_mempool codec_spec_pool;
 
 static uint16_t bis_handles[MYNEWT_VAL(BLE_ISO_MAX_BISES)];
 static uint8_t num_bis;
+static uint8_t big_handle;
 /* The timer callout */
 static struct os_callout audio_broadcast_callout;
 
@@ -118,6 +119,7 @@ iso_event(struct ble_iso_event *event, void *arg)
     switch (event->type) {
     case BLE_ISO_EVENT_BIG_CREATE_COMPLETE:
         console_printf("%s: BIG created\n", __func__);
+        big_handle = event->big_created.desc.big_handle;
         num_bis = min(event->big_created.desc.num_bis, ARRAY_SIZE(bis_handles));
         for (i = 0; i < num_bis; i++) {
             bis_handles[i] = event->big_created.desc.conn_handle[i];
@@ -125,6 +127,7 @@ iso_event(struct ble_iso_event *event, void *arg)
         return 0;
     case BLE_ISO_EVENT_BIG_TERMINATE_COMPLETE:
         console_printf("%s: BIG terminated\n", __func__);
+        num_bis = 0;
         return 0;
     default:
         return BLE_HS_ENOTSUP;
@@ -548,7 +551,14 @@ static uint8_t
 broadcast_source_stop(const void *cmd, uint16_t cmd_len, void *rsp,
                       uint16_t *rsp_len)
 {
+    int rc;
+
     os_callout_stop(&audio_broadcast_callout);
+
+    rc = ble_iso_terminate_big(big_handle);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
 
     return BTP_STATUS_SUCCESS;
 }
