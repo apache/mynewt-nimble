@@ -935,7 +935,7 @@ ble_att_clt_tx_notify(uint16_t conn_handle, uint16_t handle,
 
     cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
     rc = ble_att_tx(conn_handle, cid, txom2);
-    ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
+    ble_eatt_release_chan(conn_handle, cid);
     return rc;
 
 err:
@@ -1019,7 +1019,7 @@ ble_att_clt_tx_notify_mult(uint16_t conn_handle, struct os_mbuf *txom)
     cid = ble_eatt_get_available_chan_cid(conn_handle, BLE_GATT_OP_DUMMY);
     rc = ble_att_tx(conn_handle, cid, txom2);
     if (cid != BLE_L2CAP_CID_ATT) {
-        ble_eatt_release_chan(conn_handle, BLE_GATT_OP_DUMMY);
+        ble_eatt_release_chan(conn_handle, cid);
     }
 
     return rc;
