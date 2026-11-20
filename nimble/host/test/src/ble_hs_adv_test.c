@@ -496,6 +496,69 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user)
     },
         &rsp_fields, NULL);
 
+    /*** 0x14 - 16-bit service solicitation UUIDs. */
+    memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    adv_fields.sol_uuids16 = (ble_uuid16_t[]){ BLE_UUID16_INIT(0x0001),
+                                               BLE_UUID16_INIT(0x1234) };
+    adv_fields.num_sol_uuids16 = 2;
+
+    ble_hs_adv_test_misc_tx_and_verify_data(
+        BLE_GAP_DISC_MODE_NON, &adv_fields,
+        (struct ble_hs_adv_test_field[]){
+            {
+             .type = BLE_HS_ADV_TYPE_FLAGS,
+             .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_TX_PWR_LVL,
+             .val = (uint8_t[]){ 0 },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_SOL_UUIDS16,
+             .val = (uint8_t[]){ 0x01, 0x00, 0x34, 0x12 },
+             .val_len = 4,
+             },
+            { 0 },
+    },
+        &rsp_fields, NULL);
+
+    /*** 0x15 - 128-bit service solicitation UUIDs. */
+    memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    adv_fields.sol_uuids128 = (ble_uuid128_t[]){ BLE_UUID128_INIT(
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+        0xcc, 0xdd, 0xee, 0xff) };
+    adv_fields.num_sol_uuids128 = 1;
+
+    ble_hs_adv_test_misc_tx_and_verify_data(
+        BLE_GAP_DISC_MODE_NON, &adv_fields,
+        (struct ble_hs_adv_test_field[]){
+            {
+             .type = BLE_HS_ADV_TYPE_FLAGS,
+             .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_TX_PWR_LVL,
+             .val = (uint8_t[]){ 0 },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_SOL_UUIDS128,
+             .val =
+                    (uint8_t[]){ 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+                                 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff },
+             .val_len = 16,
+             },
+            { 0 },
+    },
+        &rsp_fields, NULL);
+
     /*** 0x16 - Service data - 16-bit UUID. */
     memset(&adv_fields, 0, sizeof adv_fields);
     adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
@@ -608,6 +671,35 @@ TEST_CASE_SELF(ble_hs_adv_test_case_user)
              .type = BLE_HS_ADV_TYPE_ADV_ITVL,
              .val = (uint8_t[]){ 0x34, 0x12 },
              .val_len = BLE_HS_ADV_ADV_ITVL_LEN,
+             },
+            { 0 },
+    },
+        &rsp_fields, NULL);
+
+    /*** 0x1f - 32-bit service solicitation UUIDs. */
+    memset(&adv_fields, 0, sizeof adv_fields);
+    adv_fields.flags = BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    adv_fields.sol_uuids32 = (ble_uuid32_t[]){ BLE_UUID32_INIT(0x12345678) };
+    adv_fields.num_sol_uuids32 = 1;
+
+    ble_hs_adv_test_misc_tx_and_verify_data(
+        BLE_GAP_DISC_MODE_NON, &adv_fields,
+        (struct ble_hs_adv_test_field[]){
+            {
+             .type = BLE_HS_ADV_TYPE_FLAGS,
+             .val = (uint8_t[]){ BLE_HS_ADV_F_BREDR_UNSUP },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_TX_PWR_LVL,
+             .val = (uint8_t[]){ 0 },
+             .val_len = 1,
+             },
+            {
+             .type = BLE_HS_ADV_TYPE_SOL_UUIDS32,
+             .val = (uint8_t[]){ 0x78, 0x56, 0x34, 0x12 },
+             .val_len = 4,
              },
             { 0 },
     },
@@ -1418,10 +1510,52 @@ TEST_CASE_SELF(ble_hs_adv_test_case_parse_zero_length_field)
     ble_hs_test_util_assert_mbufs_freed(NULL);
 }
 
+TEST_CASE_SELF(ble_hs_adv_test_case_parse_sol_uuids)
+{
+    static const uint8_t data[] = {
+        0x05, BLE_HS_ADV_TYPE_SOL_UUIDS16, 0x01, 0x00, 0x34, 0x12,
+        0x05, BLE_HS_ADV_TYPE_SOL_UUIDS32, 0x78, 0x56, 0x34, 0x12,
+        0x11, BLE_HS_ADV_TYPE_SOL_UUIDS128,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff,
+    };
+    /* Length is not a multiple of the UUID size */
+    static const uint8_t data_bad[] = {
+        0x04, BLE_HS_ADV_TYPE_SOL_UUIDS16, 0x01, 0x00, 0x34,
+    };
+    struct ble_hs_adv_fields fields;
+    int rc;
+
+    ble_hs_test_util_init();
+
+    rc = ble_hs_adv_parse_fields(&fields, data, sizeof data);
+    TEST_ASSERT(rc == 0);
+
+    TEST_ASSERT(fields.num_uuids16 == 0);
+    TEST_ASSERT(fields.num_uuids32 == 0);
+    TEST_ASSERT(fields.num_uuids128 == 0);
+
+    TEST_ASSERT(fields.num_sol_uuids16 == 2);
+    TEST_ASSERT(ble_uuid_u16(&fields.sol_uuids16[0].u) == 0x0001);
+    TEST_ASSERT(ble_uuid_u16(&fields.sol_uuids16[1].u) == 0x1234);
+
+    TEST_ASSERT(fields.num_sol_uuids32 == 1);
+    TEST_ASSERT(fields.sol_uuids32[0].value == 0x12345678);
+
+    TEST_ASSERT(fields.num_sol_uuids128 == 1);
+    TEST_ASSERT(memcmp(fields.sol_uuids128[0].value, data + 14, 16) == 0);
+
+    rc = ble_hs_adv_parse_fields(&fields, data_bad, sizeof data_bad);
+    TEST_ASSERT(rc == BLE_HS_EBADDATA);
+
+    ble_hs_test_util_assert_mbufs_freed(NULL);
+}
+
 TEST_SUITE(ble_hs_adv_test_suite)
 {
     ble_hs_adv_test_case_user();
     ble_hs_adv_test_case_user_rsp();
     ble_hs_adv_test_case_user_full_payload();
     ble_hs_adv_test_case_parse_zero_length_field();
+    ble_hs_adv_test_case_parse_sol_uuids();
 }
