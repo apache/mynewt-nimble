@@ -59,6 +59,14 @@ supported_services(const void *cmd, uint16_t cmd_len,
 #endif /* MYNEWT_VAL(BLE_MESH) */
     tester_set_bit(rp->data, BTP_SERVICE_ID_GATTC);
 
+    /* octet 1 */
+#if MYNEWT_VAL(BLE_AUDIO)
+    tester_set_bit(rp->data, BTP_SERVICE_ID_PACS);
+#endif /* MYNEWT_VAL(BLE_AUDIO) */
+#if MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE)
+    tester_set_bit(rp->data, BTP_SERVICE_ID_BAP);
+#endif /* MYNEWT_VAL(BLE_ISO_BROADCAST_SOURCE) */
+
     *rsp_len = sizeof(*rp) + 2;
 
     return BTP_STATUS_SUCCESS;
