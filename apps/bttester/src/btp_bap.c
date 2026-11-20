@@ -75,26 +75,15 @@ static struct os_callout audio_broadcast_callout;
 
 struct ble_iso_big_params big_params;
 
-static int audio_data_offset;
-
 static void
 audio_broadcast_event_cb(struct os_event *ev)
 {
-    assert(ev != NULL);
     uint32_t ev_start_time = os_cputime_ticks_to_usecs(os_cputime_get32());
+    uint16_t len = min(max_sdu, sizeof(audio_data));
 
-    if (audio_data_offset + 2 * max_sdu >= sizeof(audio_data)) {
-        audio_data_offset = 0;
-    }
+    assert(ev != NULL);
 
-    uint8_t lr_payload[max_sdu * 2];
-    memcpy(lr_payload, audio_data + audio_data_offset, max_sdu);
-    memcpy(lr_payload + max_sdu, audio_data + audio_data_offset,
-           max_sdu);
-    ble_iso_tx(bis_handles[0], (void *)(lr_payload),
-               max_sdu * 2);
-
-    audio_data_offset += max_sdu;
+    ble_iso_tx(bis_handles[0], audio_data, len);
 
     /** Use cputime to time BROADCAST_SDU_INTVL, as these ticks are more
      *  accurate than os_time ones. This assures that we do not push
