@@ -111,6 +111,18 @@ struct ble_hs_adv_fields {
     /** 0x12 - Slave connection interval range. */
     const uint8_t *slave_itvl_range;
 
+    /** 0x14 - 16-bit service solicitation UUIDs. */
+    const ble_uuid16_t *sol_uuids16;
+
+    /** Number of 16-bit service solicitation UUIDs. */
+    uint8_t num_sol_uuids16;
+
+    /** 0x15 - 128-bit service solicitation UUIDs. */
+    const ble_uuid128_t *sol_uuids128;
+
+    /** Number of 128-bit service solicitation UUIDs. */
+    uint8_t num_sol_uuids128;
+
     /** 0x16 - Service data - 16-bit UUID. */
     const uint8_t *svc_data_uuid16;
 
@@ -136,6 +148,12 @@ struct ble_hs_adv_fields {
 
     /** Indicates if advertising interval is present. */
     unsigned adv_itvl_is_present:1;
+
+    /** 0x1f - 32-bit service solicitation UUIDs. */
+    const ble_uuid32_t *sol_uuids32;
+
+    /** Number of 32-bit service solicitation UUIDs. */
+    uint8_t num_sol_uuids32;
 
 
     /** 0x20 - Service data - 32-bit UUID. */
@@ -230,6 +248,9 @@ struct ble_hs_adv_fields {
 
 /** Common Data Type: Advertising Interval. */
 #define BLE_HS_ADV_TYPE_ADV_ITVL                0x1a
+
+/** Common Data Type: List of 32-bit Service Solicitation UUIDs. */
+#define BLE_HS_ADV_TYPE_SOL_UUIDS32             0x1f
 
 /** Common Data Type: Service Data - 32-bit UUID. */
 #define BLE_HS_ADV_TYPE_SVC_DATA_UUID32         0x20
