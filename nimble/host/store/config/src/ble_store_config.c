@@ -370,7 +370,7 @@ ble_store_config_delete_cccd(const struct ble_store_key_cccd *key_cccd)
         return BLE_HS_ENOENT;
     }
 
-    assert(ble_store_config_num_cccds < ARRAY_SIZE(ble_store_config_cccds));
+    assert(ble_store_config_num_cccds <= ARRAY_SIZE(ble_store_config_cccds));
     rc = ble_store_config_delete_obj(ble_store_config_cccds,
                                      sizeof *ble_store_config_cccds,
                                      idx,
