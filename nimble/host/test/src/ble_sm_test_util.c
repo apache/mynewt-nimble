@@ -1299,6 +1299,7 @@ ble_sm_test_util_verify_tx_start_enc(uint16_t conn_handle, uint64_t random_numbe
     TEST_ASSERT(memcmp(param + 12, ltk, 16) == 0);
 }
 
+#if !MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
 static void
 ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
                                             uint8_t *peer_id_addr,
@@ -1325,6 +1326,34 @@ ble_sm_test_util_verify_tx_add_resolve_list(uint8_t peer_id_addr_type,
     TEST_ASSERT(memcmp(param + 7, peer_irk, 16) == 0);
     TEST_ASSERT(memcmp(param + 23, our_irk, 16) == 0);
 }
+
+#else
+static void
+ble_sm_test_util_verify_host_resolve(uint8_t peer_id_addr_type,
+                                     uint8_t *peer_id_addr, uint8_t *peer_irk)
+{
+    ble_addr_t addr = { BLE_ADDR_RANDOM, { 0, 0, 0, 0x11, 0x22, 0x63 } };
+    int rc;
+
+    /* RPA with prand 632211 and hash computed with the peer's IRK */
+    rc = ble_sm_alg_ah(peer_irk, addr.val + 3, addr.val);
+    TEST_ASSERT_FATAL(rc == 0);
+
+    TEST_ASSERT(ble_hs_resolv_addr(&addr) == 1);
+    TEST_ASSERT(addr.type == peer_id_addr_type + 2);
+    TEST_ASSERT(memcmp(addr.val, peer_id_addr, 6) == 0);
+
+    /* Nothing is sent to the controller. */
+    TEST_ASSERT(ble_hs_test_util_hci_out_first() == NULL);
+
+    /* Peer seen with its identity address again, so that connections are
+     * not made to the RPA above.
+     */
+    addr.type = peer_id_addr_type;
+    memcpy(addr.val, peer_id_addr, 6);
+    TEST_ASSERT(ble_hs_resolv_addr(&addr) == 0);
+}
+#endif
 
 void
 ble_sm_test_util_io_inject(struct ble_sm_test_passkey_info *passkey_info,
@@ -1534,11 +1563,19 @@ ble_sm_test_util_verify_persist(struct ble_sm_test_params *params, int we_are_in
     rc = ble_store_read_peer_sec(&key_sec, &value_sec);
     TEST_ASSERT_FATAL(rc == BLE_HS_ENOENT);
 
-    /* Verify we sent the peer's IRK to the controller. */
+    /* Verify we sent the peer's IRK to the controller, or with host-based
+     * privacy that the host resolves the peer's RPAs.
+     */
     if (peer_irk_expected) {
+#if MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+        ble_sm_test_util_verify_host_resolve(peer_entity.id_addr_type,
+                                             peer_entity.id_addr,
+                                             peer_entity.id_info->irk);
+#else
         ble_sm_test_util_verify_tx_add_resolve_list(
             peer_entity.id_addr_type, peer_entity.id_addr,
             peer_entity.id_info->irk, our_entity.id_info->irk);
+#endif
     }
 }
 
@@ -1936,7 +1973,7 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params, int we_are_initiator
         ble_sm_test_util_rx_master_id(2, peer_master_id, 0);
     }
     if (peer_key_dist & BLE_SM_PAIR_KEY_DIST_ID) {
-
+#if !MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
         ble_hs_test_util_hci_ack_set_seq(((struct ble_hs_test_util_hci_ack[]){
             {
              .opcode = ble_hs_hci_util_opcode_join(BLE_HCI_OGF_LE, BLE_HCI_OCF_LE_SET_ADV_ENABLE),
@@ -1952,6 +1989,7 @@ ble_sm_test_util_rx_keys(struct ble_sm_test_params *params, int we_are_initiator
              },
             { 0 }
         }));
+#endif
 
         ble_sm_test_util_rx_id_info(2, peer_id_info, 0);
         ble_sm_test_util_rx_id_addr_info(2, peer_id_addr_info, 0);

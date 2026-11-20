@@ -433,6 +433,21 @@ syscfg.defs:
             The rate that new random addresses should be generated (seconds).
         value: 300
 
+    BLE_HOST_BASED_PRIVACY:
+        description: >
+            Resolve peers' resolvable private addresses in the host instead
+            of the controller resolving list, for controllers without LL
+            privacy. Bonded peers' RPAs in advertising reports and connection
+            complete events are reported as their identity addresses, and
+            connections to an identity address use the peer's last RPA.
+            Own RPAs are not supported in this mode. For host-only builds;
+            requires the security manager.
+        value: 0
+    BLE_HOST_BASED_PRIVACY_LIST_SIZE:
+        description: >
+            Number of peers the host resolving list holds.
+        value: MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+
     # Store settings.
     BLE_STORE_MAX_BONDS:
         description: >

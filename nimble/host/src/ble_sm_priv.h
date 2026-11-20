@@ -322,6 +322,7 @@ int ble_sm_alg_csis_sef(const uint8_t *k, const uint8_t *plaintext_sirk,
 int ble_sm_alg_csis_sdf(const uint8_t *k, const uint8_t *enc_sirk,
                         uint8_t *out);
 int ble_sm_alg_csis_sih(const uint8_t *k, const uint8_t *r, uint8_t *out);
+int ble_sm_alg_ah(const uint8_t *irk, const uint8_t *r, uint8_t *out);
 int ble_sm_alg_gen_dhkey(const uint8_t *peer_pub_key_x,
                          const uint8_t *peer_pub_key_y,
                          const uint8_t *our_priv_key, uint8_t *out_dhkey);
