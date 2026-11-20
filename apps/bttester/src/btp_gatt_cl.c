@@ -937,10 +937,10 @@ read_long_cb(uint16_t conn_handle,
              struct ble_gatt_attr *attr,
              void *arg)
 {
-    struct btp_gattc_read_rp *rp;
+    struct btp_gattc_read_rp *rp = NULL;
     uint8_t opcode = (uint8_t)(int)arg;
-    struct os_mbuf *buf = os_msys_get(0, 0);
     struct ble_gap_conn_desc conn;
+    uint16_t len;
     int rc = 0;
     uint8_t err = 0;
 
@@ -960,7 +960,16 @@ read_long_cb(uint16_t conn_handle,
         goto free;
     }
 
-    rp = os_mbuf_extend(buf, sizeof(*rp));
+    if (error->status == 0) {
+        if (gatt_buf_add(attr->om->om_data, attr->om->om_len) == NULL) {
+            read_destroy();
+            rc = BLE_HS_ENOMEM;
+        }
+        goto free;
+    }
+
+    len = sizeof(*rp) + (error->status == BLE_HS_EDONE ? gatt_buf.len : 0);
+    rp = malloc(len);
     if (!rp) {
         rc = BLE_HS_ENOMEM;
         goto free;
@@ -972,8 +981,7 @@ read_long_cb(uint16_t conn_handle,
 
     if (error->status != 0 && error->status != BLE_HS_EDONE) {
         rp->data_length = 0;
-        tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+        tester_event(BTP_SERVICE_ID_GATTC, opcode, rp, sizeof(*rp));
         read_destroy();
         goto free;
     }
@@ -981,23 +989,16 @@ read_long_cb(uint16_t conn_handle,
     if (error->status == BLE_HS_EDONE) {
         rp->status = 0;
         rp->data_length = gatt_buf.len;
-        os_mbuf_append(buf, gatt_buf.buf, gatt_buf.len);
-        tester_event(BTP_SERVICE_ID_GATTC, opcode,
-                     buf->om_data, buf->om_len);
+        if (gatt_buf.len > 0) {
+            memcpy(rp->data, gatt_buf.buf, gatt_buf.len);
+        }
+        tester_event(BTP_SERVICE_ID_GATTC, opcode, rp, len);
         read_destroy();
         goto free;
     }
-
-    if (gatt_buf_add(attr->om->om_data, attr->om->om_len) == NULL) {
-        read_destroy();
-        rc = BLE_HS_ENOMEM;
-        goto free;
-    }
-
-    rp->data_length += attr->om->om_len;
 
 free:
-    os_mbuf_free_chain(buf);
+    free(rp);
     return rc;
 }
 
