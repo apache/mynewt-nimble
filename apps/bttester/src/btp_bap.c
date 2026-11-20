@@ -145,6 +145,24 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     return BTP_STATUS_SUCCESS;
 }
 
+static void
+base_reset(void)
+{
+    struct ble_audio_bis *bis;
+
+    while ((bis = STAILQ_FIRST(&big_subgroup.bises)) != NULL) {
+        STAILQ_REMOVE_HEAD(&big_subgroup.bises, next);
+        os_memblock_put(&codec_spec_pool, bis->codec_spec_config);
+        os_memblock_put(&bis_pool, bis);
+    }
+
+    memset(&big_subgroup, 0, sizeof(big_subgroup));
+    STAILQ_INIT(&big_subgroup.bises);
+
+    STAILQ_INIT(&tester_base.subs);
+    tester_base.num_subgroups = 0;
+}
+
 static int
 base_create(const struct bap_broadcast_source_setup_cmd *cmd)
 {
@@ -157,6 +175,8 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     uint8_t codec_spec_config[] =
         BLE_AUDIO_BUILD_CODEC_CONFIG(sampling_freq, frame_duration, chan_loc,
                                      max_sdu, );
+
+    base_reset();
 
     tester_base.broadcast_id = sampling_freq;
     tester_base.presentation_delay = sampling_freq * 10000;
@@ -183,7 +203,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     STAILQ_INSERT_HEAD(&big_subgroup.bises, bis, next);
     STAILQ_INSERT_HEAD(&tester_base.subs, &big_subgroup, next);
 
-    tester_base.num_subgroups++;
+    tester_base.num_subgroups = 1;
 
     return 0;
 }
@@ -191,14 +211,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
 static int
 broadcast_destroy_fn(struct ble_audio_base *base, void *args)
 {
-    struct ble_audio_bis *bis;
-
-    STAILQ_FOREACH(bis, &big_subgroup.bises, next) {
-        os_memblock_put(&codec_spec_pool, bis->codec_spec_config);
-        os_memblock_put(&bis_pool, bis);
-    }
-
-    memset(&big_subgroup, 0, sizeof(big_subgroup));
+    base_reset();
 
     return 0;
 }
@@ -267,6 +280,8 @@ broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
                          uint16_t *rsp_len)
 {
     int rc;
+
+    os_callout_stop(&audio_broadcast_callout);
 
     rc = ble_audio_broadcast_destroy(BROADCAST_ADV_INSTANCE);
     if (rc) {
