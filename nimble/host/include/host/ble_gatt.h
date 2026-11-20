@@ -1207,6 +1207,49 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
 
+/**
+ * Prepares and sends a response for pending ATT request.
+ *
+ * Call this exactly once for each BLE_GAP_EVENT_AUTHORIZE that the
+ * application answered with BLE_GAP_AUTHORIZE_PENDING, passing conn_handle
+ * and cid from that event. Do not call it for events answered with
+ * BLE_GAP_AUTHORIZE_ACCEPT or BLE_GAP_AUTHORIZE_REJECT: those requests are
+ * already answered, and a late call could resolve a newer pending request
+ * on the same bearer instead. For the same reason, pending decisions must be
+ * dropped when the connection terminates. May be called from any task, or
+ * from within the event callback. The access callbacks of the resolved
+ * request run in the calling task, so when called from an application task
+ * they may run at the same time as the host task.
+ *
+ * If the pending request is a Read Multiple and another of its attributes
+ * requires authorization, a new BLE_GAP_EVENT_AUTHORIZE is sent from within
+ * this call and BLE_HS_EPENDING is returned.
+ *
+ * @param conn_handle           The connection over which to authorize a
+ *                                  pending ATT procedure
+ * @param cid                   L2CAP channel ID on which request has been
+ *                                  received
+ * @param rsp                   BLE_GAP_AUTHORIZE_ACCEPT to perform the
+ *                                  request, BLE_GAP_AUTHORIZE_REJECT to refuse
+ *                                  it (the peer receives Insufficient
+ *                                  Authorization). Any other value is treated
+ *                                  as BLE_GAP_AUTHORIZE_REJECT.
+ *
+ * @return                      0 if the pending request has been answered
+ *                                  (with an error response if the
+ *                                  operation itself failed; also if the
+ *                                  connection terminated meanwhile and
+ *                                  nothing could be sent);
+ *                              BLE_HS_EPENDING if the request needs another
+ *                                  authorization (e.g. another attribute of
+ *                                  a Read Multiple); a new
+ *                                  BLE_GAP_EVENT_AUTHORIZE has been sent;
+ *                              BLE_HS_ENOENT if no matching pending request
+ *                              is found on the channel;
+ *                              other BLE_HS error codes on failure.
+ */
+int ble_gatts_authorize_pending_att_req(uint16_t conn_handle, uint16_t cid, int rsp);
+
 #ifdef __cplusplus
 }
 #endif
