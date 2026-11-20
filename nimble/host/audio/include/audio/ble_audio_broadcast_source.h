@@ -21,7 +21,7 @@
 #define H_BLE_AUDIO_BROADCAST_SOURCE_
 
 /**
- * @file ble_audio_broadcast.h
+ * @file ble_audio_broadcast_source.h
  *
  * @brief Bluetooth Low Energy Audio Broadcast API
  *
