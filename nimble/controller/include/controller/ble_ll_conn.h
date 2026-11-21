@@ -104,7 +104,7 @@ struct ble_ll_conn_enc_data
 /* Connection state machine flags. */
 struct ble_ll_conn_sm_flags {
     uint32_t pkt_rxd : 1;
-    uint32_t pkt_rxd_data : 1;
+    uint32_t periph_latency_hold : 2;
     uint32_t last_txd_md : 1;
     uint32_t empty_pdu_txd : 1;
     uint32_t periph_use_latency : 1;

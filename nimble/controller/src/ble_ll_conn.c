@@ -2580,14 +2580,11 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
                          !connsm->flags.phy_update_sched &&
                          !connsm->flags.chanmap_update_sched &&
                          connsm->flags.pkt_rxd &&
-                         /*
-                          * Do not skip the next event after receiving a
-                          * non-empty PDU, so a response can be sent at the
-                          * next event. Peripheral may listen at any event
-                          * (Core 6.3, Vol 6, Part B, 4.5.1). Data queued by
-                          * the peripheral itself still waits for latency.
-                          */
-                         !connsm->flags.pkt_rxd_data;
+                         !connsm->flags.periph_latency_hold;
+
+    if (connsm->flags.periph_latency_hold) {
+        connsm->flags.periph_latency_hold--;
+    }
 
     if (next_is_subrated) {
         next_event_cntr = base_event_cntr + subrate_factor;
@@ -3152,7 +3149,6 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     /* Reset "per connection event" variables */
     connsm->cons_rxd_bad_crc = 0;
     connsm->flags.pkt_rxd = 0;
-    connsm->flags.pkt_rxd_data = 0;
 
     /* See if we need to start any control procedures */
     ble_ll_ctrl_chk_proc_start(connsm);
@@ -3745,7 +3741,14 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
         goto conn_rx_data_pdu_end;
     }
 
-    connsm->flags.pkt_rxd_data = 1;
+    /*
+     * Do not apply peripheral latency for the next 2 connection events. The
+     * shortest request chain is a request at event N, the response at N+1
+     * and the central's next request at N+2. The peripheral may listen at
+     * any event (Core 6.3, Vol 6, Part B, 4.5.1). Data sent by the
+     * peripheral on its own does not set this, so it is still batched.
+     */
+    connsm->flags.periph_latency_hold = 2;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     connsm->has_nonempty_pdu = 1;
