@@ -2574,12 +2574,21 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
      */
     /* Set event counter to the next connection event that we will tx/rx in */
 
+    /*
+     * Do not skip the next event if data is pending in either direction:
+     * a non-empty PDU was received (a response may follow) or a PDU is
+     * waiting to be sent. Peripheral may listen at any event
+     * (Core 6.3, Vol 6, Part B, 4.5.1).
+     */
     use_periph_latency = next_is_subrated &&
                          connsm->flags.periph_use_latency &&
                          !connsm->flags.conn_update_sched &&
                          !connsm->flags.phy_update_sched &&
                          !connsm->flags.chanmap_update_sched &&
-                         connsm->flags.pkt_rxd;
+                         connsm->flags.pkt_rxd &&
+                         !connsm->flags.pkt_rxd_data &&
+                         !connsm->cur_tx_pdu &&
+                         STAILQ_EMPTY(&connsm->conn_txq);
 
     if (next_is_subrated) {
         next_event_cntr = base_event_cntr + subrate_factor;
@@ -3144,6 +3153,7 @@ ble_ll_conn_event_end(struct ble_npl_event *ev)
     /* Reset "per connection event" variables */
     connsm->cons_rxd_bad_crc = 0;
     connsm->flags.pkt_rxd = 0;
+    connsm->flags.pkt_rxd_data = 0;
 
     /* See if we need to start any control procedures */
     ble_ll_ctrl_chk_proc_start(connsm);
@@ -3735,6 +3745,8 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     if ((llid == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
         goto conn_rx_data_pdu_end;
     }
+
+    connsm->flags.pkt_rxd_data = 1;
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     connsm->has_nonempty_pdu = 1;
