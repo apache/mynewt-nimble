@@ -1447,6 +1447,13 @@ btshell_gap_event(struct ble_gap_event *event, void *arg)
                        event->mtu.value);
         return 0;
 
+    case BLE_GAP_EVENT_EATT:
+        console_printf("eatt event; conn_handle=%d status=%d chan_num=%d\n",
+                       event->eatt.conn_handle,
+                       event->eatt.status,
+                       event->eatt.chan_num);
+        return 0;
+
     case BLE_GAP_EVENT_IDENTITY_RESOLVED:
         console_printf("identity resolved ");
         rc = ble_gap_conn_find(event->identity_resolved.conn_handle, &desc);
