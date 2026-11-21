@@ -172,16 +172,6 @@ syscfg.defs:
             ensure interoperability with such devices set this value to 2 (or more).
         value: '0'
 
-    BLE_LL_PERIPH_LATENCY_WAKE_ON_DATA:
-        description: >
-            In peripheral role with peripheral latency in use, do not skip the
-            next connection event if a non-empty PDU was received in the
-            current event or a PDU is queued for transmission. A response to a
-            request is then sent at the next connection event instead of the
-            next event the peripheral would listen at. Interval and latency are
-            not changed and idle links still use latency
-            (Core 6.3, Vol 6, Part B, 4.5.1).
-        value: 0
     BLE_LL_CONN_STRICT_SCHED:
         description: >
             Enable connection strict scheduling (css).

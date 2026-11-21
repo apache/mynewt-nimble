@@ -2579,20 +2579,15 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
                          !connsm->flags.conn_update_sched &&
                          !connsm->flags.phy_update_sched &&
                          !connsm->flags.chanmap_update_sched &&
-                         connsm->flags.pkt_rxd;
-
-#if MYNEWT_VAL(BLE_LL_PERIPH_LATENCY_WAKE_ON_DATA)
-    /*
-     * Do not skip the next event if data is pending in either direction:
-     * a non-empty PDU was received (a response may follow) or a PDU is
-     * waiting to be sent. Peripheral may listen at any event
-     * (Core 6.3, Vol 6, Part B, 4.5.1).
-     */
-    use_periph_latency = use_periph_latency &&
-                         !connsm->flags.pkt_rxd_data &&
-                         !connsm->cur_tx_pdu &&
-                         STAILQ_EMPTY(&connsm->conn_txq);
-#endif
+                         connsm->flags.pkt_rxd &&
+                         /*
+                          * Do not skip the next event after receiving a
+                          * non-empty PDU, so a response can be sent at the
+                          * next event. Peripheral may listen at any event
+                          * (Core 6.3, Vol 6, Part B, 4.5.1). Data queued by
+                          * the peripheral itself still waits for latency.
+                          */
+                         !connsm->flags.pkt_rxd_data;
 
     if (next_is_subrated) {
         next_event_cntr = base_event_cntr + subrate_factor;
