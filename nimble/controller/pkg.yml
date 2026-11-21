@@ -38,7 +38,6 @@ pkg.req_apis.BLE_FEM_ANTENNA:
 
 pkg.deps:
     - "@apache-mynewt-core/kernel/os"
-    - "@apache-mynewt-core/crypto/mbedtls"
     - nimble
     - nimble/transport
 

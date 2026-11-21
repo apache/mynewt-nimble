@@ -23,11 +23,8 @@
 #include <assert.h>
 #include <os/endian.h>
 #include "nimble/ble.h"
-#include "mbedtls/aes.h"
-#include "ble_ll_cs_drbg_priv.h"
-#if !(BABBLESIM || MYNEWT_VAL(SELFTEST))
 #include "controller/ble_hw.h"
-#endif
+#include "ble_ll_cs_drbg_priv.h"
 
 static const uint8_t rtt_seq_len[] = { 0, 4, 12, 4, 8, 12, 16 };
 
@@ -47,18 +44,7 @@ ble_ll_cs_drbg_e(const uint8_t *key, const uint8_t *data, uint8_t *out_data)
     swap_buf(ecb.key, key, BLE_ENC_BLOCK_SIZE);
     swap_buf(ecb.plain_text, data, BLE_ENC_BLOCK_SIZE);
 
-#if BABBLESIM || MYNEWT_VAL(SELFTEST)
-    /* Use software to encrypt the data */
-    mbedtls_aes_context aes_ctx;
-    mbedtls_aes_init(&aes_ctx);
-    mbedtls_aes_setkey_enc(&aes_ctx, ecb.key, 16 * 8);
-    rc = mbedtls_aes_crypt_ecb(&aes_ctx, MBEDTLS_AES_ENCRYPT, ecb.plain_text,
-                               ecb.cipher_text);
-    mbedtls_aes_free(&aes_ctx);
-#else
-    /* Use hardware to encrypt the data */
     rc = ble_hw_encrypt_block(&ecb);
-#endif
 
     if (!rc) {
         swap_buf(out_data, ecb.cipher_text, BLE_ENC_BLOCK_SIZE);
