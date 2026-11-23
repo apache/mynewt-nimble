@@ -1065,8 +1065,6 @@ ble_ll_iso_big_sync_event_sched_cb(struct ble_ll_sched_item *sch)
     ble_phy_mode_set(phy_mode, phy_mode);
 #endif
 
-    ble_ll_tx_power_set(g_ble_ll_tx_power);
-
     timestamp = sdu_sync_ref_get(big);
 
     /* XXX calculate this in advance at the end of a previous event? */
