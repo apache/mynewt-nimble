@@ -552,6 +552,24 @@ ble_att_rx_extended(uint16_t conn_handle, uint16_t cid, struct os_mbuf **om)
     /* Strip L2CAP ATT header from the front of the mbuf. */
     os_mbuf_adj(*om, 1);
 
+#if MYNEWT_VAL(BLE_GATT_CACHING)
+    switch (ble_gatts_caching_rx_gate(conn_handle, cid, op, *om)) {
+    case BLE_GATTS_CACHING_GATE_PASS:
+        break;
+
+    case BLE_GATTS_CACHING_GATE_ERROR:
+        /* Reuse the request buffer for the error response. */
+        os_mbuf_adj(*om, OS_MBUF_PKTLEN(*om));
+        ble_att_svr_tx_error_rsp(conn_handle, cid, *om, op, 0,
+                                 BLE_ATT_ERR_DATABASE_OUT_OF_SYNC);
+        *om = NULL;
+        return 0;
+
+    case BLE_GATTS_CACHING_GATE_DROP:
+        return 0;
+    }
+#endif
+
     rc = entry->bde_fn(conn_handle, cid, om);
     if (rc != 0) {
         if (rc == BLE_HS_ENOTSUP) {
