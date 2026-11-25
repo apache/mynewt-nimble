@@ -2091,8 +2091,13 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
 
     conn = ble_hs_conn_find_assert(conn_handle);
 
-    /* Check if pairing procedure is already in progress */
-    if (ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, NULL)) {
+    /* Check if pairing procedure is already in progress, or if we are
+     * restoring encryption with a bonded peer. Starting encryption again
+     * would fail with BLE_HS_EALREADY and remove our procedure; encryption
+     * change would then not be reported to application.
+     */
+    if (ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_PAIR, 1, NULL) ||
+        ble_sm_proc_find(conn_handle, BLE_SM_PROC_STATE_ENC_RESTORE, 1, NULL)) {
         ble_hs_unlock();
         res->app_status = 0;
         return;
@@ -2135,7 +2140,12 @@ ble_sm_sec_req_rx(uint16_t conn_handle, struct os_mbuf **om,
             /* start new pairing if security is to be elevated, otherwise
              * only refresh encryption
              */
-            if (authreq_mitm && !value_sec.authenticated) {
+            /* With no input or output, pairing can only be Just Works, which
+             * never gives MITM protection: re-pairing would replace the bond
+             * with an equally unauthenticated one on every connection.
+             */
+            if (authreq_mitm && !value_sec.authenticated &&
+                ble_hs_cfg.sm_io_cap != BLE_HS_IO_NO_INPUT_OUTPUT) {
                 start_pairing = true;
             } else if (authreq_lesc && !value_sec.sc) {
                 start_pairing = true;
