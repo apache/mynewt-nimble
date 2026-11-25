@@ -204,6 +204,203 @@ void ble_svc_ras_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg);
 
 #endif /* MYNEWT_VAL(BLE_SVC_RAS_SERVER) */
 
+#if MYNEWT_VAL(BLE_SVC_RAS_CLIENT)
+/* RREQ (Client) Public API */
+
+/**
+ * Discovered RAS handle set, filled by the application after GATT discovery.
+ * Value handles (features, od_rd, etc.) are mandatory.
+ * CCC handles (*_ccc) are needed by ble_svc_ras_rreq_subscribe().
+ */
+struct ble_svc_ras_handles {
+    uint16_t features;
+    uint16_t od_rd;
+    uint16_t od_rd_ccc;
+    uint16_t rt_rd;
+    uint16_t rt_rd_ccc;
+    uint16_t cp;
+    uint16_t cp_ccc;
+    uint16_t rd_ready;
+    uint16_t rd_ready_ccc;
+    uint16_t rd_overwritten;
+    uint16_t rd_overwritten_ccc;
+};
+
+/** Callback: Ranging Data Ready indication received. */
+typedef void ble_svc_ras_rreq_rd_ready_fn(uint16_t conn_handle,
+                                          uint16_t ranging_counter);
+/** Callback: Ranging Data Overwritten indication received. */
+typedef void ble_svc_ras_rreq_rd_overwritten_fn(uint16_t conn_handle,
+                                                uint16_t ranging_counter);
+/** Callback: GET_RD / Real-time RD procedure completed.
+ *  status: 0 on success, non-zero on error; check status != 0 (not
+ *  status < 0) to detect all error conditions.  Local NimBLE errors use
+ *  BLE_HS_E* (positive integers, e.g. BLE_HS_ENOMEM); remote ATT errors
+ *  use BLE_HS_ATT_ERR(att_err), i.e. BLE_HS_ERR_ATT_BASE + att_err.
+ *  data is valid when status == 0, and in two delivery-with-error cases:
+ *  with BLE_HS_EBADDATA the transfer ended with lost segments and the
+ *  gaps are zero-filled, so the buffer is complete in size but not in
+ *  content; with a failed final acknowledgement the fully reassembled
+ *  data is delivered with the ACK write's error code.  Otherwise data is
+ *  NULL or must not be used. */
+typedef void ble_svc_ras_rreq_data_complete_fn(uint16_t conn_handle,
+                                               uint16_t ranging_counter,
+                                               const uint8_t *data,
+                                               uint16_t data_len, int status);
+/** Callback: all CCCD subscriptions completed.
+ *  status: 0 if all succeeded, first non-zero ATT error otherwise. */
+typedef void ble_svc_ras_rreq_subscribe_fn(uint16_t conn_handle, int status);
+
+/** Callback: Features read completed. */
+typedef void ble_svc_ras_rreq_features_fn(uint16_t conn_handle,
+                                          uint32_t features, int status);
+
+/** Allocate RREQ state for a connection.  Call after GATT discovery.
+ *  The handles are not validated here: a missing mandatory handle is
+ *  reported by the call that needs it (BLE_HS_EINVAL from
+ *  ble_svc_ras_rreq_read_features(), get_ranging_data() and friends). */
+int ble_svc_ras_rreq_alloc(uint16_t conn_handle,
+                           const struct ble_svc_ras_handles *handles);
+
+/** Set the ranging data mode (RAP 4.4: shall enable ONE of on-demand or
+ *  real-time).  Call between alloc and subscribe.  Default after alloc:
+ *  on-demand (false). */
+int ble_svc_ras_rreq_set_ranging_mode(uint16_t conn_handle, bool use_realtime);
+
+/** Select indicate (true) or notify (false) for the data RD CCCD.
+ *  Applies to both on-demand and real-time modes.
+ *  Call between alloc and subscribe. Default: notify (false). */
+int ble_svc_ras_rreq_set_indicate(uint16_t conn_handle, bool use_indicate);
+
+/** Free RREQ state for a connection.  Unlike the server side, which releases
+ *  its state from the host's disconnect handling, this is the application's
+ *  responsibility: call it from the BLE_GAP_EVENT_DISCONNECT handler.  If the
+ *  entry is left behind and the controller later hands out the same connection
+ *  handle again, ble_svc_ras_rreq_alloc() succeeds on the stale entry instead
+ *  of resetting it, leaving the previous session's subscription and streaming
+ *  state in place. */
+void ble_svc_ras_rreq_free(uint16_t conn_handle);
+
+/** Prepare the RAS client (RREQ) side for a new host incarnation.
+ *
+ *  sysinit runs this when the package is enabled, so an application that
+ *  brings the host up the normal way has nothing to do.  It is declared here
+ *  because it has to run before any other RREQ call in a process that takes
+ *  the host down and brings it back up: the RREQ pool and its per-entry
+ *  latches outlive the host stack, while the NPL callout blocks those entries
+ *  point at do not, and this is what drops the dead handles so the next
+ *  ble_svc_ras_rreq_alloc() takes fresh ones.
+ *
+ *  Discards whatever RREQ state is present, so it must not be called while
+ *  ranging is in progress.  Idempotent, and does nothing on a first init. */
+void ble_svc_ras_rreq_init(void);
+
+/** Tear down the RAS client (RREQ) side.
+ *  Drops any in-progress reassembly state, then stops every per-entry timer.
+ *  The pool memory itself is deliberately kept so that in-flight GATT
+ *  callbacks stay safe; it is reused by the next ble_svc_ras_rreq_alloc(),
+ *  which reinitialises the callouts.
+ *
+ *  Deliberately has no in-tree caller: the host never tears services down on
+ *  its own, so this exists for an application that wants to reclaim the RREQ
+ *  pool after it is done with ranging.  Nothing leaks if it is never called,
+ *  and taking the host down without it stays safe because
+ *  ble_svc_ras_rreq_init() discards what the previous host left behind.
+ *  Safe to call multiple times and when no alloc was ever performed. */
+void ble_svc_ras_rreq_deinit(void);
+
+/** Set the RD Ready callback. */
+int ble_svc_ras_rreq_set_rd_ready_cb(uint16_t conn_handle,
+                                     ble_svc_ras_rreq_rd_ready_fn *cb);
+
+/** Set the RD Overwritten callback. */
+int ble_svc_ras_rreq_set_rd_overwritten_cb(
+    uint16_t conn_handle, ble_svc_ras_rreq_rd_overwritten_fn *cb);
+
+/** Set a persistent data-complete callback.
+ *  Called when any GET_RD procedure completes.
+ *  A per-call callback passed to get_ranging_data() takes priority. */
+int ble_svc_ras_rreq_set_data_complete_cb(
+    uint16_t conn_handle, ble_svc_ras_rreq_data_complete_fn *cb);
+
+/**
+ * Subscribe to the RAS CCCDs required by the selected ranging mode, using
+ * the CCC handles in the handles struct.  On-demand mode writes:
+ *   RD Overwritten CCC  (indicate)
+ *   RD Ready CCC        (indicate)
+ *   On-demand RD CCC    (notify)
+ *   CP CCC              (indicate)
+ * Real-time mode writes only Real-time RD CCC (notify) and CP CCC
+ * (indicate); RD Overwritten and RD Ready are on-demand only.  A mode
+ * switch on a live connection first disables the previous mode's CCC.
+ * Calls cb when all writes have completed.  One round at a time: returns
+ * BLE_HS_EBUSY while an earlier round is still outstanding, so wait for cb
+ * before switching mode and subscribing again. */
+int ble_svc_ras_rreq_subscribe(uint16_t conn_handle,
+                               ble_svc_ras_rreq_subscribe_fn *cb);
+
+/** Read the RAS Features characteristic from the server.
+ *  The result and cached value are delivered via the callback. */
+int ble_svc_ras_rreq_read_features(uint16_t conn_handle,
+                                   ble_svc_ras_rreq_features_fn *cb);
+
+/** Return the cached server Features value (valid after a successful read). */
+uint32_t ble_svc_ras_rreq_get_server_features(uint16_t conn_handle);
+
+/** Initiate a GET_RD procedure. When all data is received and ACK'd,
+ *  the completion callback is called with the reassembled data.
+ *  If cb is NULL the persistent data-complete callback is used. */
+int ble_svc_ras_rreq_get_ranging_data(uint16_t conn_handle,
+                                      uint16_t ranging_counter,
+                                      ble_svc_ras_rreq_data_complete_fn *cb);
+
+/** Notify the RREQ that a CS procedure has started (real-time mode).
+ *  Starts the 5s "no data" timeout (RAP 4.4.1.1).
+ *  Call from the initiator when use_realtime==true. */
+int ble_svc_ras_rreq_rt_cs_started(uint16_t conn_handle);
+
+/** Send ABORT_OP command to the server. */
+int ble_svc_ras_rreq_abort(uint16_t conn_handle);
+
+/** Send SET_FILTER command to the server.
+ *  mode: 0-3 (CS mode), mask: 14-bit filter mask. */
+int ble_svc_ras_rreq_set_filter(uint16_t conn_handle, uint8_t mode,
+                                uint16_t mask);
+
+/** Process an incoming notification or indication from the RAS server.
+ *  Call from the application's BLE_GAP_EVENT_NOTIFY_RX handler.
+ *  Returns 0 if the notification was handled, BLE_HS_ENOENT if it was
+ *  not recognized. */
+int ble_svc_ras_rreq_on_notify(uint16_t conn_handle, uint16_t attr_handle,
+                               struct os_mbuf *om);
+
+/*
+ * RREQ: Local CS Event Pass-through
+ *
+ * Lightweight wrapper for the initiator's own CS HCI events.
+ * No data is buffered in the library; each RESULT, RESULT_CONTINUE,
+ * and PROCEDURE_COMPLETE event is forwarded directly to the app
+ * callback.  The app decides what to keep (e.g. only the latest
+ * subevent's step data).
+ */
+
+/** Callback: local CS event received from the controller.
+ *  Called once for each RESULT, RESULT_CONTINUE, and
+ *  PROCEDURE_COMPLETE HCI event.  Step data pointers inside the
+ *  event are only valid for the duration of this call. */
+typedef void ble_svc_ras_rreq_local_cs_fn(struct ble_cs_event *event);
+
+/** Register / replace the local CS event callback. */
+int ble_svc_ras_rreq_set_local_cs_cb(uint16_t conn_handle,
+                                     ble_svc_ras_rreq_local_cs_fn *cb);
+
+/** CS event handler for the initiator (RREQ) side.
+ *  Pass as the 'cb' argument to ble_cs_initiator_procedure_start().
+ *  Forwards each event to the registered local-CS callback with
+ *  zero internal buffering.  Signature matches ble_cs_event_fn. */
+int ble_svc_ras_rreq_cs_event_handler(struct ble_cs_event *event, void *arg);
+#endif /* MYNEWT_VAL(BLE_SVC_RAS_CLIENT) */
+
 #ifdef __cplusplus
 }
 #endif

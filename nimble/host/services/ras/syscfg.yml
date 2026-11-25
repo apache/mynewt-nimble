@@ -27,6 +27,15 @@ syscfg.defs:
         restrictions:
             - 'BLE_CHANNEL_SOUNDING if 1'
 
+    BLE_SVC_RAS_CLIENT:
+        description: >
+            Ranging Service client (Ranging Requestor).  Fetches a peer's
+            Channel Sounding results over the Ranging Service and
+            reassembles them.
+        value: 0
+        restrictions:
+            - 'BLE_CHANNEL_SOUNDING if 1'
+
     BLE_SVC_RAS_SYSINIT_STAGE:
         description: >
             Sysinit stage of the Ranging Service.

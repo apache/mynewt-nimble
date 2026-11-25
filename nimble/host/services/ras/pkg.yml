@@ -32,3 +32,6 @@ pkg.deps:
 
 pkg.init.'BLE_SVC_RAS_SERVER':
     ble_svc_ras_init: 'MYNEWT_VAL(BLE_SVC_RAS_SYSINIT_STAGE)'
+
+pkg.init.'BLE_SVC_RAS_CLIENT':
+    ble_svc_ras_rreq_init: 'MYNEWT_VAL(BLE_SVC_RAS_SYSINIT_STAGE)'
