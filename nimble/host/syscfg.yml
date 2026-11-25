@@ -544,6 +544,14 @@ syscfg.defs:
         restrictions:
             - 'BLE_ISO_BROADCAST_SOURCE if 0'
 
+    BLE_GATTS_CCCD_FILTER:
+        description: >
+            Let a service veto a peer's CCCD write through a callback
+            registered with ble_gatts_cccd_filter_register().  Without it the
+            GATT server accepts every value the characteristic allows, which
+            is all a service whose characteristics are independent needs.
+        value: 0
+
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)

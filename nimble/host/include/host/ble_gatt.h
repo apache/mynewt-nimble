@@ -28,6 +28,7 @@
  */
 
 #include <inttypes.h>
+#include "syscfg/syscfg.h"
 #include "host/ble_att.h"
 #include "host/ble_uuid.h"
 #ifdef __cplusplus
@@ -1206,6 +1207,46 @@ int ble_gatts_peer_cl_sup_feat_get(uint16_t conn_handle, uint8_t *out_supported_
  */
 int ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle,
                         uint8_t *cccd_value);
+
+#if MYNEWT_VAL(BLE_GATTS_CCCD_FILTER)
+/**
+ * Callback invoked before a peer's CCCD write is committed, so that a service
+ * can reject a value the GATT server has no way to judge on its own.  A
+ * service whose specification forbids two of its characteristics being
+ * subscribed at the same time, for instance, has to see the write to refuse
+ * it.
+ *
+ * Called with the GATT server locked, so it must not call back into a locked
+ * GATT server API such as ble_gatts_read_cccd().
+ *
+ * @param conn_handle           Connection performing the write.
+ * @param chr_val_handle        Value handle of the characteristic whose CCCD
+ *                                  is being written.
+ * @param new_flags             The CCCD value being written.
+ *
+ * @return                      0 to accept the write; an ATT error code, for
+ *                                  example BLE_ATT_ERR_CCCD_IMPORER_CONF, to
+ *                                  reject it.  The code is sent to the peer as
+ *                                  the ATT error response.
+ */
+typedef int ble_gatts_cccd_filter_fn(uint16_t conn_handle,
+                                     uint16_t chr_val_handle,
+                                     uint16_t new_flags);
+
+/**
+ * Registers the CCCD write filter.  There is one, shared by every service in
+ * the build; pass NULL to unregister it.  With no filter registered, CCCD
+ * writes behave exactly as they do with BLE_GATTS_CCCD_FILTER disabled.
+ *
+ * The filter sees ATT writes only: a bonded peer's CCCD values restored from
+ * the persisted store on reconnection were filtered when they were written,
+ * but are not presented to the filter again, so a filter whose policy may
+ * change between boots has to check restored subscriptions itself.
+ *
+ * @param fn                    The filter, or NULL to remove the current one.
+ */
+void ble_gatts_cccd_filter_register(ble_gatts_cccd_filter_fn *fn);
+#endif
 
 #ifdef __cplusplus
 }
