@@ -1406,6 +1406,33 @@ int ble_gap_conn_find_by_addr(const ble_addr_t *addr,
                               struct ble_gap_conn_desc *out_desc);
 
 /**
+ * Reports how much data is still pending transmission on a connection, so
+ * that an application streaming over it can pace itself against the
+ * controller rather than against its own send calls.  A notification reports
+ * success once it is queued, which says nothing about whether the controller
+ * has sent it.
+ *
+ * @param conn_handle           The handle of the connection to inspect.
+ * @param queued_limit          Stop counting queued packets here, so a deep
+ *                                  queue does not have to be walked to the
+ *                                  end; 0 counts all of them.
+ * @param out_queued            On success, packets the host has queued but
+ *                                  not yet handed to the controller, capped
+ *                                  at queued_limit.  Pass NULL to skip the
+ *                                  walk.
+ * @param out_outstanding       On success, packets the controller has not
+ *                                  yet reported as completed.  May be NULL.
+ *
+ * @return                      0 on success;
+ *                              BLE_HS_ENOTCONN if the connection handle does
+ *                                  not match a live connection;
+ *                              BLE_HS_ENOTSUP if the host is built without
+ *                                  connection support.
+ */
+int ble_gap_conn_tx_pending(uint16_t conn_handle, uint16_t queued_limit,
+                            uint16_t *out_queued, uint16_t *out_outstanding);
+
+/**
  * Configures a connection to use the specified GAP event callback.  A
  * connection's GAP event callback is first specified when the connection is
  * created, either via advertising or initiation.  This function replaces the
