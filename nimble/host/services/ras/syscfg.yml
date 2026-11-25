@@ -1,0 +1,131 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+syscfg.defs:
+    BLE_SVC_RAS_SERVER:
+        description: >
+            Ranging Service server (Ranging Responder).  Stores the local
+            Channel Sounding results of a procedure and serves them to a
+            peer over the Ranging Service.
+        value: 0
+        restrictions:
+            - 'BLE_CHANNEL_SOUNDING if 1'
+
+    BLE_SVC_RAS_SYSINIT_STAGE:
+        description: >
+            Sysinit stage of the Ranging Service.
+        value: 303
+
+    BLE_SVC_RAS_MAX_CONNS:
+        description: >
+            Connections the Ranging Service keeps state for, on each side.
+            One is enough while the Channel Sounding host tracks a single
+            procedure at a time: a second entry could never be fed any
+            ranging data, and the server-side ones cost
+            BLE_SVC_RAS_RD_BUFFERS_PER_CONN ranging buffers each.
+        value: 1
+
+    BLE_SVC_RAS_RD_BUFFERS_PER_CONN:
+        description: >
+            Ranging data buffers the server keeps per connection.  A fetch
+            outlives the procedure it belongs to - the client holds a buffer
+            from Get Ranging Data until it acknowledges the data, which
+            usually takes longer than the interval between procedures - so
+            with a single buffer the next procedure would find it still in
+            use and be dropped.
+        value: 2
+
+    BLE_SVC_RAS_MAX_SUBEVENTS_PER_PROCEDURE:
+        description: >
+            Subevent headers a stored procedure can hold.  A procedure spans
+            as many subevents as its steps are spread over, so there is no
+            single count to size against; the default covers the
+            configurations seen in practice at 8 octets each.  A procedure
+            with more subevents is stored truncated and reported as aborted.
+        value: 32
+
+    BLE_SVC_RAS_MAX_STEPS_PER_PROCEDURE:
+        description: >
+            Steps a stored procedure can hold.  A Channel Sounding procedure
+            carries at most 256.
+        value: 256
+
+    BLE_SVC_RAS_MAX_STEP_DATA_LEN:
+        description: >
+            Octets of step data stored per step.  Step data is longest for
+            mode 3 steps, which carry the mode 1 and mode 2 fields together
+            and grow with the antenna path count: 14 for mode 1 with a
+            sounding sequence plus 1 + (paths + 1) * 4 for mode 2, so 35
+            octets at four paths.  The default covers modes 0 to 2 at four
+            paths; a mode 3 procedure at four paths needs 35, at the cost of
+            three octets per step in every ranging buffer.
+        value: 32
+
+    BLE_SVC_RAS_SEG_DELAY_MS:
+        description: >
+            Delay between two on-demand ranging data segments.  The stream
+            has to leave room for the rest of the link; sending segments
+            back to back fills the transmit queue faster than the controller
+            drains it.
+        value: 50
+
+    BLE_SVC_RAS_RT_SEG_DELAY_MS:
+        description: >
+            Delay between two real-time ranging data segments.  Real-time
+            data is paced against what the controller has actually sent
+            rather than against this timer alone, so it can be shorter than
+            BLE_SVC_RAS_SEG_DELAY_MS.
+        value: 15
+
+    BLE_SVC_RAS_RT_MAX_INFLIGHT_PKTS:
+        description: >
+            Packets a real-time stream may have outstanding at the
+            controller before it stops producing.  A notification reports
+            success once it is queued, so without this bound the stream
+            keeps going while the controller still owns every one of its ACL
+            buffers.
+        value: 1
+
+    BLE_SVC_RAS_MAX_QUEUED_SEGS:
+        description: >
+            Packets queued for a connection beyond which the segment stream
+            treats the link as backlogged and waits.
+        value: 8
+
+    BLE_SVC_RAS_MIN_FREE_MBUFS:
+        description: >
+            Free msys mbufs below which the segment stream waits.  The whole
+            host draws on the same pool, so it can be nearly empty while the
+            segment stream itself looks idle.
+        value: 4
+
+    BLE_SVC_RAS_SEG_MAX_STALL_RETRIES:
+        description: >
+            Consecutive retries a stalled segment stream makes, each
+            BLE_SVC_RAS_SEG_RETRY_MS apart, before it gives up on the
+            transfer.
+        value: 50
+
+    BLE_SVC_RAS_SEG_RETRY_MS:
+        description: >
+            Delay before retrying a segment that could not be sent.
+        value: 10
+
+syscfg.vals.BLE_SVC_RAS_SERVER:
+    BLE_GATTS_CCCD_FILTER: 1
