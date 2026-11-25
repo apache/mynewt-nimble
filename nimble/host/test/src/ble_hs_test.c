@@ -69,7 +69,13 @@ main(int argc, char **argv)
     ble_hs_conn_suite();
     ble_hs_hci_suite();
     ble_hs_id_test_suite_auto();
+#if !MYNEWT_VAL(BLE_HOST_BASED_PRIVACY)
+    /* Controller resolving list */
     ble_hs_pvcy_test_suite_irk();
+#endif
+#if BLE_HS_RESOLV_ENABLED
+    ble_hs_resolv_test_suite();
+#endif
     ble_l2cap_test_suite();
     ble_os_test_suite();
     ble_sm_gen_test_suite();

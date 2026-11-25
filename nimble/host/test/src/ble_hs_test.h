@@ -52,6 +52,7 @@ TEST_SUITE_DECL(ble_hs_conn_suite);
 TEST_SUITE_DECL(ble_hs_hci_suite);
 TEST_SUITE_DECL(ble_hs_id_test_suite_auto);
 TEST_SUITE_DECL(ble_hs_pvcy_test_suite_irk);
+TEST_SUITE_DECL(ble_hs_resolv_test_suite);
 TEST_SUITE_DECL(ble_l2cap_test_suite);
 TEST_SUITE_DECL(ble_os_test_suite);
 TEST_SUITE_DECL(ble_sm_gen_test_suite);
