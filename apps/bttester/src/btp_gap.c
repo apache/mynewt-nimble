@@ -1753,7 +1753,8 @@ start_direct_adv(const void *cmd, uint16_t cmd_len,
         return BTP_STATUS_FAILED;
     }
 
-    err = ble_gap_ext_adv_start(0, 128, 0);
+    /* High duty cycle directed advertising is limited to 1.28 s */
+    err = ble_gap_ext_adv_start(0, dir_adv_params.high_duty_directed ? 128 : 0, 0);
 #else
     dir_adv_params.high_duty_cycle = cp->options & BIT(1);
 
