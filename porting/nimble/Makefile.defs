@@ -35,6 +35,7 @@ NIMBLE_INCLUDE := \
 	$(NIMBLE_ROOT)/nimble/host/services/ias/include \
 	$(NIMBLE_ROOT)/nimble/host/services/dis/include \
 	$(NIMBLE_ROOT)/nimble/host/services/lls/include \
+	$(NIMBLE_ROOT)/nimble/host/services/ras/include \
 	$(NIMBLE_ROOT)/nimble/host/services/tps/include \
 	$(NIMBLE_ROOT)/nimble/host/store/config/include \
 	$(NIMBLE_ROOT)/nimble/host/util/include \
@@ -54,6 +55,7 @@ NIMBLE_SRC := \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/dis/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/ias/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/lls/src/*.c)) \
+	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/ras/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/services/tps/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/host/store/config/src/*.c)) \
 	$(filter-out $(NIMBLE_IGNORE), $(wildcard $(NIMBLE_ROOT)/nimble/transport/src/*.c)) \

@@ -633,6 +633,47 @@ ble_gap_conn_find(uint16_t handle, struct ble_gap_conn_desc *out_desc)
 }
 
 int
+ble_gap_conn_tx_pending(uint16_t conn_handle, uint16_t queued_limit,
+                        uint16_t *out_queued, uint16_t *out_outstanding)
+{
+#if NIMBLE_BLE_CONNECT
+    struct os_mbuf_pkthdr *omp;
+    struct ble_hs_conn *conn;
+    uint16_t queued = 0;
+
+    ble_hs_lock();
+
+    conn = ble_hs_conn_find(conn_handle);
+    if (conn != NULL) {
+        if (out_queued != NULL) {
+            STAILQ_FOREACH(omp, &conn->bhc_tx_q, omp_next) {
+                if (++queued == queued_limit) {
+                    break;
+                }
+            }
+        }
+        if (out_outstanding != NULL) {
+            *out_outstanding = conn->bhc_outstanding_pkts;
+        }
+    }
+
+    ble_hs_unlock();
+
+    if (conn == NULL) {
+        return BLE_HS_ENOTCONN;
+    }
+
+    if (out_queued != NULL) {
+        *out_queued = queued;
+    }
+
+    return 0;
+#else
+    return BLE_HS_ENOTSUP;
+#endif
+}
+
+int
 ble_gap_conn_find_by_addr(const ble_addr_t *addr,
                           struct ble_gap_conn_desc *out_desc)
 {
@@ -1415,6 +1456,9 @@ ble_gap_conn_broken(uint16_t conn_handle, int reason)
     ble_sm_connection_broken(conn_handle);
     ble_gatts_connection_broken(conn_handle);
     ble_gattc_connection_broken(conn_handle);
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    ble_cs_connection_broken(conn_handle);
+#endif
     ble_hs_flow_connection_broken(conn_handle);
 
     ble_hs_atomic_conn_delete(conn_handle);

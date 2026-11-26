@@ -389,6 +389,28 @@ ble_hs_startup_set_evmask_tx(void)
     return 0;
 }
 
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+/* Core 6.0 Vol 6, Part B, Section 4.6.33.4: a peer only starts the CS
+ * Security Start procedure once the Channel Sounding (Host Support) bit is
+ * set in the local FeatureSet.  Set it here, before any connection exists,
+ * so that an application does not have to remember to do it.
+ */
+#define BLE_HS_STARTUP_HOST_FEAT_CS_BIT (47)
+
+static int
+ble_hs_startup_set_cs_host_feat_tx(void)
+{
+    struct ble_hci_le_set_host_feature_cp cmd;
+
+    cmd.bit_num = BLE_HS_STARTUP_HOST_FEAT_CS_BIT;
+    cmd.bit_val = 1;
+
+    return ble_hs_hci_cmd_tx(BLE_HCI_OP(BLE_HCI_OGF_LE,
+                                        BLE_HCI_OCF_LE_SET_HOST_FEATURE),
+                             &cmd, sizeof(cmd), NULL, 0);
+}
+#endif
+
 static int
 ble_hs_startup_reset_tx(void)
 {
@@ -473,6 +495,18 @@ ble_hs_startup_go(void)
     if (rc != 0) {
         ble_hs_pvcy_set_our_irk(NULL);
     }
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+    /* Non-fatal on purpose: a controller that does not accept host
+     * control of the Channel Sounding feature rejects the bit, and the
+     * rest of the host stays usable without it.
+     */
+    rc = ble_hs_startup_set_cs_host_feat_tx();
+    if (rc != 0) {
+        BLE_HS_LOG(WARN, "Failed to set CS host support feature bit "
+                         "rc=%d\n", rc);
+    }
+#endif
 
     /* If flow control is enabled, configure the controller to use it. */
     ble_hs_flow_startup();
