@@ -284,13 +284,6 @@ jobs:
         uses: ./.github/actions/ccache-restore
         with:
           key: unit-tests
-      - name: Switch to main mcuboot
-        # This is temporary until next mcuboot release is available
-        shell: bash
-        run: |
-             cd build/repos/mcuboot
-             git fetch --depth=1 origin main
-             git checkout --detach FETCH_HEAD
       - name: newt test all
         run: |
              cd build
