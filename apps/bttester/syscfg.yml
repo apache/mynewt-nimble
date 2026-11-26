@@ -89,6 +89,13 @@ syscfg.defs:
         description: Maximum MTU size the application can handle
         value: 260
 
+    BTTESTER_BIG_MAX_SDU:
+        description: >
+            Maximum SDU size used by BTP GAP Create BIG command, which has
+            no SDU size field. Default leaves room for the 5 byte framed PDU
+            segmentation header within the 251 byte maximum PDU.
+        value: 246
+
     BTTESTER_NRPA_TIMEOUT:
         description: NRPA rotation timeout in seconds
         value: 5
