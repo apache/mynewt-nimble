@@ -256,6 +256,46 @@ broadcast_source_setup(const void *cmd, uint16_t cmd_len, void *rsp,
 }
 
 static uint8_t
+broadcast_source_setup_v2(const void *cmd, uint16_t cmd_len, void *rsp,
+                          uint16_t *rsp_len)
+{
+    const struct btp_bap_broadcast_source_setup_v2_cmd *cp = cmd;
+    struct btp_bap_broadcast_source_setup_v2_rp *rp = rsp;
+    struct ble_broadcast_update_params update_params = {
+        .name = MYNEWT_VAL(BROADCASTER_BROADCAST_NAME),
+        .adv_instance = BROADCAST_ADV_INSTANCE,
+        .svc_data = NULL,
+        .svc_data_len = 0,
+    };
+    uint8_t status;
+    int rc;
+
+    if (cmd_len < sizeof(*cp) || cmd_len != sizeof(*cp) + cp->cc_ltvs_len) {
+        return BTP_STATUS_FAILED;
+    }
+
+    status = broadcast_source_setup(&cp->streams_per_subgroup,
+                                    cmd_len - sizeof(cp->broadcast_id),
+                                    rsp, rsp_len);
+    if (status != BTP_STATUS_SUCCESS) {
+        return status;
+    }
+
+    update_params.broadcast_id = get_le24(cp->broadcast_id);
+    rc = ble_audio_broadcast_update(&update_params);
+    if (rc) {
+        return BTP_STATUS_FAILED;
+    }
+    tester_base.broadcast_id = update_params.broadcast_id;
+
+    rp->gap_settings = htole32(BIT(BTP_GAP_SETTINGS_DISCOVERABLE) |
+                               BIT(BTP_GAP_SETTINGS_EXTENDED_ADVERTISING));
+    *rsp_len = sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
 broadcast_source_release(const void *cmd, uint16_t cmd_len, void *rsp,
                          uint16_t *rsp_len)
 {
@@ -400,6 +440,12 @@ static const struct btp_handler handlers[] = {
      .index = BTP_INDEX,
      .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
      .func = broadcast_source_setup,
+     },
+    {
+     .opcode = BTP_BAP_BROADCAST_SOURCE_SETUP_V2,
+     .index = BTP_INDEX,
+     .expect_len = BTP_HANDLER_LENGTH_VARIABLE,
+     .func = broadcast_source_setup_v2,
      },
     {
      .opcode = BTP_BAP_BROADCAST_SOURCE_RELEASE,
