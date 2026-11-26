@@ -39,7 +39,13 @@ static const ble_uuid_t *uuid_ccc = BLE_UUID16_DECLARE(BLE_GATT_DSC_CLT_CFG_UUID
 static const ble_uuid_t *uuid_cep = BLE_UUID16_DECLARE(BLE_GATT_DSC_EXT_PROP_UUID16);
 
 static const struct ble_gatt_svc_def **ble_gatts_svc_defs;
+
 static int ble_gatts_num_svc_defs;
+
+#if MYNEWT_VAL(BLE_GATTS_CCCD_FILTER)
+/* Optional CCCD write filter; NULL, the default, accepts every write. */
+static ble_gatts_cccd_filter_fn *ble_gatts_cccd_filter_cb;
+#endif
 
 struct ble_gatts_svc_entry {
     const struct ble_gatt_svc_def *svc;
@@ -677,6 +683,9 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
     uint16_t flags;
     uint8_t gatt_op;
     uint8_t *buf;
+#if MYNEWT_VAL(BLE_GATTS_CCCD_FILTER)
+    int rc;
+#endif
 
     /* Assume nothing needs to be persisted. */
     out_cccd->chr_val_handle = 0;
@@ -726,6 +735,16 @@ ble_gatts_clt_cfg_access_locked(struct ble_hs_conn *conn, uint16_t attr_handle,
         if ((flags & ~clt_cfg->allowed) != 0) {
             return BLE_ATT_ERR_REQ_NOT_SUPPORTED;
         }
+
+#if MYNEWT_VAL(BLE_GATTS_CCCD_FILTER)
+        if (ble_gatts_cccd_filter_cb != NULL) {
+            rc = ble_gatts_cccd_filter_cb(conn->bhc_handle, chr_val_handle,
+                                          flags);
+            if (rc != 0) {
+                return rc;
+            }
+        }
+#endif
 
         if (clt_cfg->flags != flags) {
             clt_cfg->flags = flags;
@@ -777,6 +796,14 @@ ble_gatts_read_cccd(uint16_t conn_handle, uint16_t chr_val_handle, uint8_t *cccd
 
     return 0;
 }
+
+#if MYNEWT_VAL(BLE_GATTS_CCCD_FILTER)
+void
+ble_gatts_cccd_filter_register(ble_gatts_cccd_filter_fn *fn)
+{
+    ble_gatts_cccd_filter_cb = fn;
+}
+#endif
 
 int
 ble_gatts_clt_cfg_access(uint16_t conn_handle, uint16_t attr_handle,
