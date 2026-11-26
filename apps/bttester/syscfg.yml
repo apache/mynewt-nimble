@@ -192,3 +192,6 @@ syscfg.vals.!BTTESTER_NODEFAULT:
     BLE_MESH_TX_SEG_MSG_COUNT: 2
     BLE_MAX_CONNECTIONS: 3
     BLE_CONN_SUBRATING: 1
+
+syscfg.vals.BSP_NRF5340:
+    NET_CORE_IMAGE_TARGET_NAME: "@apache-mynewt-nimble/targets/nordic_pca10095_net-blehci_broadcaster"
