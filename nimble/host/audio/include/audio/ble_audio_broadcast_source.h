@@ -21,7 +21,7 @@
 #define H_BLE_AUDIO_BROADCAST_SOURCE_
 
 /**
- * @file ble_audio_broadcast.h
+ * @file ble_audio_broadcast_source.h
  *
  * @brief Bluetooth Low Energy Audio Broadcast API
  *
@@ -136,8 +136,9 @@ int ble_audio_broadcast_start(uint8_t adv_instance,
 /**
  * @brief Stop advertisements for given BASE configuration
  *
- * This function stops BASE advertisement by disabling extended and periodic
- * advertising. Advertising instance is still configured and ready for resume.
+ * This function terminates the BIG and stops BASE advertisement by disabling
+ * extended and periodic advertising. Advertising instance is still configured
+ * and ready for resume.
  *
  * @param[in] adv_instance      Advertising instance used by broadcast.
  *
@@ -149,7 +150,8 @@ int ble_audio_broadcast_stop(uint8_t adv_instance);
 /**
  * @brief Destroy advertisements for given BASE configuration
  *
- * This function terminates BASE advertisement instance.
+ * This function terminates BASE advertisement instance. If the broadcast is
+ * still started, it is stopped first.
  * After return advertising instance is free and must be configured again
  * for future advertisements.
  *
