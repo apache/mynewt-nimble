@@ -43,6 +43,9 @@
 #include "ble_hs_id_priv.h"
 #include "ble_hs_periodic_sync_priv.h"
 #include "ble_uuid_priv.h"
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+#include "ble_cs_priv.h"
+#endif
 #include "host/ble_hs.h"
 #include "nimble/nimble_opt.h"
 #include "stats/stats.h"

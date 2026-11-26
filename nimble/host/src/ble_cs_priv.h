@@ -20,12 +20,33 @@
 #ifndef H_BLE_CS_PRIV_
 #define H_BLE_CS_PRIV_
 
-int ble_hs_hci_evt_le_cs_rd_rem_supp_cap_complete(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_config_complete(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent, const void *data, unsigned int len);
-int ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data, unsigned int len);
-#endif
+#include "syscfg/syscfg.h"
+
+#if MYNEWT_VAL(BLE_CHANNEL_SOUNDING)
+
+int ble_hs_hci_evt_le_cs_rd_rem_supp_cap_complete(uint8_t subevent,
+                                                  const void *data,
+                                                  unsigned int len);
+int ble_hs_hci_evt_le_cs_rd_rem_fae_complete(uint8_t subevent,
+                                             const void *data,
+                                             unsigned int len);
+int ble_hs_hci_evt_le_cs_sec_enable_complete(uint8_t subevent,
+                                             const void *data,
+                                             unsigned int len);
+int ble_hs_hci_evt_le_cs_config_complete(uint8_t subevent, const void *data,
+                                         unsigned int len);
+int ble_hs_hci_evt_le_cs_proc_enable_complete(uint8_t subevent,
+                                              const void *data,
+                                              unsigned int len);
+int ble_hs_hci_evt_le_cs_subevent_result(uint8_t subevent, const void *data,
+                                         unsigned int len);
+int ble_hs_hci_evt_le_cs_subevent_result_continue(uint8_t subevent,
+                                                  const void *data,
+                                                  unsigned int len);
+int ble_hs_hci_evt_le_cs_test_end_complete(uint8_t subevent, const void *data,
+                                           unsigned int len);
+
+void ble_cs_connection_broken(uint16_t conn_handle);
+
+#endif /* MYNEWT_VAL(BLE_CHANNEL_SOUNDING) */
+#endif /* H_BLE_CS_PRIV_ */

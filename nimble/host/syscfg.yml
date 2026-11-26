@@ -552,6 +552,180 @@ syscfg.defs:
             is all a service whose characteristics are independent needs.
         value: 0
 
+    BLE_CS_SYNC_ANTENNA_SELECTION:
+        description: >
+            CS_SYNC_Antenna_Selection sent in LE CS Set Default Settings.
+            0x01-0x04 pin a single antenna ID, 0xFE cycles through the
+            antenna IDs in repetitive order and 0xFF lets the controller
+            choose.
+        value: 0xFE
+
+    BLE_CS_MAX_TX_POWER:
+        description: >
+            Max_TX_Power in dBm sent in LE CS Set Default Settings.  The
+            controller clamps this to what its radio supports.
+        value: 20
+
+    BLE_CS_MAIN_MODE_TYPE:
+        description: >
+            Main_Mode_Type of the CS configuration the host creates: 1 for
+            RTT, 2 for PBR and 3 for PBR with RTT.
+        value: 2
+
+    BLE_CS_SUB_MODE_TYPE:
+        description: >
+            Sub_Mode_Type of the CS configuration, or 0xFF for no sub mode.
+        value: 1
+
+    BLE_CS_MIN_MAIN_MODE_STEPS:
+        description: >
+            Min_Main_Mode_Steps of the CS configuration.
+        value: 10
+
+    BLE_CS_MAX_MAIN_MODE_STEPS:
+        description: >
+            Max_Main_Mode_Steps of the CS configuration.
+        value: 20
+
+    BLE_CS_MAIN_MODE_REPETITION:
+        description: >
+            Main_Mode_Repetition of the CS configuration: how many main mode
+            steps from the end of the previous subevent are repeated at the
+            start of the current one.
+        value: 0
+
+    BLE_CS_MODE_0_STEPS:
+        description: >
+            Mode_0_Steps of the CS configuration: mode-0 steps included at
+            the beginning of each CS subevent.
+        value: 3
+
+    BLE_CS_RTT_TYPE:
+        description: >
+            RTT_Type of the CS configuration.  0 selects AA-only RTT, which
+            every controller supporting RTT implements; the sounding and
+            random-payload types are optional.
+        value: 0
+
+    BLE_CS_SYNC_PHY:
+        description: >
+            CS_SYNC_PHY of the CS configuration: 1 for LE 1M, 2 for LE 2M
+            and 3 for LE 2M 2BT.
+        value: 1
+
+    BLE_CS_CHANNEL_MAP_REPETITION:
+        description: >
+            Channel_Map_Repetition of the CS configuration.
+        value: 5
+
+    BLE_CS_CHANNEL_SELECTION_TYPE:
+        description: >
+            Channel_Selection_Type of the CS configuration: 0 for algorithm
+            #3b, 1 for #3c.  CH3C_SHAPE and CH3C_JUMP apply only to #3c.
+        value: 0
+
+    BLE_CS_CH3C_SHAPE:
+        description: >
+            Ch3cShape of the CS configuration.
+        value: 0
+
+    BLE_CS_CH3C_JUMP:
+        description: >
+            Ch3cJump of the CS configuration.
+        value: 2
+
+    BLE_CS_MAX_PROCEDURE_COUNT:
+        description: >
+            Max_Procedure_Count sent in LE CS Set Procedure Parameters: how
+            many CS procedures one Procedure Enable runs.  0 means no limit,
+            so procedures repeat at the procedure interval until the host
+            disables them.
+        value: 0
+
+    BLE_CS_PROCEDURE_INTERVAL:
+        description: >
+            Connection events between consecutive CS procedures when the
+            local device is the initiator; Min_Procedure_Interval and
+            Max_Procedure_Interval are both set to it, and the procedure
+            length is capped so a procedure ends before the next one starts.
+            The interval has to leave room for whatever the application
+            sends between procedures - a Ranging Service server streaming a
+            procedure's ranging data, for instance - or the next procedure's
+            subevent results arrive on top of that traffic.
+        range: 2..65535
+        value: 50
+
+    BLE_CS_SUBEVENT_LEN:
+        description: >
+            Min_Subevent_Len and Max_Subevent_Len in microseconds requested
+            by the initiator.
+        value: 16000
+
+    BLE_CS_REFLECTOR_MAX_PROCEDURE_LEN:
+        description: >
+            Max_Procedure_Len in 0.625 ms units accepted by the reflector.
+            The remote initiator drives the schedule, so the reflector-side
+            values stay permissive: constraints narrower than what the
+            initiator asks for make the controller refuse the over-the-air
+            Procedure Enable handshake with nothing logged locally.
+        value: 1000
+
+    BLE_CS_REFLECTOR_MIN_PROCEDURE_INTERVAL:
+        description: >
+            Min_Procedure_Interval accepted by the reflector.
+        value: 1
+
+    BLE_CS_REFLECTOR_MAX_PROCEDURE_INTERVAL:
+        description: >
+            Max_Procedure_Interval accepted by the reflector.
+        value: 100
+
+    BLE_CS_REFLECTOR_MIN_SUBEVENT_LEN:
+        description: >
+            Min_Subevent_Len in microseconds accepted by the reflector.
+        value: 10000
+
+    BLE_CS_REFLECTOR_MAX_SUBEVENT_LEN:
+        description: >
+            Max_Subevent_Len in microseconds accepted by the reflector.
+        value: 75000
+
+    BLE_CS_TONE_ANTENNA_CONFIG_SELECTION:
+        description: >
+            Tone Antenna Config Index (ACI) used during phase measurement.
+            The default selects the one-antenna-per-side configuration.
+        value: 0
+
+    BLE_CS_PROCEDURE_PHY:
+        description: >
+            PHY the peer uses for CS tone and RTT transmissions: 1 for LE 1M,
+            2 for LE 2M and 4 for LE 2M 2BT.
+        value: 2
+
+    BLE_CS_TX_POWER_DELTA:
+        description: >
+            Tx_Power_Delta requested of the peer, in signed dB.  0x80 means
+            the host has no recommendation.
+        value: 0x80
+
+    BLE_CS_PREFERRED_PEER_ANTENNA:
+        description: >
+            Bitmap of the peer-ordered antenna elements the peer should use
+            for the selected antenna configuration.
+        value: 0x01
+
+    BLE_CS_SNR_CONTROL_INITIATOR:
+        description: >
+            SNR Output Index applied to the initiator's CS_SYNC
+            transmissions, or 0xFF for no SNR control.
+        value: 0xFF
+
+    BLE_CS_SNR_CONTROL_REFLECTOR:
+        description: >
+            SNR Output Index applied to the reflector's CS_SYNC
+            transmissions, or 0xFF for no SNR control.
+        value: 0xFF
+
 syscfg.logs:
     BLE_HS_LOG:
         module: MYNEWT_VAL(BLE_HS_LOG_MOD)
