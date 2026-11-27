@@ -1121,12 +1121,27 @@ ble_ll_iso_big_hci_evt_complete(void)
     ble_ll_hci_event_send(hci_ev);
 }
 
+static bool
+ble_ll_iso_big_phy_supported(uint8_t phy)
+{
+    uint8_t valid_phys;
+
+    valid_phys = BLE_HCI_LE_PHY_1M_PREF_MASK;
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
+    valid_phys |= BLE_HCI_LE_PHY_2M_PREF_MASK;
+#endif
+#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
+    valid_phys |= BLE_HCI_LE_PHY_CODED_PREF_MASK;
+#endif
+
+    return (phy & ~valid_phys) == 0;
+}
+
 int
 ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
 {
     const struct ble_hci_le_create_big_cp *cmd = (void *)cmdbuf;
     struct big_params bp;
-    uint8_t valid_phys;
     int rc;
 
     if (len != sizeof(*cmd)) {
@@ -1144,15 +1159,7 @@ ble_ll_iso_big_hci_create(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
-    valid_phys = BLE_HCI_LE_PHY_1M_PREF_MASK;
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_2M_PHY)
-    valid_phys |= BLE_HCI_LE_PHY_2M_PREF_MASK;
-#endif
-#if MYNEWT_VAL(BLE_LL_CFG_FEAT_LE_CODED_PHY)
-    valid_phys |= BLE_HCI_LE_PHY_CODED_PREF_MASK;
-#endif
-
-    if (cmd->phy & ~valid_phys) {
+    if (!ble_ll_iso_big_phy_supported(cmd->phy)) {
         return BLE_ERR_UNSUPPORTED;
     }
 
@@ -1250,6 +1257,10 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
         return BLE_ERR_INV_HCI_CMD_PARMS;
     }
 
+    if (!ble_ll_iso_big_phy_supported(cmd->phy)) {
+        return BLE_ERR_UNSUPPORTED;
+    }
+
     bp.nse = cmd->nse;
     bp.bn = cmd->bn;
     bp.irc = cmd->irc;
@@ -1259,7 +1270,6 @@ ble_ll_iso_big_hci_create_test(const uint8_t *cmdbuf, uint8_t len)
     bp.max_transport_latency_ms = 0x0fa0; /* max_transport_latency for HCI LE Create BIG */
     bp.max_sdu = le16toh(cmd->max_sdu);
     bp.max_pdu = le16toh(cmd->max_pdu);
-    /* TODO verify phy */
     if (cmd->phy & BLE_HCI_LE_PHY_2M_PREF_MASK) {
         bp.phy = BLE_PHY_2M;
     } else if (cmd->phy & BLE_HCI_LE_PHY_1M_PREF_MASK) {
