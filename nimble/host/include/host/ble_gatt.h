@@ -201,6 +201,22 @@ struct ble_hs_cfg;
 
 /** @} */
 
+/**
+ * @defgroup ble_gatt_cli_sup_feat Client Supported Features Masks
+ * @{
+ */
+
+/** Client Supported Features: Robust Caching bit mask. */
+#define BLE_GATT_CLI_SUP_FEAT_ROBUST_CACHING_MASK       0x01
+
+/** Client Supported Features: Enhanced ATT bearer (EATT) bit mask. */
+#define BLE_GATT_CLI_SUP_FEAT_EATT_MASK                 0x02
+
+/** Client Supported Features: Multiple Handle Value Notifications bit mask. */
+#define BLE_GATT_CLI_SUP_FEAT_MULT_NTF_MASK             0x04
+
+/** @} */
+
 /*** @client. */
 /** Represents a GATT error. */
 struct ble_gatt_error {
