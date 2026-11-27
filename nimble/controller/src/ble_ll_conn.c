@@ -3742,13 +3742,14 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     }
 
     /*
-     * Do not apply peripheral latency for the next 2 connection events. The
-     * shortest request chain is a request at event N, the response at N+1
-     * and the central's next request at N+2. The peripheral may listen at
-     * any event (Core 6.3, Vol 6, Part B, 4.5.1). Data sent by the
-     * peripheral on its own does not set this, so it is still batched.
+     * Do not apply peripheral latency for the next connection events. With
+     * a value of 2, the shortest request chain is covered: a request at
+     * event N, the response at N+1 and the central's next request at N+2.
+     * The peripheral may listen at any event (Core 6.3, Vol 6, Part B,
+     * 4.5.1). Data sent by the peripheral on its own does not set this, so
+     * it is still batched.
      */
-    connsm->flags.periph_latency_hold = 2;
+    connsm->flags.periph_latency_hold = MYNEWT_VAL(BLE_LL_PERIPH_LATENCY_HOLD);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     connsm->has_nonempty_pdu = 1;
