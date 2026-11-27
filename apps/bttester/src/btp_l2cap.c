@@ -42,6 +42,24 @@
 #define TESTER_COC_MTU               MYNEWT_VAL(BTTESTER_L2CAP_COC_MTU)
 #define TESTER_COC_BUF_COUNT         (3 * MYNEWT_VAL(BLE_L2CAP_COC_MAX_NUM))
 
+static const uint8_t l2cap_events[] = {
+    BTP_L2CAP_EV_CONNECTED,
+    BTP_L2CAP_EV_DISCONNECTED,
+    BTP_L2CAP_EV_DATA_RECEIVED,
+    BTP_L2CAP_EV_RECONFIGURED,
+};
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    struct btp_l2cap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_L2CAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
 static os_membuf_t tester_sdu_coc_mem[
     OS_MEMPOOL_SIZE(TESTER_COC_BUF_COUNT, TESTER_COC_MTU)
 ];
@@ -733,6 +751,12 @@ static const struct btp_handler handlers[] = {
      .func = supported_commands,
      },
     {
+     .opcode = BTP_L2CAP_READ_SUPPORTED_EVENTS,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = supported_events,
+     },
+    {
      .opcode = BTP_L2CAP_CONNECT,
      .expect_len = sizeof(struct btp_l2cap_connect_cmd),
      .func = connect,
@@ -781,6 +805,8 @@ tester_init_l2cap(void)
 
     tester_register_command_handlers(BTP_SERVICE_ID_L2CAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_L2CAP, l2cap_events,
+                                     ARRAY_SIZE(l2cap_events));
 
     return BTP_STATUS_SUCCESS;
 }

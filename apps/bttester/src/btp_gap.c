@@ -34,6 +34,7 @@
 #include "../../../nimble/host/src/ble_sm_priv.h"
 
 #include "btp/btp.h"
+#include "btp/bttester.h"
 
 #include <errno.h>
 
@@ -83,6 +84,32 @@ static const struct ble_gap_conn_params dflt_conn_params = {
     .max_ce_len = 0x0300,
 };
 
+static const uint8_t gap_events[] = {
+    BTP_GAP_EV_NEW_SETTINGS,
+    BTP_GAP_EV_DEVICE_FOUND,
+    BTP_GAP_EV_DEVICE_CONNECTED,
+    BTP_GAP_EV_DEVICE_DISCONNECTED,
+    BTP_GAP_EV_PASSKEY_DISPLAY,
+    BTP_GAP_EV_PASSKEY_ENTRY_REQ,
+    BTP_GAP_EV_PASSKEY_CONFIRM_REQ,
+    BTP_GAP_EV_IDENTITY_RESOLVED,
+    BTP_GAP_EV_CONN_PARAM_UPDATE,
+    BTP_GAP_EV_SEC_LEVEL_CHANGED,
+    BTP_GAP_EV_BOND_LOST,
+    BTP_GAP_EV_SEC_PAIRING_FAILED,
+#if MYNEWT_VAL(BLE_PERIODIC_ADV)
+    GAP_EV_PERIODIC_SYNC_ESTABLISHED,
+    GAP_EV_PERIODIC_SYNC_LOST,
+    GAP_EV_PERIODIC_REPORT,
+#endif
+#if MYNEWT_VAL(BLE_PERIODIC_ADV_SYNC_TRANSFER)
+    GAP_EV_PERIODIC_TRANSFER_RECEIVED,
+#endif
+#if MYNEWT_VAL(BLE_CONN_SUBRATING)
+    GAP_EV_SUBRATE_CHANGE,
+#endif
+};
+
 static int
 gap_conn_find_by_addr(const ble_addr_t *dev_addr,
                       struct ble_gap_conn_desc *out_desc)
@@ -113,6 +140,17 @@ supported_commands(const void *cmd, uint16_t cmd_len,
     struct btp_gap_read_supported_commands_rp *rp = rsp;
 
     *rsp_len = tester_supported_commands(BTP_SERVICE_ID_GAP, rp->data);
+    *rsp_len += sizeof(*rp);
+
+    return BTP_STATUS_SUCCESS;
+}
+
+static uint8_t
+supported_events(const void *cmd, uint16_t cmd_len, void *rsp, uint16_t *rsp_len)
+{
+    struct btp_gap_read_supported_events_rp *rp = rsp;
+
+    *rsp_len = tester_supported_events(BTP_SERVICE_ID_GAP, rp->data);
     *rsp_len += sizeof(*rp);
 
     return BTP_STATUS_SUCCESS;
@@ -2216,6 +2254,12 @@ static const struct btp_handler handlers[] = {
      .func = supported_commands,
      },
     {
+     .opcode = BTP_GAP_READ_SUPPORTED_EVENTS,
+     .index = BTP_INDEX_NONE,
+     .expect_len = 0,
+     .func = supported_events,
+     },
+    {
      .opcode = BTP_GAP_READ_CONTROLLER_INDEX_LIST,
      .index = BTP_INDEX_NONE,
      .expect_len = 0,
@@ -2420,6 +2464,8 @@ tester_init_gap(void)
 
     tester_register_command_handlers(BTP_SERVICE_ID_GAP, handlers,
                                      ARRAY_SIZE(handlers));
+    tester_register_supported_events(BTP_SERVICE_ID_GAP, gap_events,
+                                     ARRAY_SIZE(gap_events));
 
     return BTP_STATUS_SUCCESS;
 }
