@@ -17,9 +17,10 @@
 # under the License.
 #
 
-# Posts problems found by mynewt-format check in Compliance check as review
-# comments. Runs from master with write token, as pull_request runs of fork
-# pull requests get read-only token. Pull request code is never checked out.
+# Posts problems found by mynewt-format and commit message checks in
+# Compliance check as PR comments. Runs from master with write token, as
+# pull_request runs of fork pull requests get read-only token. Pull request
+# code is never checked out.
 
 name: Coding style comments
 
@@ -40,3 +41,10 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - uses: apache/mynewt-core/.github/actions/mynewt-format-comments@master
+
+  commit-comment:
+    name: Comment commit message problems
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-slim
+    steps:
+      - uses: apache/mynewt-core/.github/actions/commit-check-comments@master
