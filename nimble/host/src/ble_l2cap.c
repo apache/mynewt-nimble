@@ -91,6 +91,11 @@ ble_l2cap_chan_release(struct ble_l2cap_chan *chan)
 {
     int rc;
 
+    if (chan->att_svr_rxom != NULL) {
+        os_mbuf_free_chain(chan->att_svr_rxom);
+        chan->att_svr_rxom = NULL;
+    }
+
 #if MYNEWT_VAL(BLE_HS_DEBUG)
     memset(chan, 0xff, sizeof *chan);
 #endif

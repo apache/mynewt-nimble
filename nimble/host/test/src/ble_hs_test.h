@@ -24,6 +24,7 @@
 
 TEST_SUITE_DECL(ble_att_clt_suite);
 TEST_SUITE_DECL(ble_att_svr_suite);
+TEST_SUITE_DECL(ble_att_svr_author_suite);
 TEST_SUITE_DECL(ble_gap_test_suite_adv);
 TEST_SUITE_DECL(ble_gap_test_suite_conn_cancel);
 TEST_SUITE_DECL(ble_gap_test_suite_conn_find);
