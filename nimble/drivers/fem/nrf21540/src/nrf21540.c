@@ -23,23 +23,34 @@
 #include <hal/hal_gpio.h>
 #include <controller/ble_fem.h>
 
+#ifdef MYNEWT_VAL_NRF21540_PIN_MODE
+/* MODE must be low in Power-down state (nRF21540 anomaly 10). */
+static uint8_t nrf21540_mode =
+    MYNEWT_VAL_CHOICE(NRF21540_TX_GAIN_PRESET, POUTB);
+#endif
+
 static void
 nrf21540_pdn_set(int state)
 {
-    int pin;
-
-    pin = MYNEWT_VAL(NRF21540_PIN_PDN);
-    hal_gpio_write(pin, state);
+#ifdef MYNEWT_VAL_NRF21540_PIN_MODE
+    if (state) {
+        hal_gpio_write(MYNEWT_VAL(NRF21540_PIN_PDN), 1);
+        hal_gpio_write(MYNEWT_VAL(NRF21540_PIN_MODE), nrf21540_mode);
+    } else {
+        hal_gpio_write(MYNEWT_VAL(NRF21540_PIN_MODE), 0);
+        hal_gpio_write(MYNEWT_VAL(NRF21540_PIN_PDN), 0);
+    }
+#else
+    hal_gpio_write(MYNEWT_VAL(NRF21540_PIN_PDN), state);
+#endif
 }
 
 int
 nrf21540_mode_set(uint8_t mode)
 {
 #ifdef MYNEWT_VAL_NRF21540_PIN_MODE
-    int pin;
-
-    pin = MYNEWT_VAL(NRF21540_PIN_MODE);
-    hal_gpio_init_out(pin, mode);
+    /* Applied to MODE pin next time PDN is set */
+    nrf21540_mode = mode;
 
     return 0;
 #else
@@ -134,10 +145,6 @@ nrf21540_init(void)
 #ifdef MYNEWT_VAL_NRF21540_PIN_MODE
     pin = MYNEWT_VAL(NRF21540_PIN_MODE);
     assert(pin >= 0);
-    if (MYNEWT_VAL_CHOICE(NRF21540_TX_GAIN_PRESET, POUTB)) {
-        hal_gpio_init_out(pin, 1);
-    } else {
-        hal_gpio_init_out(pin, 0);
-    }
+    hal_gpio_init_out(pin, 0);
 #endif
 }
