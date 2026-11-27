@@ -189,6 +189,7 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
 {
     struct msghdr msg;
     struct iovec iov[8];
+    int len;
     int i;
     struct os_mbuf *m;
     uint8_t ch;
@@ -209,12 +210,14 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
     }
     msg.msg_iovlen = i;
 
+    len = OS_MBUF_PKTLEN(om) + 1;
+
     STATS_INC(hci_sock_stats, omsg);
     STATS_INC(hci_sock_stats, oacl);
-    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
+    STATS_INCN(hci_sock_stats, obytes, len);
     i = sendmsg(ble_hci_sock_state.sock, &msg, 0);
     os_mbuf_free_chain(om);
-    if (i != OS_MBUF_PKTLEN(om) + 1) {
+    if (i != len) {
         if (i < 0) {
             dprintf(1, "sendmsg() failed : %d\n", errno);
         } else {
@@ -231,6 +234,7 @@ ble_hci_sock_iso_tx(struct os_mbuf *om)
 {
     struct msghdr msg;
     struct iovec iov[8];
+    int len;
     int i;
     struct os_mbuf *m;
     uint8_t ch;
@@ -251,12 +255,14 @@ ble_hci_sock_iso_tx(struct os_mbuf *om)
     }
     msg.msg_iovlen = i;
 
+    len = OS_MBUF_PKTLEN(om) + 1;
+
     STATS_INC(hci_sock_stats, omsg);
     STATS_INC(hci_sock_stats, oiso);
-    STATS_INCN(hci_sock_stats, obytes, OS_MBUF_PKTLEN(om) + 1);
+    STATS_INCN(hci_sock_stats, obytes, len);
     i = sendmsg(ble_hci_sock_state.sock, &msg, 0);
     os_mbuf_free_chain(om);
-    if (i != OS_MBUF_PKTLEN(om) + 1) {
+    if (i != len) {
         if (i < 0) {
             dprintf(1, "sendmsg() failed : %d\n", errno);
         } else {
@@ -341,6 +347,10 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
     }
 
     buf = (uint8_t *)malloc(len);
+    if (buf == NULL) {
+        os_mbuf_free_chain(om);
+        return BLE_ERR_MEM_CAPACITY;
+    }
 
     buf[0] = BLE_HCI_UART_H4_ACL;
 
@@ -360,7 +370,7 @@ ble_hci_sock_acl_tx(struct os_mbuf *om)
     free(buf);
 
     os_mbuf_free_chain(om);
-    if (i != OS_MBUF_PKTLEN(om) + 1) {
+    if (i != (int)len) {
         if (i < 0) {
             dprintf(1, "sendto() failed : %d\n", errno);
         } else {
@@ -397,10 +407,14 @@ ble_hci_sock_cmdevt_tx(uint8_t *hci_ev, uint8_t h4_type)
         assert(0);
     }
 
+    buf = (uint8_t *)malloc(len + 1);
+    if (buf == NULL) {
+        ble_transport_free(hci_ev);
+        return BLE_ERR_MEM_CAPACITY;
+    }
+
     STATS_INC(hci_sock_stats, omsg);
     STATS_INCN(hci_sock_stats, obytes, len + 1);
-
-    buf = (uint8_t *)malloc(len + 1);
 
     buf[0] = h4_type;
     memcpy(&buf[1], hci_ev, len);
