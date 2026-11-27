@@ -150,7 +150,7 @@ base_create(const struct bap_broadcast_source_setup_cmd *cmd)
     tester_base.broadcast_id = sampling_freq;
     tester_base.presentation_delay = get_le24(cmd->presentation_delay);
 
-    big_subgroup.bis_cnt = MYNEWT_VAL(BLE_ISO_MAX_BISES);
+    big_subgroup.bis_cnt = 1;
 
     /** LC3 */
     big_subgroup.codec_id.format = 0x06;
