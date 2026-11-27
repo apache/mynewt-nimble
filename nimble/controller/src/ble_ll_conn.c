@@ -2579,7 +2579,12 @@ ble_ll_conn_next_event(struct ble_ll_conn_sm *connsm)
                          !connsm->flags.conn_update_sched &&
                          !connsm->flags.phy_update_sched &&
                          !connsm->flags.chanmap_update_sched &&
-                         connsm->flags.pkt_rxd;
+                         connsm->flags.pkt_rxd &&
+                         !connsm->flags.periph_latency_hold;
+
+    if (connsm->flags.periph_latency_hold) {
+        connsm->flags.periph_latency_hold--;
+    }
 
     if (next_is_subrated) {
         next_event_cntr = base_event_cntr + subrate_factor;
@@ -3735,6 +3740,9 @@ ble_ll_conn_rx_data_pdu(struct os_mbuf *rxpdu, struct ble_mbuf_hdr *hdr)
     if ((llid == BLE_LL_LLID_DATA_FRAG) && (acl_len == 0)) {
         goto conn_rx_data_pdu_end;
     }
+
+    /* Listen for the central's follow-up requests */
+    connsm->flags.periph_latency_hold = MYNEWT_VAL(BLE_LL_PERIPH_LATENCY_HOLD);
 
 #if MYNEWT_VAL(BLE_LL_CFG_FEAT_LL_ENHANCED_CONN_UPDATE)
     connsm->has_nonempty_pdu = 1;

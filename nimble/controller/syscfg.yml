@@ -162,6 +162,16 @@ syscfg.defs:
             scheduled items will be at least this far apart
         value: '4'
 
+    BLE_LL_PERIPH_LATENCY_HOLD:
+        description: >
+            Number of connection events after receiving a non-empty data PDU
+            for which a peripheral does not apply peripheral latency. This
+            lets the peripheral follow request/response chains started by the
+            central. 0 disables this and keeps peripheral latency applied as
+            usual.
+        range: 0..3
+        value: 0
+
     BLE_LL_CONN_INIT_MIN_WIN_OFFSET:
         description: >
             This is the minimum number of "slots" for WindowOffset value used for
