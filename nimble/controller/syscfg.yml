@@ -573,6 +573,14 @@ syscfg.defs:
         value: 0
         experimental: 1
 
+    BLE_LL_ISO_BIG_PADV_GAP:
+        description: >
+            Additional gap (in microseconds) between end of BIG event and start
+            of event of periodic advertising attached to this BIG. Periodic
+            advertising event is always placed right after BIG event, this value
+            allows to increase the default gap.
+        value: 0
+
     BLE_LL_CHANNEL_SOUNDING:
         description: >
             Enable support for Channel Sounding feature.
