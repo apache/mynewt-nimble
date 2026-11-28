@@ -976,6 +976,7 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
 
     uint32_t padv_start_time, big_start_time;
     uint32_t sync_delay_ticks = ble_ll_tmr_u2t_up(big->sync_delay);
+    uint32_t padv_gap_ticks = ble_ll_tmr_u2t_up(MYNEWT_VAL(BLE_LL_ISO_BIG_PADV_GAP));
     int big_event_fixed;
 
     rc = ble_ll_adv_padv_event_start_get(big->advsm, &padv_start_time, NULL);
@@ -985,12 +986,12 @@ ble_ll_iso_big_create(uint8_t big_handle, uint8_t adv_handle, uint8_t num_bis,
         big_start_time = ble_ll_tmr_get();
         big_event_fixed = 0;
     } else {
-        /* Set 1st BIG event directly before periodic advertising event, this
-         * way it will not overlap it even if periodic advertising data changes.
-         * Make sure it's in the future.
+        /* Set 1st BIG event to end BLE_LL_ISO_BIG_PADV_GAP before periodic
+         * advertising event, this way it will not overlap it even if periodic
+         * advertising data changes. Make sure it's in the future.
          */
         big_start_time = padv_start_time - g_ble_ll_sched_offset_ticks -
-                         sync_delay_ticks - 1;
+                         sync_delay_ticks - padv_gap_ticks - 1;
         big_event_fixed = 1;
     }
 
