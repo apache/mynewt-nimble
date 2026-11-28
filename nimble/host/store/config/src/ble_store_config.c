@@ -47,6 +47,20 @@ struct ble_store_value_cccd
 
 int ble_store_config_num_cccds;
 
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+struct ble_store_value_bond_meta
+    ble_store_config_bond_metas[MYNEWT_VAL(BLE_STORE_MAX_BONDS)];
+int ble_store_config_num_bond_metas;
+uint16_t ble_store_config_bond_meta_count;
+
+static int
+ble_store_config_delete_bond_meta(const struct ble_store_key_bond_meta *key);
+static int
+ble_store_config_delete_bond_meta_by_peer(const ble_addr_t *peer_addr);
+static int
+ble_store_config_touch_bond_meta(const ble_addr_t *peer_addr);
+#endif
+
 /*****************************************************************************
  * $sec                                                                      *
  *****************************************************************************/
@@ -162,6 +176,11 @@ ble_store_config_write_our_sec(const struct ble_store_value_sec *value_sec)
         return rc;
     }
 
+    rc = ble_store_config_touch_bond_meta(&value_sec->peer_addr);
+    if (rc != 0) {
+        return rc;
+    }
+
     return 0;
 #else
     return BLE_HS_ENOENT;
@@ -225,6 +244,13 @@ ble_store_config_delete_our_sec(const struct ble_store_key_sec *key_sec)
                                      &ble_store_config_num_our_secs);
     if (rc != 0) {
         return rc;
+    }
+
+    if (!ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
+        rc = ble_store_config_delete_bond_meta_by_peer(&key_sec->peer_addr);
+        if (rc != 0 && rc != BLE_HS_ENOENT) {
+            return rc;
+        }
     }
 
     rc = ble_store_config_persist_our_secs();
@@ -318,6 +344,147 @@ ble_store_config_write_peer_sec(const struct ble_store_value_sec *value_sec)
     return BLE_HS_ENOENT;
 #endif
 }
+
+/*****************************************************************************
+ * $bond_meta                                                               *
+ *****************************************************************************/
+
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+static int
+ble_store_config_find_bond_meta(const struct ble_store_key_bond_meta *key_sec,
+                                const struct ble_store_value_bond_meta *values,
+                                int num_values)
+{
+    const struct ble_store_value_bond_meta *cur;
+    int i;
+
+    if (!ble_addr_cmp(&key_sec->peer_addr, BLE_ADDR_ANY)) {
+        if (key_sec->idx < num_values) {
+            return key_sec->idx;
+        }
+    } else if (key_sec->idx == 0) {
+        for (i = 0; i < num_values; i++) {
+            cur = &values[i];
+
+            if (!ble_addr_cmp(&cur->peer_addr, &key_sec->peer_addr)) {
+                return i;
+            }
+        }
+    }
+
+    return -1;
+}
+
+static int
+ble_store_config_delete_bond_meta_by_peer(const ble_addr_t *peer_addr)
+{
+    struct ble_store_key_bond_meta key;
+
+    memset(&key, 0, sizeof key);
+    key.peer_addr = *peer_addr;
+
+    return ble_store_config_delete_bond_meta(&key);
+}
+
+static int
+ble_store_config_delete_bond_meta(const struct ble_store_key_bond_meta *key)
+{
+    int idx;
+    int rc;
+
+    idx = ble_store_config_find_bond_meta(key, ble_store_config_bond_metas,
+                                          ble_store_config_num_bond_metas);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    rc = ble_store_config_delete_obj(ble_store_config_bond_metas,
+                                     sizeof *ble_store_config_bond_metas, idx,
+                                     &ble_store_config_num_bond_metas);
+    if (rc != 0) {
+        return rc;
+    }
+
+    rc = ble_store_config_persist_bond_metas();
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_store_config_read_bond_meta(const struct ble_store_key_bond_meta *key,
+                                struct ble_store_value_bond_meta *value)
+{
+    int idx;
+
+    idx = ble_store_config_find_bond_meta(key, ble_store_config_bond_metas,
+                                          ble_store_config_num_bond_metas);
+    if (idx == -1) {
+        return BLE_HS_ENOENT;
+    }
+
+    *value = ble_store_config_bond_metas[idx];
+    return 0;
+}
+
+static int
+ble_store_config_write_bond_meta(const struct ble_store_value_bond_meta *value)
+{
+    struct ble_store_key_bond_meta key;
+    int idx;
+    int rc;
+
+    ble_store_key_from_value_bond_meta(&key, value);
+    idx = ble_store_config_find_bond_meta(&key, ble_store_config_bond_metas,
+                                          ble_store_config_num_bond_metas);
+    if (idx == -1) {
+        if (ble_store_config_num_bond_metas >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_config_num_bond_metas;
+        ble_store_config_num_bond_metas++;
+    }
+
+    ble_store_config_bond_metas[idx] = *value;
+
+    rc = ble_store_config_persist_bond_metas();
+    if (rc != 0) {
+        return rc;
+    }
+
+    return 0;
+}
+
+static int
+ble_store_config_touch_bond_meta(const ble_addr_t *peer_addr)
+{
+    struct ble_store_value_bond_meta value;
+    struct ble_store_key_bond_meta key;
+    int idx;
+
+    value.peer_addr = *peer_addr;
+    value.bond_count = ++ble_store_config_bond_meta_count;
+
+    ble_store_key_from_value_bond_meta(&key, &value);
+    idx = ble_store_config_find_bond_meta(&key, ble_store_config_bond_metas,
+                                          ble_store_config_num_bond_metas);
+    if (idx == -1) {
+        if (ble_store_config_num_bond_metas >= MYNEWT_VAL(BLE_STORE_MAX_BONDS)) {
+            return BLE_HS_ESTORE_CAP;
+        }
+
+        idx = ble_store_config_num_bond_metas;
+        ble_store_config_num_bond_metas++;
+    }
+
+    ble_store_config_bond_metas[idx] = value;
+
+    return ble_store_config_persist_bond_metas();
+}
+#endif
 
 /*****************************************************************************
  * $cccd                                                                     *
@@ -484,6 +651,10 @@ ble_store_config_read(int obj_type, const union ble_store_key *key,
         rc = ble_store_config_read_cccd(&key->cccd, &value->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        rc = ble_store_config_read_bond_meta(&key->bond_meta, &value->bond_meta);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -513,6 +684,10 @@ ble_store_config_write(int obj_type, const union ble_store_value *val)
         rc = ble_store_config_write_cccd(&val->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        rc = ble_store_config_write_bond_meta(&val->bond_meta);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -536,6 +711,10 @@ ble_store_config_delete(int obj_type, const union ble_store_key *key)
         rc = ble_store_config_delete_cccd(&key->cccd);
         return rc;
 
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        rc = ble_store_config_delete_bond_meta(&key->bond_meta);
+        return rc;
+
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -555,6 +734,10 @@ ble_store_config_init(void)
     ble_store_config_num_our_secs = 0;
     ble_store_config_num_peer_secs = 0;
     ble_store_config_num_cccds = 0;
+#if MYNEWT_VAL(BLE_STORE_MAX_BONDS)
+    ble_store_config_num_bond_metas = 0;
+    ble_store_config_bond_meta_count = 0;
+#endif
 
     ble_store_config_conf_init();
 }

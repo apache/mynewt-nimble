@@ -1843,6 +1843,9 @@ ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_sm_test_store_key.cccd = key->cccd;
         break;
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        ble_sm_test_store_key.bond_meta = key->bond_meta;
+        break;
     default:
         return BLE_HS_ENOTSUP;
     }
@@ -1856,6 +1859,9 @@ ble_hs_test_util_store_read(int obj_type, const union ble_store_key *key,
         break;
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_sm_test_store_value.cccd = value->cccd;
+        break;
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        ble_sm_test_store_value.bond_meta = value->bond_meta;
         break;
     default:
         rc = BLE_HS_ENOTSUP;
@@ -1882,6 +1888,9 @@ ble_hs_test_util_store_write(int obj_type, const union ble_store_value *value)
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_sm_test_store_value.cccd = value->cccd;
         break;
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        ble_sm_test_store_value.bond_meta = value->bond_meta;
+        break;
     default:
         rc = BLE_HS_ENOTSUP;
         break;
@@ -1904,6 +1913,9 @@ ble_hs_test_util_store_delete(int obj_type, const union ble_store_key *key)
         break;
     case BLE_STORE_OBJ_TYPE_CCCD:
         ble_sm_test_store_key.cccd = key->cccd;
+        break;
+    case BLE_STORE_OBJ_TYPE_BOND_META:
+        ble_sm_test_store_key.bond_meta = key->bond_meta;
         break;
     default:
         return BLE_HS_ENOTSUP;
